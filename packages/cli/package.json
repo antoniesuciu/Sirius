@@ -1,0 +1,8 @@
+{
+  "name": "@sirius/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "sirius": "./src/main.ts" },
+  "dependencies": { "@sirius/contracts": "workspace:*" }
+}

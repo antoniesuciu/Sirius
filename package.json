@@ -1,0 +1,33 @@
+{
+  "name": "sirius",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "dev:core": "bun run --watch packages/core/src/main.ts",
+    "dev:ui": "bun run --cwd apps/desktop dev",
+    "build:ui": "bun run --cwd apps/desktop build",
+    "build:core": "bun build --compile --minify packages/core/src/main.ts --outfile dist/sirius-core",
+    "build:mcp": "bun build --compile --minify packages/mcp/src/main.ts --outfile dist/sirius-mcp",
+    "build:cli": "bun build --compile --minify packages/cli/src/main.ts --outfile dist/sirius",
+    "db:generate": "bun run --cwd packages/core db:generate",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "bench": "bun run bench/run.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.4",
+    "@playwright/test": "^1.64.1",
+    "@types/bun": "latest",
+    "svgo": "^4.1.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

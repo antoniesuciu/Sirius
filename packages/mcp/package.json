@@ -1,0 +1,12 @@
+{
+  "name": "@sirius/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "sirius-mcp": "./src/main.ts" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@sirius/contracts": "workspace:*",
+    "zod": "^4.6.7"
+  }
+}

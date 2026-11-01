@@ -1,0 +1,47 @@
+# Dependencies and build output
+node_modules/
+dist/
+target/
+*.tsbuildinfo
+.cache/
+.vite/
+
+# Test and bench artifacts
+test-results/
+playwright-report/
+bench/results/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Local data and secrets (the core keeps its data in ~/.local/share/sirius)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+.env
+.env.*
+token
+
+# Original handoff; docs/ holds the working copy
+/sirius-handoff/
+
+# Local agent and editor state
+/.claude
+/.idea
+/.vscode
+/.mcp.json
+
+# Sandbox mount points that appear in the repo root during agent sessions
+/.bash_profile
+/.bashrc
+/.gitconfig
+/.gitmodules
+/.profile
+/.ripgreprc
+/.zprofile
+/.zshrc
