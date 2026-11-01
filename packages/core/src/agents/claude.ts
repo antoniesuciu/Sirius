@@ -1,12 +1,13 @@
 /** `claude -p` (ADR-5). Flags checked against Claude Code 2.1.316, see docs/verified.md. */
 
-import { probe, spawnLines } from './spawn.ts';
+import { commandExists, probe, spawnLines } from './spawn.ts';
 import {
   type AdapterOptions,
   type AgentAdapter,
   type AgentStreamEvent,
   type AgentTurn,
   calmError,
+  TOOLS_UNAVAILABLE,
 } from './types.ts';
 
 const TOOL_PREFIX = 'mcp__sirius__';
@@ -52,6 +53,7 @@ interface StreamLine {
     content_block?: { type?: string; name?: string };
   };
   rate_limit_info?: { status?: string };
+  mcp_servers?: Array<{ name?: string; status?: string }>;
 }
 
 /** Maps one stream-json line to at most one event. Unknown lines are ignored. */
@@ -61,6 +63,11 @@ export function parseClaudeLine(line: string): AgentStreamEvent | null {
     data = JSON.parse(line) as StreamLine;
   } catch {
     return null;
+  }
+  // Without its tools a model will often write a tool call out as text, so stop right here.
+  if (data.type === 'system' && data.subtype === 'init') {
+    const sirius = data.mcp_servers?.find((server) => server.name === 'sirius');
+    return sirius?.status === 'failed' ? { type: 'error', message: TOOLS_UNAVAILABLE } : null;
   }
   if (data.type === 'stream_event') {
     const { event } = data;
@@ -87,15 +94,19 @@ export function createClaudeAdapter(options: AdapterOptions): AgentAdapter {
     id: 'claude',
 
     async available() {
+      if (!commandExists(options.mcp('claude').command)) {
+        return { ok: false, reason: calmError('claude', TOOLS_UNAVAILABLE) };
+      }
       const { ok, output } = await probe(options.bin, ['auth', 'status'], options.cwd);
       if (ok && /"loggedIn":\s*true/.test(output)) return { ok: true };
       return { ok: false, reason: calmError('claude', output || 'not logged in') };
     },
 
     async *run(turn) {
+      const stop = new AbortController();
       const { lines, finished } = spawnLines(options.bin, claudeArgs(turn, options), {
         cwd: options.cwd,
-        signal: turn.signal,
+        signal: AbortSignal.any([turn.signal, stop.signal]),
       });
       let ended = false;
       for await (const line of lines) {
@@ -103,6 +114,10 @@ export function createClaudeAdapter(options: AdapterOptions): AgentAdapter {
         if (!event) continue;
         ended ||= event.type === 'done' || event.type === 'error';
         yield event;
+        if (event.type === 'error') {
+          stop.abort(); // Nothing after a failure is worth reading, or paying for.
+          return;
+        }
       }
       const { code, stderr, spawnError } = await finished;
       if (!ended && !turn.signal.aborted) {

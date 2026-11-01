@@ -12,13 +12,14 @@
  * bench/agents.ts proves that against a canary file.
  */
 
-import { probe, spawnLines } from './spawn.ts';
+import { commandExists, probe, spawnLines } from './spawn.ts';
 import {
   type AdapterOptions,
   type AgentAdapter,
   type AgentStreamEvent,
   type AgentTurn,
   calmError,
+  TOOLS_UNAVAILABLE,
 } from './types.ts';
 
 const DISABLED_FEATURES = [
@@ -124,6 +125,9 @@ export function createCodexAdapter(options: AdapterOptions): AgentAdapter {
     id: 'codex',
 
     async available() {
+      if (!commandExists(options.mcp('codex').command)) {
+        return { ok: false, reason: calmError('codex', TOOLS_UNAVAILABLE) };
+      }
       const { ok, output } = await probe(options.bin, ['login', 'status'], options.cwd);
       if (ok) return { ok: true };
       return { ok: false, reason: calmError('codex', output || 'not logged in') };

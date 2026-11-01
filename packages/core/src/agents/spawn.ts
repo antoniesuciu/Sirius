@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import { accessSync, constants } from 'node:fs';
+import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 
 export interface SpawnedLines {
@@ -45,6 +47,21 @@ export function spawnLines(
   );
 
   return { lines, finished };
+}
+
+function isExecutable(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether a command would start: a path as given, or a bare name found on PATH. */
+export function commandExists(command: string): boolean {
+  if (command.includes('/')) return isExecutable(command);
+  return (process.env.PATH ?? '').split(':').some((dir) => isExecutable(join(dir, command)));
 }
 
 /** Runs a short command, returning whether it succeeded and what it printed. */

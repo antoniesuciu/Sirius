@@ -36,6 +36,9 @@ export interface AdapterOptions {
   mcp: (agent: AgentId) => McpCommand;
 }
 
+/** The sirius MCP server did not start, so the agent would be working blind. */
+export const TOOLS_UNAVAILABLE = 'sirius tools unavailable';
+
 const LOGIN_PATTERN = /log ?in|logged (out|in)|unauthori[sz]ed|authenticat|invalid api key|401/i;
 const QUOTA_PATTERN = /usage limit|rate limit|quota|limit reached|credit|too many requests|429/i;
 
@@ -43,6 +46,9 @@ const QUOTA_PATTERN = /usage limit|rate limit|quota|limit reached|credit|too man
 export function calmError(agent: AgentId, raw: string): string {
   const name = agent === 'claude' ? 'Claude' : 'Codex';
   const login = agent === 'claude' ? 'claude login' : 'codex login';
+  if (raw === TOOLS_UNAVAILABLE) {
+    return "My tools aren't connected, so nothing changed. Running sirius doctor will show why.";
+  }
   if (/ENOENT|command not found|no such file/i.test(raw)) {
     return `${name} isn't installed here yet. Everything else still works.`;
   }

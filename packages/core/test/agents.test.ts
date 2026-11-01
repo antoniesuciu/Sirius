@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { claudeArgs, createClaudeAdapter, parseClaudeLine } from '../src/agents/claude.ts';
 import { codexArgs, createCodexAdapter, parseCodexLine } from '../src/agents/codex.ts';
-import { type AdapterOptions, calmError } from '../src/agents/types.ts';
+import { type AdapterOptions, calmError, TOOLS_UNAVAILABLE } from '../src/agents/types.ts';
 
 const fixture = (name: string) =>
   readFileSync(join(import.meta.dir, 'fixtures', name), 'utf8')
@@ -16,7 +16,7 @@ const options: AdapterOptions = {
   cwd: tmpdir(),
   systemPrompt: 'Be calm. "Always"',
   mcp: (agent) => ({
-    command: 'sirius-mcp',
+    command: '/bin/true',
     args: ['--agent', agent],
     env: { SIRIUS_VIA: 'chat' },
   }),
@@ -77,6 +77,50 @@ describe('claude adapter', () => {
       rate_limit_info: { status: 'allowed' },
     });
     expect(parseClaudeLine(allowed)).toBeNull();
+  });
+
+  test('a failed sirius server is an error, a connected one is not', () => {
+    const init = (status: string) =>
+      JSON.stringify({
+        type: 'system',
+        subtype: 'init',
+        mcp_servers: [{ name: 'sirius', status, source: 'dynamic' }],
+      });
+    expect(parseClaudeLine(init('failed'))).toEqual({ type: 'error', message: TOOLS_UNAVAILABLE });
+    expect(parseClaudeLine(init('connected'))).toBeNull();
+  });
+
+  test('stops reading after the tools fail, so nothing the model writes gets through', async () => {
+    const cli = fakeCli([
+      JSON.stringify({
+        type: 'system',
+        subtype: 'init',
+        mcp_servers: [{ name: 'sirius', status: 'failed' }],
+      }),
+      JSON.stringify({
+        type: 'stream_event',
+        event: {
+          type: 'content_block_delta',
+          delta: { type: 'text_delta', text: '<tool_call>{}' },
+        },
+      }),
+    ]);
+    const adapter = createClaudeAdapter({ ...options, bin: cli.bin });
+    expect(await collect(adapter.run(turn))).toEqual([
+      { type: 'error', message: TOOLS_UNAVAILABLE },
+    ]);
+  });
+
+  test('reports unavailable when the MCP server cannot start', async () => {
+    const cli = fakeCli(['{"loggedIn": true}']);
+    const missing = {
+      ...options,
+      bin: cli.bin,
+      mcp: () => ({ ...options.mcp('claude'), command: '/nope' }),
+    };
+    const result = await createClaudeAdapter(missing).available();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain('sirius doctor');
   });
 
   test('ignores junk rather than failing the turn', () => {

@@ -129,6 +129,45 @@ describe('when things go wrong (F22)', () => {
     ]);
   });
 
+  test('tool markup written as text is never shown or stored', async () => {
+    const markup =
+      '<tool_call>{"name": "add_goal", "arguments": {"title": "Read twelve books"}}</tool_call>';
+    const { h, turn } = setup([{ type: 'text', delta: markup }, { type: 'done' }]);
+    await turn('add a goal');
+    const streamed = h.events.flatMap((e) =>
+      e.type === 'chat' && e.kind === 'text' ? [e.delta] : [],
+    );
+    expect(streamed).toEqual([]);
+    expect(texts(h).at(-1)).toEqual([
+      'assistant',
+      "My tools aren't connected, so nothing changed. Running sirius doctor will show why.",
+    ]);
+    expect(h.run('list_goals', {})).toEqual([]);
+  });
+
+  test('an unavailable agent says why, without spending a turn', async () => {
+    const claude = fakeAgent('claude');
+    claude.adapter.available = async () => ({ ok: false, reason: 'Claude needs you to log in.' });
+    const h = harness(NOON_ISH, { claude: claude.adapter, codex: fakeAgent('codex').adapter });
+    await h.core.chat.refreshAvailability();
+    h.run('send_chat', { text: 'hi' });
+    await Bun.sleep(10);
+    expect(texts(h).at(-1)).toEqual(['assistant', 'Claude needs you to log in.']);
+    expect(claude.prompts).toEqual([]);
+  });
+
+  test('once the agent is fixed, the next message just works', async () => {
+    const claude = fakeAgent('claude', [[{ type: 'text', delta: 'Hello.' }, { type: 'done' }]]);
+    let ready = false;
+    claude.adapter.available = async () => ({ ok: ready, reason: 'not yet' });
+    const h = harness(NOON_ISH, { claude: claude.adapter, codex: fakeAgent('codex').adapter });
+    await h.core.chat.refreshAvailability();
+    ready = true;
+    h.run('send_chat', { text: 'hi' });
+    await Bun.sleep(20);
+    expect(texts(h).at(-1)).toEqual(['assistant', 'Hello.']);
+  });
+
   test('an adapter that throws is contained', async () => {
     const claude = fakeAgent('claude');
     claude.adapter.run = () => {

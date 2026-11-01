@@ -11,7 +11,7 @@ import {
 } from '@sirius/contracts';
 import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import type { AgentAdapter } from '../agents/types.ts';
-import { calmError } from '../agents/types.ts';
+import { calmError, TOOLS_UNAVAILABLE } from '../agents/types.ts';
 import type { EventBus } from '../bus.ts';
 import { conversations, messages } from '../db/schema.ts';
 import { conflict } from '../errors.ts';
@@ -24,6 +24,8 @@ export const MODELS = 'agent.models';
 
 const TURN_TIMEOUT_MS = 60_000;
 const AVAILABILITY_TTL_MS = 5 * 60 * 1000;
+/** A model with no working tools can write a call out as text. It must not reach the chat. */
+const TOOL_MARKUP = /<\/?(tool_call|function_calls|invoke)\b/;
 const SPOKEN_SUFFIX =
   '\n\n(This came through voice. Answer in one or two short sentences that read well aloud.)';
 
@@ -153,16 +155,28 @@ export class Chat {
     let sessionId: string | undefined;
     const tools: string[] = [];
 
+    // Re-probe only when already known bad, so fixing the problem works on the next try.
+    if (this.availabilityCache.get(agent)?.ok === false) await this.refreshAvailability();
+    const blocked = this.availabilityCache.get(agent);
+
     try {
-      const stream = this.adapters[agent].run({
-        prompt,
-        model: conversation.model,
-        signal,
-        ...(conversation.cli_session_id ? { sessionId: conversation.cli_session_id } : {}),
-      });
+      const stream =
+        blocked?.ok === false
+          ? (async function* () {})()
+          : this.adapters[agent].run({
+              prompt,
+              model: conversation.model,
+              signal,
+              ...(conversation.cli_session_id ? { sessionId: conversation.cli_session_id } : {}),
+            });
       for await (const event of stream) {
         if (event.type === 'text') {
           reply += event.delta;
+          if (TOOL_MARKUP.test(reply)) {
+            failure = TOOLS_UNAVAILABLE;
+            controller.abort();
+            break;
+          }
           this.bus.publish({ type: 'chat', kind: 'text', turn_id: turnId, delta: event.delta });
           this.observer?.text(turnId, event.delta);
         } else if (event.type === 'tool') {
@@ -180,7 +194,12 @@ export class Chat {
     if (signal.aborted && !controller.signal.aborted) failure = 'timed out';
     // The user gets a calm sentence; the journal gets the real reason.
     if (failure !== null) console.warn(`${agent} turn failed: ${failure}`);
-    const calm = failure === null ? null : failureSentence(agent, failure);
+    const calm =
+      blocked?.ok === false
+        ? (blocked.reason ?? calmError(agent, 'unavailable'))
+        : failure === null
+          ? null
+          : failureSentence(agent, failure);
 
     this.active = null;
     this.store.write('system', (tx) => {

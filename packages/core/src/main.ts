@@ -1,6 +1,6 @@
 /** The `sirius-core` process. */
-import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { AgentId } from '@sirius/contracts';
 import systemPrompt from '../prompts/sirius.md' with { type: 'text' };
 import { createClaudeAdapter } from './agents/claude.ts';
