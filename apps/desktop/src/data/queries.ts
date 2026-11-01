@@ -38,6 +38,7 @@ export const useAgents = () => useOpQuery('get_agents', {});
 export const useConversation = () => useOpQuery('get_conversation', {});
 export const useAgentEvents = () => useOpQuery('list_agent_events', {});
 export const useVoiceState = () => useOpQuery('get_voice_state', {});
+export const useSettings = () => useOpQuery('get_settings', {});
 
 /** Which cached reads each entity feeds. */
 const INVALIDATES: Record<EntityName, OpName[]> = {
@@ -53,7 +54,7 @@ const INVALIDATES: Record<EntityName, OpName[]> = {
   conversations: ['get_conversation', 'get_agents'],
   messages: ['get_conversation'],
   voice_turns: [],
-  settings: ['get_agents'],
+  settings: ['get_agents', 'get_settings'],
 };
 
 export function invalidationsFor(event: SiriusEvent): OpName[] {

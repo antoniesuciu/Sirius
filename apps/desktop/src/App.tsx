@@ -36,6 +36,7 @@ import {
   useProposals,
   useReminders,
   useSetQuiet,
+  useSettings,
   useToday,
   useToggleTask,
   useVoiceState,
@@ -73,6 +74,7 @@ export function App() {
   const conversation = useConversation().data;
   const agentEvents = useAgentEvents().data ?? [];
   const voice = useVoiceState().data;
+  const settings = useSettings().data;
 
   const addTask = useAddTask();
   const toggleTask = useToggleTask();
@@ -179,7 +181,7 @@ export function App() {
 
   return (
     <div className={`app ${hidden ? 'paused' : ''}`}>
-      <Leaves />
+      {settings?.['ui.leaves'] !== false && <Leaves />}
       <Header
         greeting={today ? greeting(OWNER, hour, openPriorities) : null}
         suggestions={suggestions}

@@ -14,7 +14,14 @@ const SAMPLE_MS = 20_000;
 const CLOCK_TICKS = 100;
 
 const healthUrl = `http://127.0.0.1:${PORT}/v1/health`;
-if (await fetch(healthUrl).then(() => true, () => false)) {
+// Closed after each use, or our own keep-alive socket looks like the webview connecting.
+const noKeepAlive = { headers: { connection: 'close' } };
+if (
+  await fetch(healthUrl, noKeepAlive).then(
+    () => true,
+    () => false,
+  )
+) {
   console.error(`Something is already on port ${PORT}. Stop it first.`);
   process.exit(1);
 }
@@ -23,13 +30,34 @@ const dataDir = mkdtempSync(join(tmpdir(), 'sirius-desktop-'));
 const env = { ...process.env, SIRIUS_DATA_DIR: dataDir, SIRIUS_PORT: String(PORT) };
 
 await Bun.$`bun build --compile --minify packages/core/src/main.ts --outfile dist/sirius-core`.quiet();
+await Bun.$`bun build --compile --minify packages/mcp/src/main.ts --outfile dist/sirius-mcp`.quiet();
 const core = Bun.spawn(['dist/sirius-core'], {
   env: { ...env, BUN_OPTIONS: '--smol', SIRIUS_SEED: 'demo' },
   stdout: 'ignore',
 });
 for (let i = 0; i < 100; i += 1) {
-  if (await fetch(healthUrl).then((r) => r.ok, () => false)) break;
+  if (
+    await fetch(healthUrl, noKeepAlive).then(
+      (r) => r.ok,
+      () => false,
+    )
+  )
+    break;
   await Bun.sleep(30);
+}
+await Bun.sleep(300); // Let the closed sockets clear before watching for the webview.
+const token = readFileSync(join(dataDir, 'token'), 'utf8').trim();
+if (process.env.BENCH_NO_LEAVES) {
+  await fetch(`http://127.0.0.1:${PORT}/v1/settings/ui.leaves`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+      connection: 'close',
+    },
+    body: JSON.stringify({ value: false }),
+  });
+  await Bun.sleep(300);
 }
 
 const start = performance.now();
@@ -105,12 +133,21 @@ await Bun.sleep(5000); // Let the entrance animations finish.
 const before = processTree(app.pid).map((pid) => [pid, cpuTicks(pid)] as const);
 await Bun.sleep(SAMPLE_MS);
 const elapsedTicks = (SAMPLE_MS / 1000) * CLOCK_TICKS;
-const usedTicks = before.reduce((sum, [pid, ticks]) => sum + (cpuTicks(pid) - ticks), 0);
-console.log(`idle CPU, window visible: ${((usedTicks / elapsedTicks) * 100).toFixed(1)}% of one core (target < 1%)`);
+const percent = (ticks: number) => ((ticks / elapsedTicks) * 100).toFixed(1);
+let usedTicks = 0;
+for (const [pid, ticks] of before) {
+  const used = cpuTicks(pid) - ticks;
+  usedTicks += used;
+  const name = readFileSync(`/proc/${pid}/comm`, 'utf8').trim();
+  console.log(`  ${name}: ${percent(used)}% CPU, ${pssMb(pid).toFixed(0)} MB`);
+}
+console.log(`idle CPU, window visible: ${percent(usedTicks)}% of one core (target < 1%)`);
 
 const tree = processTree(app.pid);
 const total = tree.reduce((sum, pid) => sum + pssMb(pid), 0);
-console.log(`memory, process tree (PSS): ${total.toFixed(0)} MB across ${tree.length} processes (target < 200 MB)`);
+console.log(
+  `memory, process tree (PSS): ${total.toFixed(0)} MB across ${tree.length} processes (target < 200 MB)`,
+);
 
 app.kill();
 core.kill();

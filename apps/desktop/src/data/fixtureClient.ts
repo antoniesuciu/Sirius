@@ -266,6 +266,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       active_turn_id: null,
     }),
     get_voice_state: () => ({ state: 'idle', transcript: null, mic_open: false, level: null }),
+    get_settings: () => ({}),
     new_conversation: () => {
       state.messages = [];
       return { conversation: null, messages: [], active_turn_id: null };
