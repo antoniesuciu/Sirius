@@ -1,4 +1,6 @@
 /** `bun run dev`: the core and the Vite dev server together. Ctrl-C stops both. */
+export {};
+
 const procs = [
   Bun.spawn(['bun', 'run', '--watch', 'packages/core/src/main.ts'], {
     stdio: ['ignore', 'inherit', 'inherit'],
