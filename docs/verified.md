@@ -21,5 +21,28 @@ re-check after upgrading a CLI.
 default reasoning level, so "Light" is read as that model at low effort. Adding or changing
 models is one line in `packages/contracts/src/models.ts`.
 
+Measured against the real CLIs with `bench/agents.ts`, 2026-11-01:
+
+| | First text | Whole turn with one tool call |
+|---|---|---|
+| Claude Haiku 5.5 | 2.5 s | 3.5 s |
+| Codex gpt-6.1-sol, low effort | 4.0 s | 9.0 s |
+
+Both completed add, proposal and roadmap flows, and neither could read a canary file in the
+agent working directory.
+
+Things found the hard way:
+
+- `claude -p` waits 3 s for stdin when given a pipe, so spawn it with `/dev/null`.
+- `--bare` looks ideal but ignores subscription auth. Use `--setting-sources ""` instead.
+  `apiKeySource: none` in the init event confirms the turn is on the subscription.
+- `codex exec resume` has no `-s` or `-C`, so set `sandbox_mode` with `-c` and use the process cwd.
+- `--ephemeral` disables resume, so it cannot be used for chat.
+- Codex returns whole messages, not deltas. The UI's smoothing handles both.
+- The Codex launcher is `#!/usr/bin/env node`. Inside `bun run`, `node` is really Bun and the
+  launcher's `process.execve` silently exits 0 with no output.
+- Under systemd the core does not inherit the login PATH, and `codex` lives under nvm, so
+  the installer records the real paths in `~/.config/sirius/env`.
+
 Not yet verified: the licence attribution text for the avatar (spec section 13, item 8), the
 WebKitGTK DMA-BUF behaviour on the LOQ, and everything under voice.

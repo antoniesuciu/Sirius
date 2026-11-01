@@ -17,3 +17,19 @@
   single edits (ADR 0002).
 - Scheduler for 04:00 rollover, reminders, proposal expiry and daily backups.
 - The UI now talks to the core, with optimistic updates that roll back on failure.
+
+## M2: desktop shell, partly (2026-11-01)
+
+- Tauri 2 shell with tray, single instance and release-only autostart. `.deb` and AppImage build.
+- `sirius-core.service` for systemd. Fresh-login behaviour and the section 4.1 budgets on the
+  real desktop session are not measured yet.
+
+## M3: MCP (2026-11-01)
+
+- `sirius-mcp`, a stdio adapter whose tools come from the op registry.
+
+## M4: Sirius chat (2026-11-01)
+
+- Claude and Codex adapters, streaming, resumed sessions, agent and model selection, calm errors.
+- `bench/agents.ts` runs both real CLIs through add, proposal and roadmap flows and proves
+  neither can read a canary file (ADR 0003).
