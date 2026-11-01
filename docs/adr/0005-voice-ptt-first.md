@@ -11,3 +11,7 @@ closed unless the user opened it, which simplifies F33: no always-on capture in 
 
 The `WakeWord` protocol arrives with M7, so
 nothing for it is built now. F26 stays in the spec, marked deferred.
+
+Audio goes through `pw-record` and `pw-play` rather than PortAudio, as ADR-10 allows. They need
+no system package, and the mic is a process that only exists during a session, which makes F33
+easy to check: no process, no capture.

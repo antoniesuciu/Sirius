@@ -5,6 +5,7 @@
 #   scripts/install.sh --with-mcp    also register sirius-mcp in Claude Code and Codex
 #   scripts/install.sh --with-hooks  also merge agent hooks (backs up the originals first)
 #   scripts/install.sh --with-desktop  also build the .deb and print the install command
+#   scripts/install.sh --with-voice  also set up push-to-talk voice (downloads about 3 GB)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -12,12 +13,13 @@ BIN="$HOME/.local/bin"
 CONFIG="$HOME/.config/sirius"
 UNITS="$HOME/.config/systemd/user"
 
-with_mcp=false with_hooks=false with_desktop=false
+with_mcp=false with_hooks=false with_desktop=false with_voice=false
 for arg in "$@"; do
   case "$arg" in
     --with-mcp) with_mcp=true ;;
     --with-hooks) with_hooks=true ;;
     --with-desktop) with_desktop=true ;;
+    --with-voice) with_voice=true ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -67,6 +69,49 @@ if $with_mcp; then
 fi
 
 $with_hooks && "$BIN/sirius" setup-hooks --apply
+
+if $with_voice; then
+  DATA="$HOME/.local/share/sirius"
+  VENV="$DATA/voice-venv"
+  groups=()
+  # Whisper is 10 times faster on the GPU. Its CUDA libraries stay inside the venv.
+  if nvidia-smi -L >/dev/null 2>&1; then groups=(--group gpu); fi
+  UV_PROJECT_ENVIRONMENT="$VENV" uv sync --project services/voice --no-dev --no-editable "${groups[@]}"
+
+  mkdir -p "$DATA/voices"
+  "$VENV/bin/python" -m piper.download_voices en_US-lessac-medium ro_RO-mihai-medium \
+    --download-dir "$DATA/voices"
+  HF_HOME="$DATA/models" "$VENV/bin/python" -c \
+    "from faster_whisper.utils import download_model; download_model('small')"
+
+  : > "$CONFIG/voice-env"
+  site="$("$VENV/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
+  if [ -d "$site/nvidia/cublas/lib" ]; then
+    echo "LD_LIBRARY_PATH=$site/nvidia/cublas/lib:$site/nvidia/cudnn/lib" >> "$CONFIG/voice-env"
+  fi
+
+  install -m 644 infra/systemd/sirius-voice.service "$UNITS/"
+  systemctl --user daemon-reload
+  systemctl --user enable sirius-voice
+  systemctl --user restart sirius-voice
+
+  # Wayland does not allow app-level global hotkeys, so the shortcut lives in GNOME (F27).
+  if command -v gsettings >/dev/null; then
+    schema=org.gnome.settings-daemon.plugins.media-keys
+    entry=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/sirius/
+    current="$(gsettings get "$schema" custom-keybindings)"
+    case "$current" in
+      *"$entry"*) ;;
+      "@as []") gsettings set "$schema" custom-keybindings "['$entry']" ;;
+      *) gsettings set "$schema" custom-keybindings "${current%]}, '$entry']" ;;
+    esac
+    binding="$schema.custom-keybinding:$entry"
+    gsettings set "$binding" name 'Sirius push-to-talk'
+    gsettings set "$binding" command "$BIN/sirius voice ptt"
+    gsettings set "$binding" binding '<Control><Alt>space'
+    echo "Push-to-talk shortcut: Ctrl+Alt+Space (change it in GNOME Settings, Keyboard)."
+  fi
+fi
 
 if $with_desktop; then
   (cd apps/desktop && bunx tauri build --bundles deb)

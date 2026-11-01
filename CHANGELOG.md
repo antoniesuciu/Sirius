@@ -43,3 +43,13 @@
 - `turn_complete` notifies without leaving a toast and clears an earlier "waiting" event for that
   project. Codex's `notify` only ever sends this type, so it has no "needs input" signal.
 - `scripts/install.sh`, which also records where the agent CLIs live for systemd.
+
+## M6: push-to-talk voice (2026-11-01)
+
+- `sirius-voice`: push-to-talk through the mic button or `sirius voice ptt`, Silero endpointing,
+  Whisper with English and Romanian detection, Piper replies spoken sentence by sentence, barge-in.
+- A fast-path grammar in both languages answers common commands without an AI turn. Proposals can
+  be confirmed aloud within 15 seconds, except deletes.
+- The wake word moved to M7 (ADR 0005).
+- The mic is a `pw-record` process that only exists during a session. Audio stays in memory, and
+  onnxruntime's telemetry is off before it can initialise.

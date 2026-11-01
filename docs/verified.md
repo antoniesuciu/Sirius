@@ -56,5 +56,29 @@ Desktop app on the LOQ, GNOME 46 on Wayland, measured with `bench/desktop.ts`:
 
 The window renders on this machine with the defaults, so the NVIDIA workaround is not needed.
 
-Not yet verified: the licence attribution text for the avatar (spec section 13, item 8), and
-everything under voice.
+Voice on the LOQ, measured with `python -m sirius_voice.selftest` on Piper's synthetic speech:
+
+| | Whisper `small` |
+|---|---|
+| GPU (RTX 4050, float16) | about 0.18 s per utterance |
+| CPU (8 threads, int8) | about 1.5 s per utterance |
+
+Service memory: 98 MB with the mic closed, about 970 MB with models loaded. Back to 98 MB after
+10 quiet minutes, by restarting, because loaded CUDA libraries cannot be unloaded.
+
+Things found the hard way:
+
+- The `silero-vad` package needs torch. faster-whisper ships the same model as ONNX.
+- `openwakeword` depends on `tflite-runtime`, which has no Python 3.12 wheels. This matters for M7.
+- onnxruntime 1.31 reports to `mobile.events.data.microsoft.com` by default on Linux.
+  `ORT_DISABLE_TELEMETRY=1` must be set before it initialises;
+  `disable_telemetry_events()` alone does not stop it.
+- faster-whisper re-validates its model online unless `HF_HUB_OFFLINE=1` is set.
+- CUDA works from pip packages in the venv (2.2 GB) plus `LD_LIBRARY_PATH`, with no system install.
+- Detection across 99 languages fails on short audio, so only `en` and `ro` compete, and when
+  detection is unclear both are transcribed and the more confident one wins.
+- PortAudio is not installed here. `pw-record` and `pw-play` need nothing extra.
+
+Not verified with a real human voice yet: accuracy, and the 1.5 s end-to-end budget.
+
+Not yet verified: the licence attribution text for the avatar (spec section 13, item 8).
