@@ -20,10 +20,16 @@ mkdirSync(config.dataDir, { recursive: true });
 const agentCwd = join(config.dataDir, 'agent-cwd');
 mkdirSync(agentCwd, { recursive: true });
 
+/** Installed side by side, so this works whatever PATH the service was started with. */
+function defaultMcpCommand(): string {
+  const sibling = join(dirname(process.execPath), 'sirius-mcp');
+  return existsSync(sibling) ? sibling : 'sirius-mcp';
+}
+
 // SIRIUS_MCP_COMMAND lets development point at the TypeScript source.
-const [mcpBin = 'sirius-mcp', ...mcpArgs] = (process.env.SIRIUS_MCP_COMMAND ?? 'sirius-mcp').split(
-  ' ',
-);
+const [mcpBin = 'sirius-mcp', ...mcpArgs] = (
+  process.env.SIRIUS_MCP_COMMAND ?? defaultMcpCommand()
+).split(' ');
 const adapterBase: Omit<AdapterOptions, 'bin'> = {
   cwd: agentCwd,
   systemPrompt,

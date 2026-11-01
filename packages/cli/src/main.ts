@@ -2,7 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   AgentEventKind,
@@ -122,7 +122,8 @@ async function doctor(): Promise<void> {
   line(commandWorks('codex', ['--version']), 'codex CLI');
   line(commandWorks('notify-send', ['--version']), 'notify-send');
   line(
-    commandWorks('sirius-mcp', ['--help']) || existsSync(join(homedir(), '.local/bin/sirius-mcp')),
+    existsSync(join(dirname(process.execPath), 'sirius-mcp')) ||
+      existsSync(join(homedir(), '.local/bin/sirius-mcp')),
     'sirius-mcp',
   );
   if (healthy) {
