@@ -33,3 +33,13 @@
 - Claude and Codex adapters, streaming, resumed sessions, agent and model selection, calm errors.
 - `bench/agents.ts` runs both real CLIs through add, proposal and roadmap flows and proves
   neither can read a canary file (ADR 0003).
+
+## M5: agent attention (2026-11-01)
+
+- `sirius` CLI: `notify`, `setup-hooks`, `doctor`, `backup`. `notify` always exits 0 and gives up
+  after a second, so a hook can never hold up an agent.
+- Duplicate events coalesce, notifications are limited per source, and quiet mode queues events
+  until Welcome back or rollover.
+- `turn_complete` notifies without leaving a toast and clears an earlier "waiting" event for that
+  project. Codex's `notify` only ever sends this type, so it has no "needs input" signal.
+- `scripts/install.sh`, which also records where the agent CLIs live for systemd.

@@ -84,6 +84,10 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 #[cfg(not(debug_assertions))]
 fn enable_autostart(app: &AppHandle) {
     use tauri_plugin_autostart::ManagerExt;
+    // Benchmarks launch the release binary from the build tree.
+    if env::var_os("SIRIUS_NO_AUTOSTART").is_some() {
+        return;
+    }
     let manager = app.autolaunch();
     if !manager.is_enabled().unwrap_or(false) {
         if let Err(error) = manager.enable() {

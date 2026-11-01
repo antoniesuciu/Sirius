@@ -6,6 +6,9 @@ Documentation=https://github.com/antoniesuciu/Sirius
 ExecStart=%h/.local/bin/sirius-core
 # --smol trades a little GC work for a heap that stays inside the 80 MB budget.
 Environment=BUN_OPTIONS=--smol
+# systemd does not inherit the login PATH, and agent CLIs often live under nvm or ~/.local.
+# scripts/install.sh writes the real locations here.
+EnvironmentFile=-%h/.config/sirius/env
 Restart=on-failure
 RestartSec=2
 
