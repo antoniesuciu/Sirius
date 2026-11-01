@@ -1,0 +1,409 @@
+/**
+ * An in-memory backend with the mockup's data (M0). It lets the dashboard run with no
+ * core at all: open the app with `?fixtures`. Chat is a small script, not an agent.
+ */
+import {
+  type AgentEvent,
+  type AgentId,
+  type AgentsView,
+  ApiError,
+  addDays,
+  agentCatalog,
+  EVERY_DAY,
+  type EventHandlers,
+  type GoalView,
+  logicalDate,
+  type Message,
+  nextOccurrence,
+  type OpInput,
+  type OpName,
+  type OpOutput,
+  type Proposal,
+  type ReminderView,
+  type RoadmapView,
+  type SiriusClient,
+  type SiriusEvent,
+  type Task,
+} from '@sirius/contracts';
+
+const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+let nextId = 1;
+const newId = () => `f${nextId++}`;
+
+function common() {
+  const now = Date.now();
+  return { id: newId(), created_at: now, updated_at: now, deleted_at: null, rev: 1 };
+}
+
+function task(title: string, tier: Task['tier'], date: string, position: number): Task {
+  return {
+    ...common(),
+    title,
+    tier,
+    scheduled_for: date,
+    status: 'open',
+    position,
+    completed_at: null,
+    source: 'user',
+    roadmap_step_id: null,
+  };
+}
+
+function goal(title: string, horizon: string, done: number): GoalView {
+  const g = {
+    ...common(),
+    title,
+    horizon_text: horizon,
+    target_date: null,
+    status: 'active' as const,
+    position: 0,
+  };
+  const milestones = [0, 1, 2, 3, 4].map((i) => ({
+    ...common(),
+    goal_id: g.id,
+    title: `Milestone ${i + 1}`,
+    position: i,
+    done_at: i < done ? Date.now() : null,
+  }));
+  return { ...g, milestones };
+}
+
+function roadmap(
+  title: string,
+  subtitle: string,
+  status: RoadmapView['status'],
+  steps: Array<[string, number | null]>,
+): RoadmapView {
+  const r = { ...common(), title, subtitle, status, position: 0 };
+  return {
+    ...r,
+    steps: steps.map(([stepTitle, est], i) => ({
+      ...common(),
+      roadmap_id: r.id,
+      title: stepTitle,
+      est_minutes: est,
+      position: i,
+      status: 'todo' as const,
+      done_at: null,
+    })),
+  };
+}
+
+function reminder(label: string, kind: ReminderView['kind'], time: string): ReminderView {
+  return {
+    ...common(),
+    label,
+    kind,
+    time_local: time,
+    weekdays: EVERY_DAY,
+    enabled: true,
+    snoozed_until: null,
+    last_fired_on: null,
+    next_fire_at: nextOccurrence(time, EVERY_DAY, Date.now(), zone),
+  };
+}
+
+export interface FixtureOptions {
+  toastAfterMs: number;
+}
+
+export function createFixtureClient(options: FixtureOptions): SiriusClient {
+  const today = logicalDate(Date.now(), zone);
+  const tomorrow = addDays(today, 1);
+  const state = {
+    tasks: [
+      task('Derive the covariance update', 'priority', today, 0),
+      task('Ten pages of Abbott', 'priority', today, 1),
+      task('Walk before sunset', 'priority', today, 2),
+      task('Reply to the lab email', 'small', today, 3),
+      task('Buy tomatoes and rice', 'small', today, 4),
+      task('Tidy the desk', 'small', today, 5),
+    ],
+    goals: [
+      goal('Understand stochastic calculus', 'Long term · 2027', 1),
+      goal('Summer internship in quantitative research', 'Applications by March', 2),
+      goal('Finish the localization component', 'This month', 4),
+    ],
+    roadmaps: [
+      roadmap('Real analysis', 'Abbott · chapter 2 of 8', 'active', [
+        ['Sequences and limits, §2.4', 30],
+      ]),
+      roadmap('Probability theory', 'After analysis, with no hurry', 'later', [
+        ['Measure basics, one section', null],
+      ]),
+      roadmap('Stochastic processes', 'Markov chains, martingales, Brownian motion', 'later', [
+        ['Discrete-time Markov chains, one chapter', null],
+      ]),
+      roadmap('Stochastic calculus', 'Later, for quantitative finance', 'later', []),
+    ],
+    reminders: [
+      reminder('Midday pause', 'prayer', '12:30'),
+      reminder('Evening prayer or reflection', 'prayer', '17:40'),
+      reminder('Stand up and stretch', 'wellbeing', '16:30'),
+    ],
+    quiet: false,
+    selected: 'claude' as AgentId,
+    models: {
+      claude: agentCatalog.claude.defaultModel,
+      codex: agentCatalog.codex.defaultModel,
+    },
+    messages: [] as Message[],
+    proposals: [] as Proposal[],
+    events: [] as AgentEvent[],
+  };
+
+  const listeners = new Set<EventHandlers>();
+  const emit = (event: SiriusEvent) => {
+    for (const l of listeners) l.onEvent(event);
+  };
+  const changed = (
+    entity: 'tasks' | 'goals' | 'roadmaps' | 'reminders' | 'day_state' | 'proposals',
+  ) =>
+    emit({ type: 'change', entity, id: 'x', op: 'update', rev: 1, actor: 'user', change_id: 'x' });
+
+  const pushMessage = (role: Message['role'], text: string) => {
+    state.messages.push({ ...common(), conversation_id: 'c1', role, text, meta: null });
+  };
+
+  /** Streams a scripted reply through the same events a real turn produces. */
+  const replyWith = (turnId: string, text: string, after?: () => void) => {
+    emit({ type: 'chat', kind: 'start', turn_id: turnId, agent: state.selected });
+    setTimeout(() => {
+      emit({ type: 'chat', kind: 'text', turn_id: turnId, delta: text });
+      setTimeout(() => {
+        pushMessage('assistant', text);
+        after?.();
+        emit({ type: 'chat', kind: 'done', turn_id: turnId });
+      }, 200);
+    }, 500);
+  };
+
+  const propose = (summary: string, ids: string[], date: string) => {
+    state.proposals.push({
+      ...common(),
+      actor: state.selected,
+      summary,
+      ops: [{ op: 'reschedule_tasks', input: { ids, date } }],
+      status: 'pending',
+      decided_at: null,
+      expires_at: Date.now() + 3_600_000,
+    });
+    changed('proposals');
+  };
+
+  const script = (turnId: string, text: string) => {
+    const lower = text.toLowerCase();
+    const goalMatch = text.match(/^add\s+(?:a\s+)?goal[:\s]+(.+)/i);
+    if (goalMatch?.[1]) {
+      const title = goalMatch[1].trim();
+      state.goals.push({ ...goal(title, 'No deadline yet', 0), milestones: [] });
+      changed('goals');
+      return replyWith(turnId, `Added the goal “${title}”. No deadline and no pressure.`);
+    }
+    const learnMatch = text.match(/^learn[:\s]+(.+)/i);
+    if (learnMatch?.[1]) {
+      const title = learnMatch[1].trim();
+      state.roadmaps.push(roadmap(title, 'Added just now', 'later', []));
+      changed('roadmaps');
+      return replyWith(turnId, `Added ${title} to Learning, at the end of the path.`);
+    }
+    if (/(overwhelm|tired|lighter|too much|tomorrow)/.test(lower)) {
+      const open = state.tasks.filter((t) => t.scheduled_for === today && t.status === 'open');
+      const keep = open.find((t) => t.tier === 'priority');
+      const rest = open.filter((t) => t !== keep).map((t) => t.id);
+      return replyWith(
+        turnId,
+        "Then let's make today small. I can keep one priority and let the rest rest until tomorrow.",
+        () => propose('Keep one priority, rest the others until tomorrow', rest, tomorrow),
+      );
+    }
+    return replyWith(turnId, 'Noted. This is the fixture backend, so that is all I can do.');
+  };
+
+  const find = <T extends { id: string }>(items: T[], id: string): T => {
+    const item = items.find((x) => x.id === id);
+    if (!item) throw new ApiError(404, 'not_found', 'Not found');
+    return item;
+  };
+
+  const agentsView = (): AgentsView => ({
+    selected: state.selected,
+    agents: (['claude', 'codex'] as const).map((id) => ({
+      id,
+      label: agentCatalog[id].label,
+      model: state.models[id],
+      models: agentCatalog[id].models,
+      status: state.quiet
+        ? 'resting'
+        : state.events.some((e) => e.source === id && !e.acknowledged_at)
+          ? 'waiting'
+          : 'idle',
+      reason: null,
+    })),
+  });
+
+  const handlers: { [N in OpName]?: (input: OpInput<N>) => OpOutput<N> } = {
+    get_today: () => ({
+      date: today,
+      tasks: state.tasks.filter((t) => t.scheduled_for === today && t.status !== 'dropped'),
+      quiet_mode: state.quiet,
+      next_reminder: null,
+      resting_tomorrow: state.tasks.filter(
+        (t) => t.scheduled_for === tomorrow && t.status === 'open',
+      ).length,
+    }),
+    list_goals: () => state.goals,
+    list_learning: () => state.roadmaps,
+    list_reminders: () => state.reminders,
+    list_proposals: () => state.proposals.filter((p) => p.status === 'pending'),
+    list_agent_events: () => state.events.filter((e) => !e.acknowledged_at),
+    get_agents: agentsView,
+    get_conversation: () => ({
+      conversation: null,
+      messages: state.messages,
+      active_turn_id: null,
+    }),
+    get_voice_state: () => ({ state: 'idle', transcript: null, mic_open: false, level: null }),
+    new_conversation: () => {
+      state.messages = [];
+      return { conversation: null, messages: [], active_turn_id: null };
+    },
+    add_task: ({ title }) => {
+      const t = task(title, 'small', today, state.tasks.length);
+      state.tasks.push(t);
+      changed('tasks');
+      return t;
+    },
+    complete_task: ({ id }) => {
+      const t = find(state.tasks, id);
+      t.status = 'done';
+      t.completed_at = Date.now();
+      changed('tasks');
+      return t;
+    },
+    reopen_task: ({ id }) => {
+      const t = find(state.tasks, id);
+      t.status = 'open';
+      t.completed_at = null;
+      changed('tasks');
+      return t;
+    },
+    drop_task: ({ id }) => {
+      const t = find(state.tasks, id);
+      t.status = 'dropped';
+      changed('tasks');
+      return t;
+    },
+    rename_goal: ({ id, title }) => {
+      const g = find(state.goals, id);
+      g.title = title;
+      changed('goals');
+      return g;
+    },
+    delete_goal: ({ id }) => {
+      state.goals = state.goals.filter((g) => g.id !== id);
+      changed('goals');
+      return { ok: true };
+    },
+    rename_roadmap: ({ id, title }) => {
+      const r = find(state.roadmaps, id);
+      r.title = title;
+      changed('roadmaps');
+      return r;
+    },
+    delete_roadmap: ({ id }) => {
+      state.roadmaps = state.roadmaps.filter((r) => r.id !== id);
+      changed('roadmaps');
+      return { ok: true };
+    },
+    step_to_today: ({ id }) => {
+      const step = state.roadmaps.flatMap((r) => r.steps).find((s) => s.id === id);
+      if (!step) throw new ApiError(404, 'not_found', 'Not found');
+      const t = task(step.title, 'small', today, state.tasks.length);
+      state.tasks.push(t);
+      changed('tasks');
+      return t;
+    },
+    set_reminder_enabled: ({ id, enabled }) => {
+      const r = find(state.reminders, id);
+      r.enabled = enabled;
+      changed('reminders');
+      return r;
+    },
+    snooze_reminder: ({ id, until }) => {
+      const r = find(state.reminders, id);
+      r.snoozed_until = until;
+      r.next_fire_at = until;
+      changed('reminders');
+      return r;
+    },
+    set_quiet_mode: ({ on }) => {
+      state.quiet = on;
+      changed('day_state');
+      return { quiet_mode: on };
+    },
+    select_agent: ({ agent, model }) => {
+      state.selected = agent;
+      if (model) state.models[agent] = model;
+      return agentsView();
+    },
+    ack_agent_event: ({ id }) => {
+      const e = find(state.events, id);
+      e.acknowledged_at = Date.now();
+      return e;
+    },
+    confirm_proposal: ({ id }) => {
+      const p = find(state.proposals, id);
+      p.status = 'applied';
+      for (const op of p.ops) {
+        const { ids, date } = op.input as { ids: string[]; date: string };
+        for (const taskId of ids) find(state.tasks, taskId).scheduled_for = date;
+      }
+      pushMessage('assistant', 'Done. One thing for today. That is enough.');
+      changed('proposals');
+      changed('tasks');
+      return { ok: true, proposal: p };
+    },
+    reject_proposal: ({ id }) => {
+      const p = find(state.proposals, id);
+      p.status = 'rejected';
+      pushMessage('assistant', "Alright, I'll leave it as it is.");
+      changed('proposals');
+      return { ok: true, proposal: p };
+    },
+    send_chat: ({ text }) => {
+      const turnId = newId();
+      pushMessage('user', text);
+      script(turnId, text);
+      return { turn_id: turnId, conversation_id: 'c1' };
+    },
+  };
+
+  setTimeout(() => {
+    const event: AgentEvent = {
+      ...common(),
+      source: 'claude',
+      kind: 'needs_input',
+      project: 'quant-lab',
+      message: 'Claude needs your permission to run a command',
+      acknowledged_at: null,
+    };
+    state.events.push(event);
+    emit({ type: 'agent', event });
+  }, options.toastAfterMs);
+
+  return {
+    async call(name, input) {
+      const handler = handlers[name] as ((i: typeof input) => OpOutput<typeof name>) | undefined;
+      if (!handler) throw new ApiError(501, 'not_implemented', `Fixture has no ${name}`);
+      // Cloned so React Query never shares objects with this mutable store.
+      return structuredClone(handler(input));
+    },
+    subscribe(l) {
+      listeners.add(l);
+      l.onConnected?.();
+      return () => listeners.delete(l);
+    },
+  };
+}

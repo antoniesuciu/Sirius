@@ -18,12 +18,13 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run",
+    "test": "bun test packages/contracts packages/core packages/mcp packages/cli",
     "test:e2e": "playwright test",
     "bench": "bun run bench/run.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",
+    "@axe-core/playwright": "^4.11.0",
     "@playwright/test": "^1.64.1",
     "@types/bun": "latest",
     "svgo": "^4.1.0",
