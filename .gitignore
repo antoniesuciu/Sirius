@@ -45,3 +45,6 @@ token
 /.ripgreprc
 /.zprofile
 /.zshrc
+
+# Tauri
+/apps/desktop/src-tauri/gen/

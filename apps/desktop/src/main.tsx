@@ -20,9 +20,11 @@ const queryClient = new QueryClient({
 const root = document.getElementById('root');
 if (!root) throw new Error('#root is missing from index.html');
 
+const client = await connect();
+
 createRoot(root).render(
   <StrictMode>
-    <ClientContext.Provider value={connect()}>
+    <ClientContext.Provider value={client}>
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>

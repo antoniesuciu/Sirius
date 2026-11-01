@@ -1,0 +1,13 @@
+[Unit]
+Description=Sirius core service
+Documentation=https://github.com/antoniesuciu/Sirius
+
+[Service]
+ExecStart=%h/.local/bin/sirius-core
+# --smol trades a little GC work for a heap that stays inside the 80 MB budget.
+Environment=BUN_OPTIONS=--smol
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target
