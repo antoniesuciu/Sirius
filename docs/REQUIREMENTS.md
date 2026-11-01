@@ -1,6 +1,6 @@
 # Sirius: Calm Dashboard Requirements
 
-Status: v1.2 spec, 2026-11-01 (adds voice; final avatar). Owner: Antonie.
+Status: v1.3 spec, 2026-11-01 (v1 voice is push-to-talk only; the wake word moves to M7; see `docs/adr/0005-voice-ptt-first.md`). Owner: Antonie.
 Design references: `design/dashboard-reference.dc.html` (interactive mockup; its avatar `<img src="/_blob/…">` points to `design/sirius.svg`) and `design/sirius.svg` (final avatar).
 
 > **Success criterion.** Opening the computer should make the day feel clearer and less chaotic. It should not create another project to manage.
@@ -34,15 +34,15 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 | **Well-being** | Breathing exercise, next gentle nudge |
 | **Sirius** | Embedded assistant chat with a wolf avatar. Runs Claude Code or Codex headlessly, on the user's subscriptions |
 | **Agent attention** | Quiet toast and notification when Claude or Codex (running elsewhere on the machine) needs input |
-| **Voice** | "Hey Sirius…": hands-free, personal-assistant-style requests. Speech recognition and synthesis run locally |
+| **Voice** | Push-to-talk, personal-assistant-style requests. Speech recognition and synthesis run locally. "Hey Sirius" comes later (M7) |
 
 **Design principles** (from the original notes, all binding): calm over productivity metrics; minimal over feature-rich; personal over prescriptive; quiet by default; local-first; no obligation to optimize every minute; rest is a valid suggestion.
 
 ## 2. Scope
 
-**v1 (milestones M0–M6):** the desktop app on Ubuntu, local core service, MCP server, Sirius chat via Claude/Codex CLIs, agent-attention notifications, local voice.
+**v1 (milestones M0–M6):** the desktop app on Ubuntu, local core service, MCP server, Sirius chat via Claude/Codex CLIs, agent-attention notifications, local push-to-talk voice.
 
-**Later (M7–M8):** core hosted on the homelab and reachable remotely; phone client.
+**Later (M7–M8):** the "Hey Sirius" wake word; core hosted on the homelab and reachable remotely; phone client.
 
 **Non-goals:** multi-user, accounts, sharing, calendar sync, analytics, streaks, scores, gamification, a plugin system, Windows/macOS packaging (it shouldn't be prevented, just not done).
 
@@ -100,8 +100,8 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 - **F25** Rate limits: at most one notification per source per 2 minutes, and duplicate events are coalesced.
 
 ### 3.8 Voice
-- **F26** **Wake word** "Hey Sirius" starts listening, hands-free, whether or not the window is open. A soft earcon plays, the avatar goes to `listening`, and the dashboard shows a live transcript line.
-- **F27** **Push-to-talk** alternatives:
+- **F26** *(deferred to M7)* **Wake word** "Hey Sirius" starts listening, hands-free, whether or not the window is open. In v1, listening starts from push-to-talk (F27); the earcon, the `listening` avatar and the live transcript line apply to that.
+- **F27** **Push-to-talk**, the way to start voice in v1:
   - the mic button in the chat;
   - a system keyboard shortcut, registered as a GNOME custom shortcut that runs `sirius voice ptt`. Ubuntu's default Wayland session doesn't reliably allow app-level global hotkeys, so the shortcut is set at the system level.
 - **F28** End of speech is detected automatically by voice-activity detection: about 700 ms of silence, with a hard cap of 20 s. Saying "cancel" or pressing Esc aborts.
@@ -111,12 +111,12 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
   - "what's next", "what time is it";
   - "start breathing", "I'm done for today", "snooze that", "confirm" / "cancel".
   Everything else goes to the selected agent (F16) with `source=voice`, and the prompt asks for a short, speakable answer.
-- **F31** Replies are spoken by local TTS, streamed sentence by sentence, and also appear in the chat. Saying the wake word or pressing PTT while Sirius is speaking stops it (barge-in).
+- **F31** Replies are spoken by local TTS, streamed sentence by sentence, and also appear in the chat. Pressing PTT while Sirius is speaking stops it (barge-in); from M7, so does the wake word.
 - **F32** Proposals (F19) can be confirmed by voice ("yes" / "confirm" within 15 s) **except deletes**, which always need a tap in the UI.
 - **F33** **Privacy:**
   - audio is processed in memory on the machine and never stored or uploaded by default; only the final transcript reaches the agent;
-  - a visible mic indicator shows whenever the mic is open beyond wake-word detection;
-  - quiet mode disables the wake word by default (configurable); PTT still works;
+  - the mic is closed unless a push-to-talk session is running in v1; a visible mic indicator shows whenever it is open;
+  - PTT works in quiet mode; from M7, quiet mode disables the wake word by default (configurable);
   - one setting turns all voice off and stops the service.
 
 ## 4. Non-functional requirements
@@ -135,10 +135,10 @@ These are targets to measure on the Lenovo LOQ, Ubuntu. Add a `bench/` script th
 | Memory: desktop app process tree | < 200 MB |
 | Memory: core service | < 80 MB |
 | Initial JS bundle | < 250 KB gzipped |
-| Voice: wake word → earcon | < 300 ms |
+| Voice: PTT → earcon | < 300 ms |
 | Voice: end of speech → transcript | < 800 ms on GPU, < 2 s on CPU |
 | Voice: fast-path command → spoken acknowledgement | < 1.5 s end to end |
-| Voice service idle (wake-word only) | < 5 % of one core, < 150 MB RAM |
+| Voice service idle (mic closed) | < 1 % of one core, < 150 MB RAM |
 
 Rules:
 - Animate **only `transform` and `opacity`**. Never animate `top`, `left`, `height`, `box-shadow` or `filter`.
@@ -247,7 +247,7 @@ Rules:
 **ADR-10: Voice is a separate local service, `sirius-voice` (Python 3.12, managed with uv, run as a systemd user service). Everything runs on-device.**
 - *Pipeline:*
   1. Capture: PipeWire via PortAudio (`sounddevice`), 16 kHz mono.
-  2. **openWakeWord**: a custom "hey Sirius" model trained on synthetic speech (**[verify]** training workflow); a bundled pre-trained word serves as a placeholder until then.
+  2. **openWakeWord** *(M7, not v1)*: a custom "hey Sirius" model trained on synthetic speech (**[verify]** training workflow); a bundled pre-trained word serves as a placeholder until then. In v1, PTT opens the mic instead.
   3. **Silero VAD** for endpointing.
   4. **faster-whisper** (CTranslate2) for speech-to-text. Model `small` by default, `medium` optional. Uses CUDA on the LOQ's NVIDIA GPU when available, with a CPU int8 fallback. Multilingual, so Romanian and English both work.
   5. Post the utterance to the core, which routes it either to the **fast-path intent grammar** or to an **agent turn**.
@@ -256,7 +256,7 @@ Rules:
   - the audio and ML stack is native to Python;
   - a crash or GPU problem in voice can't take down the core or the UI;
   - it can be disabled or uninstalled independently;
-  - wake-word listening must run when the window is closed.
+  - PTT, and later wake-word listening, must work when the window is closed.
 - *Why fully local:* privacy (an always-on mic must not stream anywhere), latency, and cost. It also respects the "everything under the subscription" constraint: no cloud speech API bills.
 - *Why the fast path:* agent turns through a CLI cost seconds. The commands you'd say most often ("add X", "done for today") should respond as fast as a light switch. The grammar lives in the core (TypeScript), shares the ops from section 7, and has its own unit tests.
 - *Interfaces:* `WakeWord`, `Vad`, `Stt` and `Tts` are small Python protocols, so any engine can be swapped by configuration:
@@ -411,8 +411,8 @@ The mockup uses Newsreader as a stand-in for Claude's typeface, which is proprie
 | **M3** | `sirius-mcp`; proposals, confirm and undo; registered in Claude Code and Codex | From an interactive `claude` session: "add a goal…" appears live; a bulk move creates a pending proposal and nothing changes until Confirm |
 | **M4** | Sirius chat: adapters, streaming, sessions, agent switch, error states, avatar states | Both agents complete add, move (proposal) and roadmap flows; built-in tools provably disabled (test: ask it to read a file, which must fail); latency measured |
 | **M5** | Agent attention: `sirius notify`, hook setup, toasts and native notifications, quiet-mode queueing | A Claude permission prompt in another terminal produces one toast and one notification within 2 s; suppressed in quiet mode and shown on "Welcome back" |
-| **M6** | Voice: `sirius-voice` service, PTT first, then wake word; fast-path grammar; Piper replies; barge-in; avatar listening and speaking states | PTT "add buy rice to today" lands in Today and is acknowledged aloud within the section 4.1 budgets; works in Romanian and English; the wake word false-accepts fewer than once per hour across a normal 2-hour work session (measured); no audio files on disk |
-| **M7** | Remote mode: Docker, compose, Litestream, Cloudflare Tunnel + Access; desktop can point at a remote core | Core runs on the homelab; desktop works against it; restore-from-backup drill documented and done once |
+| **M6** | Voice: `sirius-voice` service with push-to-talk; fast-path grammar; Piper replies; barge-in; avatar listening and speaking states | PTT "add buy rice to today" lands in Today and is acknowledged aloud within the section 4.1 budgets; works in Romanian and English; no audio files on disk |
+| **M7** | Wake word: openWakeWord "Hey Sirius". Remote mode: Docker, compose, Litestream, Cloudflare Tunnel + Access; desktop can point at a remote core | The wake word false-accepts fewer than once per hour across a normal 2-hour work session (measured); core runs on the homelab; desktop works against it; restore-from-backup drill documented and done once |
 | **M8** | Phone: PWA from the remote core, responsive layout, ntfy/Web Push notifier, push-to-talk voice | Add to home screen on the phone; Today, Goals and Learning usable; agent-attention push arrives; voice PTT works over the tunnel |
 
 ## 13. Open questions and things to verify
