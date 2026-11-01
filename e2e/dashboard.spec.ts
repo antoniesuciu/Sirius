@@ -24,6 +24,8 @@ test.describe('header', () => {
   });
 
   test('cycles local suggestions on each press', async ({ page }) => {
+    // Suggestions depend on the hour: late in the evening, rest comes first.
+    await page.clock.setFixedTime(new Date('2026-11-01T15:45:00'));
     await open(page);
     const button = page.getByRole('button', { name: 'What should I do now?' });
     await button.click();

@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test packages/contracts packages/core packages/mcp packages/cli",
     "test:e2e": "playwright test",
-    "bench": "bun run bench/run.ts"
+    "bench": "bun run bench/api.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",

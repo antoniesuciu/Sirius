@@ -1,0 +1,99 @@
+/** The composition root: everything the service is, minus the process around it. */
+import { Backups } from './backups.ts';
+import { EventBus } from './bus.ts';
+import { migrate } from './db/migrate.ts';
+import { Dispatcher, type SystemHandlers } from './dispatcher.ts';
+import type { Notifier } from './notifier.ts';
+import { RateLimitedNotifier } from './notifier.ts';
+import type { OpHooks } from './ops/context.ts';
+import { openSqlite, type SqliteHandle } from './runtime/sqlite.ts';
+import { Scheduler } from './scheduler.ts';
+import { Agents } from './services/agents.ts';
+import { Attention } from './services/attention.ts';
+import { Chat } from './services/chat.ts';
+import { Decisions } from './services/decisions.ts';
+import { Settings } from './services/settings.ts';
+import { VoiceState } from './services/voice.ts';
+import { Store } from './store.ts';
+
+export interface CoreOptions {
+  dbPath: string;
+  backupDir?: string;
+  timeZone: string;
+  notifier: Notifier;
+  clock?: () => number;
+}
+
+export interface Core {
+  sqlite: SqliteHandle;
+  bus: EventBus;
+  store: Store;
+  dispatcher: Dispatcher;
+  scheduler: Scheduler;
+  attention: Attention;
+  close(): void;
+}
+
+export function createCore(options: CoreOptions): Core {
+  const clock = options.clock ?? Date.now;
+  const { timeZone } = options;
+  const sqlite = openSqlite(options.dbPath);
+  migrate(sqlite);
+
+  const bus = new EventBus();
+  const store = new Store(sqlite.db, bus, clock);
+  const notifier = new RateLimitedNotifier(options.notifier, clock);
+  const settings = new Settings(store);
+  const attention = new Attention(store, bus, notifier, timeZone);
+  const hooks: OpHooks = { quietEnded: (since) => attention.releaseSince(since) };
+  const chat = new Chat(store, settings);
+  const agents = new Agents(store, settings, chat, attention, timeZone);
+  const voice = new VoiceState(bus);
+  const decisions = new Decisions(store, timeZone, hooks);
+
+  const system: SystemHandlers = {
+    confirm_proposal: ({ id }, caller) => decisions.confirm(id, caller.via),
+    reject_proposal: ({ id }) => decisions.reject(id),
+    undo: ({ change_id }) => decisions.undo(change_id),
+    get_agents: () => agents.view(),
+    select_agent: ({ agent, model }) => agents.select(agent, model),
+    get_conversation: () => chat.view(),
+    new_conversation: () => chat.reset(),
+    send_chat: (input) => chat.send(input),
+    cancel_chat: ({ turn_id }) => {
+      chat.cancel(turn_id);
+      return { ok: true };
+    },
+    post_agent_event: (input) => attention.post(input),
+    list_agent_events: () => attention.pending(),
+    ack_agent_event: ({ id }) => attention.ack(id),
+    voice_utterance: (input) => voice.utterance(input),
+    set_voice_state: (input) => {
+      voice.set(input);
+      return { ok: true };
+    },
+    get_voice_state: () => voice.view(),
+    get_settings: () => settings.all(),
+    set_setting: ({ key, value }) => {
+      settings.set(key, value);
+      return { ok: true };
+    },
+  };
+
+  const dispatcher = new Dispatcher(store, timeZone, system, hooks);
+  const backups = options.backupDir ? new Backups(sqlite, options.backupDir) : null;
+  const scheduler = new Scheduler(store, timeZone, notifier, attention, hooks, backups);
+
+  return {
+    sqlite,
+    bus,
+    store,
+    dispatcher,
+    scheduler,
+    attention,
+    close() {
+      scheduler.stop();
+      sqlite.close();
+    },
+  };
+}
