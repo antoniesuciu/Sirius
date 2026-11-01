@@ -9,6 +9,8 @@ export interface SiriusAvatarProps {
   state: AvatarState;
   /** Coarse TTS amplitude from 0 to 1, used by the `speaking` state. */
   level?: number;
+  /** Stops the idle blinks and glances, so a resting window paints nothing. */
+  still?: boolean;
 }
 
 const BLINK_EVERY_MS = 6500;
@@ -22,13 +24,13 @@ type Glance = 'left' | 'right' | null;
  * The wolf (F15a). States are CSS, keyed off `data-state`. Blinks and glances run from
  * timers that toggle a short transition, so between them nothing is ticking.
  */
-export function SiriusAvatar({ state, level = 0 }: SiriusAvatarProps) {
+export function SiriusAvatar({ state, level = 0, still = false }: SiriusAvatarProps) {
   const hidden = usePageHidden();
   const [blink, setBlink] = useState(false);
   const [glance, setGlance] = useState<Glance>(null);
 
   useEffect(() => {
-    if (state !== 'idle' || hidden || prefersReducedMotion()) {
+    if (state !== 'idle' || hidden || still || prefersReducedMotion()) {
       setBlink(false);
       setGlance(null);
       return;
@@ -55,7 +57,7 @@ export function SiriusAvatar({ state, level = 0 }: SiriusAvatarProps) {
       clearInterval(glancer);
       for (const t of pending) clearTimeout(t);
     };
-  }, [state, hidden]);
+  }, [state, hidden, still]);
 
   return (
     <div

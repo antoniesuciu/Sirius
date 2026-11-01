@@ -2,7 +2,7 @@ export { AgentToast } from './AgentToast.tsx';
 export { CLOCK_RESYNC_EVENT } from './Clock.tsx';
 export { GoalsPanel } from './GoalsPanel.tsx';
 export { Header } from './Header.tsx';
-export { usePageHidden } from './hooks.ts';
+export { usePageHidden, useResting } from './hooks.ts';
 export { LearningPanel, nextStep } from './LearningPanel.tsx';
 export { Leaves } from './Leaves.tsx';
 export { PersonalPanel } from './PersonalPanel.tsx';

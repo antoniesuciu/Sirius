@@ -1,6 +1,6 @@
 # ADR 0004: keep Tauri, and let decoration rest
 
-Status: proposed, 2026-11-01. Measured on the Lenovo LOQ (Ubuntu, GNOME 46, Wayland).
+Status: accepted, 2026-11-01. Measured on the Lenovo LOQ (Ubuntu, GNOME 46, Wayland).
 
 ADR-1 makes Electron the fallback if WebKitGTK fails the section 4.1 budgets, and asks for
 the result to be recorded here. Results are in `docs/verified.md`.
@@ -15,3 +15,10 @@ returns on the next input. Breathing, the listening ring and a thinking avatar k
 
 Disabling the DMA-BUF renderer or compositing, the spec's suggested workaround, raised CPU to
 over 80% here, so neither is set.
+
+Resulting measurements: 17.8% of a core while decoration moves, 0.1% at rest. Memory misses its
+budget at about 292 MB PSS against 200 MB, of which roughly 96 MB is the shell's share of
+WebKit's buffers. First core connection is about 470 ms against a 400 ms paint target.
+
+Tauri stays, despite those two misses. Electron was not built or measured; ADR-1 itself puts it
+at 150 to 300 MB, so it is not an obvious win on memory, and it would cost the small install.

@@ -208,6 +208,42 @@ test.describe('reduced motion', () => {
   });
 });
 
+test.describe('resting (ADR 0004)', () => {
+  const runningLoops = (page: Page) =>
+    page.evaluate(
+      () =>
+        document.getAnimations().filter((a) => {
+          const name = (a as CSSAnimation).animationName;
+          return ['fall', 'sway', 'ring', 'bob'].includes(name) && a.playState === 'running';
+        }).length,
+    );
+
+  test('decoration stops when the window loses focus and returns with it', async ({ page }) => {
+    await open(page);
+    await typed(page);
+    expect(await runningLoops(page)).toBeGreaterThan(0);
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await expect(page.locator('.app')).toHaveClass(/resting/);
+    expect(await runningLoops(page)).toBe(0);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.locator('.app')).not.toHaveClass(/resting/);
+    expect(await runningLoops(page)).toBeGreaterThan(0);
+  });
+
+  test('breathing keeps going while the window rests', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await expect(page.locator('.app')).toHaveClass(/resting/);
+    const state = await page.evaluate(
+      () =>
+        document.getAnimations().find((a) => (a as CSSAnimation).animationName === 'breathe')
+          ?.playState,
+    );
+    expect(state).toBe('running');
+  });
+});
+
 test('hidden windows pause every animation', async ({ page }) => {
   await open(page);
   await typed(page);

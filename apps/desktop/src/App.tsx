@@ -20,6 +20,7 @@ import {
   SiriusPanel,
   TodayPanel,
   usePageHidden,
+  useResting,
   WellbeingPanel,
 } from '@sirius/ui';
 import { useMemo, useState } from 'react';
@@ -45,6 +46,7 @@ import { useLive } from './data/useLive.ts';
 
 const OWNER = 'Antonie';
 const SNOOZE_MS = 60 * 60 * 1000;
+const REST_AFTER_MS = 30_000;
 const CHIPS = [
   'Add goal: read twelve books this year',
   'Learn: linear algebra',
@@ -63,6 +65,7 @@ function nextOfKind(reminders: ReminderView[], kind: ReminderView['kind']): Remi
 export function App() {
   const client = useClient();
   const hidden = usePageHidden();
+  const resting = useResting(REST_AFTER_MS);
   const live = useLive();
 
   const today = useToday().data;
@@ -180,7 +183,7 @@ export function App() {
   }));
 
   return (
-    <div className={`app ${hidden ? 'paused' : ''}`}>
+    <div className={`app ${hidden ? 'paused' : ''} ${resting ? 'resting' : ''}`}>
       {settings?.['ui.leaves'] !== false && <Leaves />}
       <Header
         greeting={today ? greeting(OWNER, hour, openPriorities) : null}
@@ -227,6 +230,7 @@ export function App() {
           <SiriusPanel
             avatar={avatar}
             level={voice?.level ?? 0}
+            still={resting}
             status={status}
             selected={agents?.selected ?? 'claude'}
             agents={agents?.agents ?? fallbackAgents}

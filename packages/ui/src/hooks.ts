@@ -17,6 +17,40 @@ export function usePageHidden(): boolean {
   return hidden;
 }
 
+const ACTIVITY_EVENTS = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
+
+/**
+ * True once nobody has touched the window for `afterMs`, or as soon as it loses focus. Any
+ * running animation keeps WebKitGTK compositing the whole window at 60 fps, so the budget of
+ * under 1% idle CPU is only reachable if decoration actually stops (docs/adr/0004).
+ */
+export function useResting(afterMs: number): boolean {
+  const [resting, setResting] = useState(false);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const wake = () => {
+      setResting(false);
+      clearTimeout(timer);
+      timer = setTimeout(() => setResting(true), afterMs);
+    };
+    const rest = () => {
+      clearTimeout(timer);
+      setResting(true);
+    };
+    wake();
+    for (const name of ACTIVITY_EVENTS) window.addEventListener(name, wake, { passive: true });
+    window.addEventListener('focus', wake);
+    window.addEventListener('blur', rest);
+    return () => {
+      clearTimeout(timer);
+      for (const name of ACTIVITY_EVENTS) window.removeEventListener(name, wake);
+      window.removeEventListener('focus', wake);
+      window.removeEventListener('blur', rest);
+    };
+  }, [afterMs]);
+  return resting;
+}
+
 export interface Typed {
   shown: string;
   typing: boolean;

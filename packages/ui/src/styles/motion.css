@@ -472,6 +472,17 @@
   animation: micpulse 1.6s ease-in-out infinite;
 }
 
+/*
+ * Decoration settles when nobody is using the window. Only the looping ornaments stop:
+ * breathing, the listening ring and a thinking avatar carry meaning, so they keep going.
+ */
+.resting .lc,
+.resting .leaf,
+.resting .ringwave,
+.resting .sirius[data-state="idle"] .sirius-motion {
+  animation-play-state: paused;
+}
+
 /* Hidden windows pause everything, so a minimised app costs nothing. */
 .paused *,
 .paused *::before,

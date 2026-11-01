@@ -9,5 +9,5 @@ The wake word needs a custom trained model and a measured false-accept rate over
 sessions, neither of which is needed to make voice useful. Dropping it also means the mic is
 closed unless the user opened it, which simplifies F33: no always-on capture in v1.
 
-`services/voice` keeps the `WakeWord` slot as a protocol-level seam only when M7 needs it, so
-nothing about it is built now. F26 stays in the spec, marked deferred.
+The `WakeWord` protocol arrives with M7, so
+nothing for it is built now. F26 stays in the spec, marked deferred.

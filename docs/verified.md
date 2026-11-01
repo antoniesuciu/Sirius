@@ -44,5 +44,17 @@ Things found the hard way:
 - Under systemd the core does not inherit the login PATH, and `codex` lives under nvm, so
   the installer records the real paths in `~/.config/sirius/env`.
 
-Not yet verified: the licence attribution text for the avatar (spec section 13, item 8), the
-WebKitGTK DMA-BUF behaviour on the LOQ, and everything under voice.
+Desktop app on the LOQ, GNOME 46 on Wayland, measured with `bench/desktop.ts`:
+
+| Variant | Idle CPU | Memory (PSS, process tree) |
+|---|---|---|
+| Default, decoration moving | 22.6% | 304 MB |
+| Leaves off | 22.9% | 306 MB |
+| `WEBKIT_DISABLE_DMABUF_RENDERER=1` | 89.6% | 231 MB |
+| `WEBKIT_DISABLE_COMPOSITING_MODE=1` | 82.0% | 231 MB |
+| Decoration resting (ADR 0004) | 0.1% | 292 MB |
+
+The window renders on this machine with the defaults, so the NVIDIA workaround is not needed.
+
+Not yet verified: the licence attribution text for the avatar (spec section 13, item 8), and
+everything under voice.

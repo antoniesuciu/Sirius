@@ -10,7 +10,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const PORT = 7337; // The port in the app's CSP, so the core must not already be running.
-const SAMPLE_MS = 20_000;
+const SAMPLE_MS = 15_000;
+const REST_AFTER_MS = 30_000;
 const CLOCK_TICKS = 100;
 
 const healthUrl = `http://127.0.0.1:${PORT}/v1/health`;
@@ -128,20 +129,21 @@ console.log(
     : `window to first core connection: ${connectMs.toFixed(0)} ms (target for paint < 400 ms)`,
 );
 
-await Bun.sleep(5000); // Let the entrance animations finish.
-
-const before = processTree(app.pid).map((pid) => [pid, cpuTicks(pid)] as const);
-await Bun.sleep(SAMPLE_MS);
-const elapsedTicks = (SAMPLE_MS / 1000) * CLOCK_TICKS;
-const percent = (ticks: number) => ((ticks / elapsedTicks) * 100).toFixed(1);
-let usedTicks = 0;
-for (const [pid, ticks] of before) {
-  const used = cpuTicks(pid) - ticks;
-  usedTicks += used;
-  const name = readFileSync(`/proc/${pid}/comm`, 'utf8').trim();
-  console.log(`  ${name}: ${percent(used)}% CPU, ${pssMb(pid).toFixed(0)} MB`);
+/** CPU over a window, printed per process. */
+async function sampleCpu(label: string, ms: number): Promise<void> {
+  const before = processTree(app.pid).map((pid) => [pid, cpuTicks(pid)] as const);
+  await Bun.sleep(ms);
+  const elapsedTicks = (ms / 1000) * CLOCK_TICKS;
+  const percent = (ticks: number) => ((ticks / elapsedTicks) * 100).toFixed(1);
+  let used = 0;
+  for (const [pid, ticks] of before) used += cpuTicks(pid) - ticks;
+  console.log(`${label}: ${percent(used)}% of one core`);
 }
-console.log(`idle CPU, window visible: ${percent(usedTicks)}% of one core (target < 1%)`);
+
+await Bun.sleep(5000); // Let the entrance animations finish.
+await sampleCpu('CPU while decoration moves', 10_000);
+await Bun.sleep(REST_AFTER_MS + 2000 - 15_000); // Nobody is touching it, so it settles.
+await sampleCpu('CPU at rest, window visible (target < 1%)', SAMPLE_MS);
 
 const tree = processTree(app.pid);
 const total = tree.reduce((sum, pid) => sum + pssMb(pid), 0);

@@ -21,6 +21,7 @@ export interface VoiceProps {
 export interface SiriusPanelProps {
   avatar: AvatarState;
   level: number;
+  still: boolean;
   status: string;
   selected: AgentId;
   agents: AgentInfo[];
@@ -105,7 +106,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
     <section className="panel panel-sirius rise d3" onKeyDown={onKey}>
       <div className="sirius-head">
         <div className="sirius-identity">
-          <SiriusAvatar state={props.avatar} level={props.level} />
+          <SiriusAvatar state={props.avatar} level={props.level} still={props.still} />
           <div className="sirius-name">
             <span className="sirius-title">Sirius</span>
             <span className="sirius-status">{props.status}</span>
