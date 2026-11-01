@@ -1,11 +1,12 @@
 /** The composition root: everything the service is, minus the process around it. */
 
-import type { AgentId } from '@sirius/contracts';
+import { type AgentId, logicalDate } from '@sirius/contracts';
 import type { AgentAdapter } from './agents/types.ts';
 import { Backups } from './backups.ts';
 import { EventBus } from './bus.ts';
 import { migrate } from './db/migrate.ts';
 import { Dispatcher, type SystemHandlers } from './dispatcher.ts';
+import { DomainError } from './errors.ts';
 import type { Notifier } from './notifier.ts';
 import { RateLimitedNotifier } from './notifier.ts';
 import type { OpHooks } from './ops/context.ts';
@@ -56,6 +57,8 @@ export function createCore(options: CoreOptions): Core {
   const voice = new VoiceState(bus);
   const decisions = new Decisions(store, timeZone, hooks);
 
+  const backups = options.backupDir ? new Backups(sqlite, options.backupDir) : null;
+
   const system: SystemHandlers = {
     confirm_proposal: ({ id }, caller) => decisions.confirm(id, caller.via),
     reject_proposal: ({ id }) => decisions.reject(id),
@@ -78,6 +81,14 @@ export function createCore(options: CoreOptions): Core {
       return { ok: true };
     },
     get_voice_state: () => voice.view(),
+    voice_ptt: () => {
+      bus.publish({ type: 'voice_command', command: 'ptt' });
+      return { ok: true };
+    },
+    create_backup: () => {
+      if (!backups) throw new DomainError(503, 'no_backups', 'Backups are not configured.');
+      return { path: backups.snapshot(logicalDate(store.now(), timeZone)) };
+    },
     get_settings: () => settings.all(),
     set_setting: ({ key, value }) => {
       settings.set(key, value);
@@ -86,7 +97,6 @@ export function createCore(options: CoreOptions): Core {
   };
 
   const dispatcher = new Dispatcher(store, timeZone, system, hooks);
-  const backups = options.backupDir ? new Backups(sqlite, options.backupDir) : null;
   const scheduler = new Scheduler(store, timeZone, notifier, attention, hooks, backups);
 
   return {

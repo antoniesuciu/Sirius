@@ -491,6 +491,22 @@ export const ops = {
     input: NoInput,
     output: VoiceStateView,
   }),
+  voice_ptt: op({
+    class: 'system',
+    userOnly: true,
+    summary: 'Push-to-talk: start listening, or stop if already listening.',
+    http: { method: 'post', path: '/voice/ptt' },
+    input: NoInput,
+    output: Ok,
+  }),
+  create_backup: op({
+    class: 'system',
+    userOnly: true,
+    summary: 'Take a database snapshot now.',
+    http: { method: 'post', path: '/backups' },
+    input: NoInput,
+    output: z.object({ path: z.string() }),
+  }),
   get_settings: op({
     class: 'system',
     summary: 'All settings.',

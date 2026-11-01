@@ -1,5 +1,11 @@
 /** Agent attention (F23–F25): record, coalesce, notify, and queue through quiet mode. */
-import { type AgentEvent, describeAgentEvent, logicalDate, type OpInput } from '@sirius/contracts';
+import {
+  type AgentEvent,
+  type AgentId,
+  describeAgentEvent,
+  logicalDate,
+  type OpInput,
+} from '@sirius/contracts';
 import { and, asc, eq, gte, isNull } from 'drizzle-orm';
 import type { EventBus } from '../bus.ts';
 import { agent_events } from '../db/schema.ts';
@@ -18,10 +24,44 @@ export class Attention {
     return tx.peek('day_state', logicalDate(tx.now, this.timeZone))?.quiet_mode ?? false;
   }
 
+  /** Marks earlier "needs you" events for this agent and project as no longer true. */
+  private clearWaiting(tx: Tx, source: AgentId, project: string | null): void {
+    const waiting = tx.db
+      .select()
+      .from(agent_events)
+      .where(
+        and(
+          eq(agent_events.source, source),
+          eq(agent_events.kind, 'needs_input'),
+          project === null ? isNull(agent_events.project) : eq(agent_events.project, project),
+          isNull(agent_events.acknowledged_at),
+        ),
+      )
+      .all();
+    for (const event of waiting) {
+      tx.update('agent_events', event.id, { acknowledged_at: tx.now });
+    }
+  }
+
   post(input: OpInput<'post_agent_event'>): AgentEvent {
     return this.store.write('system', (tx) => {
       const project = input.project ?? null;
       const message = input.message ?? null;
+
+      // "Finished" is news, not a waiting state, so it never sticks around as a toast.
+      if (input.kind === 'turn_complete') {
+        this.clearWaiting(tx, input.source, project);
+        const event = tx.insert('agent_events', {
+          source: input.source,
+          kind: input.kind,
+          project,
+          message,
+          acknowledged_at: tx.now,
+        });
+        if (!this.isQuiet(tx)) tx.afterCommit(() => this.notify(event));
+        return event;
+      }
+
       const duplicate = tx.db
         .select()
         .from(agent_events)
@@ -47,9 +87,13 @@ export class Attention {
     });
   }
 
+  private notify(event: AgentEvent): void {
+    this.notifier.notify({ key: event.source, title: 'Sirius', body: describeAgentEvent(event) });
+  }
+
   private announce(event: AgentEvent): void {
     this.bus.publish({ type: 'agent', event });
-    this.notifier.notify({ key: event.source, title: 'Sirius', body: describeAgentEvent(event) });
+    this.notify(event);
   }
 
   pending(): AgentEvent[] {

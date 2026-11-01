@@ -209,6 +209,39 @@ describe('agent attention (F23, F25)', () => {
   });
 });
 
+describe('turn_complete (Codex only ever sends this)', () => {
+  const finished = { source: 'codex', kind: 'turn_complete', project: 'lab' } as const;
+
+  test('notifies, but leaves no toast or waiting status behind', () => {
+    const h = harness();
+    h.run('post_agent_event', finished);
+    expect(h.notified.map((n) => n.body)).toEqual(['Codex finished in lab.']);
+    expect(h.run('list_agent_events', {})).toEqual([]);
+    expect(h.events.some((e) => e.type === 'agent')).toBe(false);
+  });
+
+  test('clears an earlier waiting event for the same project', () => {
+    const h = harness();
+    h.run('post_agent_event', { source: 'codex', kind: 'needs_input', project: 'lab' });
+    h.run('post_agent_event', finished);
+    expect(h.run('list_agent_events', {})).toEqual([]);
+  });
+
+  test('leaves other projects waiting', () => {
+    const h = harness();
+    h.run('post_agent_event', { source: 'codex', kind: 'needs_input', project: 'other' });
+    h.run('post_agent_event', finished);
+    expect(h.run('list_agent_events', {}).length).toBe(1);
+  });
+
+  test('stays silent in quiet mode', () => {
+    const h = harness();
+    h.run('set_quiet_mode', { on: true });
+    h.run('post_agent_event', finished);
+    expect(h.notified).toEqual([]);
+  });
+});
+
 test('the agent choice and model persist', () => {
   const h = harness(NOON_ISH);
   h.run('select_agent', { agent: 'codex', model: 'gpt-6.1-terra' });

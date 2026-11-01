@@ -20,10 +20,16 @@ export class Backups {
       .sort();
   }
 
-  runDaily(date: string): void {
-    const name = `sirius-${date}.sqlite`;
-    if (this.list().includes(name)) return;
-    this.sqlite.vacuumInto(join(this.dir, name));
+  /** A snapshot for this date, replacing any earlier one from the same day. */
+  snapshot(date: string): string {
+    const path = join(this.dir, `sirius-${date}.sqlite`);
+    rmSync(path, { force: true });
+    this.sqlite.vacuumInto(path);
     for (const old of this.list().slice(0, -KEEP)) rmSync(join(this.dir, old));
+    return path;
+  }
+
+  runDaily(date: string): void {
+    if (!this.list().includes(`sirius-${date}.sqlite`)) this.snapshot(date);
   }
 }

@@ -88,6 +88,12 @@ export const VoiceReplyEvent = z.object({
   final: z.boolean(),
 });
 
+/** Tells the voice service what to do. PTT arrives at the core, not at the service. */
+export const VoiceCommandEvent = z.object({
+  type: z.literal('voice_command'),
+  command: z.enum(['ptt', 'stop']),
+});
+
 export const UiActionEvent = z.object({
   type: z.literal('ui_action'),
   action: z.enum(['start_breathing']),
@@ -100,6 +106,7 @@ export const SiriusEvent = z.union([
   QueueReleasedEvent,
   VoiceEvent,
   VoiceReplyEvent,
+  VoiceCommandEvent,
   UiActionEvent,
 ]);
 export type SiriusEvent = z.infer<typeof SiriusEvent>;
