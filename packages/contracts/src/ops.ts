@@ -321,6 +321,7 @@ export const ops = {
       kind: ReminderKind,
       time_local: TimeLocal,
       weekdays: Weekdays.refine((v) => v > 0, 'Pick at least one weekday'),
+      once: z.boolean().optional().describe('Fire one time, then turn off'),
     }),
     output: Reminder,
   }),

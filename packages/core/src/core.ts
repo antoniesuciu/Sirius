@@ -19,6 +19,7 @@ import { Decisions } from './services/decisions.ts';
 import { Settings } from './services/settings.ts';
 import { VoiceState } from './services/voice.ts';
 import { Store } from './store.ts';
+import { VoiceRouter } from './voice/router.ts';
 
 export interface CoreOptions {
   dbPath: string;
@@ -52,7 +53,18 @@ export function createCore(options: CoreOptions): Core {
   const settings = new Settings(store);
   const attention = new Attention(store, bus, notifier, timeZone);
   const hooks: OpHooks = { quietEnded: (since) => attention.releaseSince(since) };
-  const chat = new Chat(store, settings, bus, options.adapters);
+  // The router and chat need each other, and the dispatcher needs them both, so the router
+  // resolves its collaborators late.
+  let dispatcher: Dispatcher;
+  let chat: Chat;
+  const router = new VoiceRouter(
+    store,
+    bus,
+    () => chat,
+    () => dispatcher,
+    timeZone,
+  );
+  chat = new Chat(store, settings, bus, options.adapters, router);
   const agents = new Agents(store, settings, chat, attention, timeZone);
   const voice = new VoiceState(bus);
   const decisions = new Decisions(store, timeZone, hooks);
@@ -75,7 +87,7 @@ export function createCore(options: CoreOptions): Core {
     post_agent_event: (input) => attention.post(input),
     list_agent_events: () => attention.pending(),
     ack_agent_event: ({ id }) => attention.ack(id),
-    voice_utterance: (input) => voice.utterance(input),
+    voice_utterance: (input) => router.utterance(input),
     set_voice_state: (input) => {
       voice.set(input);
       return { ok: true };
@@ -96,7 +108,7 @@ export function createCore(options: CoreOptions): Core {
     },
   };
 
-  const dispatcher = new Dispatcher(store, timeZone, system, hooks);
+  dispatcher = new Dispatcher(store, timeZone, system, hooks);
   const scheduler = new Scheduler(store, timeZone, notifier, attention, hooks, backups);
 
   return {

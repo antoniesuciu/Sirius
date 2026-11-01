@@ -135,6 +135,7 @@ export const Reminder = z.object({
   time_local: TimeLocal,
   weekdays: Weekdays,
   enabled: z.boolean(),
+  once: z.boolean(),
   snoozed_until: EpochMs.nullable(),
   /** Date the reminder last fired on, so a restart inside the same minute cannot double-fire. */
   last_fired_on: LocalDate.nullable(),

@@ -1,0 +1,1 @@
+ALTER TABLE `reminders` ADD `once` integer DEFAULT false NOT NULL;

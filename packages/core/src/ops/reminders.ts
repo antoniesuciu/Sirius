@@ -29,8 +29,15 @@ export const reminderHandlers: Handlers<
 > = {
   list_reminders: (_input, ctx) => allReminders(ctx),
 
-  set_reminder({ label, kind, time_local, weekdays }, ctx) {
-    return ctx.tx.insert('reminders', { label, kind, time_local, weekdays, enabled: true });
+  set_reminder({ label, kind, time_local, weekdays, once }, ctx) {
+    return ctx.tx.insert('reminders', {
+      label,
+      kind,
+      time_local,
+      weekdays,
+      enabled: true,
+      once: once ?? false,
+    });
   },
 
   snooze_reminder({ id, until }, ctx) {

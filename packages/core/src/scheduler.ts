@@ -127,6 +127,7 @@ export class Scheduler {
         tx.update('reminders', reminder.id, {
           snoozed_until: null,
           last_fired_on: this.calendarDate(now),
+          ...(reminder.once ? { enabled: false } : {}),
         });
         if (this.isQuiet(tx)) return;
         tx.afterCommit(() =>

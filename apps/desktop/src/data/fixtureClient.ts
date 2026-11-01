@@ -98,6 +98,7 @@ function reminder(label: string, kind: ReminderView['kind'], time: string): Remi
     time_local: time,
     weekdays: EVERY_DAY,
     enabled: true,
+    once: false,
     snoozed_until: null,
     last_fired_on: null,
     next_fire_at: nextOccurrence(time, EVERY_DAY, Date.now(), zone),

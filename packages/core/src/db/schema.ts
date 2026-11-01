@@ -79,6 +79,8 @@ export const reminders = sqliteTable('reminders', {
   time_local: text('time_local').notNull(),
   weekdays: integer('weekdays').notNull(),
   enabled: integer('enabled', { mode: 'boolean' }).notNull(),
+  /** Fires one time and then turns itself off. "Remind me at 5" is not a weekly habit. */
+  once: integer('once', { mode: 'boolean' }).notNull().default(false),
   snoozed_until: integer('snoozed_until'),
   last_fired_on: text('last_fired_on'),
 });
