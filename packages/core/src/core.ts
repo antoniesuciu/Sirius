@@ -38,6 +38,7 @@ export interface Core {
   scheduler: Scheduler;
   attention: Attention;
   chat: Chat;
+  voice: VoiceState;
   close(): void;
 }
 
@@ -94,7 +95,11 @@ export function createCore(options: CoreOptions): Core {
     },
     get_voice_state: () => voice.view(),
     voice_ptt: () => {
-      bus.publish({ type: 'voice_command', command: 'ptt' });
+      voice.command('ptt');
+      return { ok: true };
+    },
+    voice_stop: () => {
+      voice.command('stop');
       return { ok: true };
     },
     create_backup: () => {
@@ -119,6 +124,7 @@ export function createCore(options: CoreOptions): Core {
     scheduler,
     attention,
     chat,
+    voice,
     close() {
       scheduler.stop();
       sqlite.close();

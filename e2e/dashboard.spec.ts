@@ -133,6 +133,12 @@ test.describe('sirius', () => {
     await expect(page.locator('.task')).toHaveCount(6);
   });
 
+  test('the mic says so when voice is not running', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Talk to Sirius' }).click();
+    await expect(page.locator('.chat-log')).toContainText("Voice isn't running right now.");
+  });
+
   test('switching agent changes the model list', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'Codex', exact: true }).click();

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { isCancelWord, normalise, parseIntent, parseTime } from '../src/voice/intents.ts';
+import { normalise, parseIntent, parseTime } from '../src/voice/intents.ts';
 import { VOICE_CONFIRM_WINDOW_MS } from '../src/voice/router.ts';
-import { CLAUDE, fakeAgent, harness, NOON_ISH } from './harness.ts';
+import { CLAUDE, codeOf, fakeAgent, harness, NOON_ISH } from './harness.ts';
 
 describe('grammar: English (F30)', () => {
   test.each([
@@ -30,6 +30,7 @@ describe('grammar: Romanian (F29)', () => {
     ['adaugă cumpără orez la azi', { kind: 'add_task', title: 'Cumpără orez' }],
     ['Adaugă cumpără orez.', { kind: 'add_task', title: 'Cumpără orez' }],
     ['amintește-mi la 17:40 să mă rog', { kind: 'remind', time: '17:40', label: 'Mă rog' }],
+    ['amintește-mi la cinci să sun acasă', { kind: 'remind', time: '05:00', label: 'Sun acasă' }],
     ['ce urmează', { kind: 'whats_next' }],
     ['cât e ceasul', { kind: 'what_time' }],
     ['începe respirația', { kind: 'start_breathing' }],
@@ -72,6 +73,10 @@ describe('helpers', () => {
     ['12 pm', '12:00'],
     ['17:40', '17:40'],
     ['9.30', '09:30'],
+    ['five', '05:00'],
+    ['five pm', '17:00'],
+    ['cinci', '05:00'],
+    ['opt', '08:00'],
   ])('parseTime %s', (raw, time) => {
     expect(parseTime(raw)).toBe(time);
   });
@@ -81,11 +86,6 @@ describe('helpers', () => {
   });
   test('normalise strips the wake word and punctuation', () => {
     expect(normalise('Hey, Sirius! add milk.')).toBe('add milk');
-  });
-  test('cancel words abort in both languages (F28)', () => {
-    expect(isCancelWord('Cancel.')).toBe(true);
-    expect(isCancelWord('anulează')).toBe(true);
-    expect(isCancelWord('cancel my dentist appointment')).toBe(false);
   });
 });
 
@@ -247,8 +247,30 @@ describe('proposals by voice (F32)', () => {
   });
 });
 
-test('voice_ptt reaches the voice service over the bus', () => {
-  const h = harness();
-  h.run('voice_ptt', {});
-  expect(h.events).toContainEqual({ type: 'voice_command', command: 'ptt' });
+describe('the voice service connection', () => {
+  test('push-to-talk reaches a connected service', () => {
+    const h = harness();
+    h.core.voice.attach();
+    h.run('voice_ptt', {});
+    h.run('voice_stop', {});
+    expect(h.events).toContainEqual({ type: 'voice_command', command: 'ptt' });
+    expect(h.events).toContainEqual({ type: 'voice_command', command: 'stop' });
+  });
+
+  test('with no service running, push-to-talk says so', () => {
+    expect(codeOf(() => harness().run('voice_ptt', {}))).toBe('voice_unavailable');
+  });
+
+  test('if the service dies, the mic indicator cannot stay lit', () => {
+    const h = harness();
+    const detach = h.core.voice.attach();
+    const state = { state: 'listening', transcript: null, mic_open: true, level: null } as const;
+    h.run('set_voice_state', state);
+    detach();
+    expect(h.run('get_voice_state', {}).mic_open).toBe(false);
+  });
+});
+
+test('cancel with nothing to decline stays silent (F28)', () => {
+  expect(say(harness(), 'cancel').reply).toBeNull();
 });

@@ -268,7 +268,11 @@ export function App() {
               micOpen: voice?.mic_open ?? false,
               transcript: voice?.transcript ?? null,
               onMic: () => {
-                // Wired to the voice service in M6.
+                setSendError(null);
+                client.call('voice_ptt', {}).catch((error: Error) => setSendError(error.message));
+              },
+              onStop: () => {
+                void client.call('voice_stop', {}).catch(() => {});
               },
             }}
           />

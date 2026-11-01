@@ -88,7 +88,7 @@ export const VoiceUtteranceResult = z.object({
   route: VoiceRoute,
   turn_id: z.string(),
   intent: z.string().nullable(),
-  /** Set on the fast path: the sentence to speak straight away. */
+  /** Set on the fast path: the sentence to speak straight away. Null means stay silent. */
   reply: z.string().nullable(),
 });
 
@@ -497,6 +497,14 @@ export const ops = {
     userOnly: true,
     summary: 'Push-to-talk: start listening, or stop if already listening.',
     http: { method: 'post', path: '/voice/ptt' },
+    input: NoInput,
+    output: Ok,
+  }),
+  voice_stop: op({
+    class: 'system',
+    userOnly: true,
+    summary: 'Abort listening or speaking (Esc).',
+    http: { method: 'post', path: '/voice/stop' },
     input: NoInput,
     output: Ok,
   }),

@@ -36,9 +36,41 @@ function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** Reads "5", "5 pm", "5:30", "17:40", "5 p.m." into HH:MM. */
+/** Whisper writes small numbers as words as often as digits, in both languages. */
+const HOUR_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  unu: 1,
+  una: 1,
+  doua: 2,
+  doi: 2,
+  trei: 3,
+  patru: 4,
+  cinci: 5,
+  sase: 6,
+  sapte: 7,
+  opt: 8,
+  noua: 9,
+  zece: 10,
+  unsprezece: 11,
+  doisprezece: 12,
+  douasprezece: 12,
+};
+
+/** Reads "5", "five", "5 pm", "5:30", "17:40", "5 p.m." into HH:MM. */
 export function parseTime(raw: string): string | null {
-  const match = raw.trim().match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?$/i);
+  const digits = raw.trim().replace(/^[a-z]+/, (word) => String(HOUR_WORDS[word] ?? word));
+  const match = digits.match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?$/i);
   if (!match) return null;
   let hour = Number(match[1]);
   const minute = Number(match[2] ?? 0);
@@ -75,7 +107,7 @@ const PHRASES: Array<[RegExp, Intent]> = [
 const ADD_PATTERNS: RegExp[] = [
   /^(?:add|put)\s+(.+?)\s+(?:to|on|in)\s+(?:today|my list|the list)$/,
   /^add\s+(.+)$/,
-  /^(?:adauga|pune)\s+(.+?)\s+(?:la azi|pe azi|pentru azi|in lista)$/,
+  /^(?:adauga|pune)\s+(.+?)\s+(?:la azi|la zi|pe azi|pentru azi|in lista)$/,
   /^adauga\s+(.+)$/,
 ];
 
@@ -122,9 +154,4 @@ export function parseIntent(transcript: string): Intent | null {
     }
   }
   return null;
-}
-
-/** Saying only this during a session aborts it (F28). The voice service acts on it directly. */
-export function isCancelWord(transcript: string): boolean {
-  return /^(cancel|never mind|nevermind|anuleaza|lasa)$/.test(fold(normalise(transcript)));
 }

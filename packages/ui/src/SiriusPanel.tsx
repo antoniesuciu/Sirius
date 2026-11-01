@@ -16,6 +16,8 @@ export interface VoiceProps {
   micOpen: boolean;
   transcript: string | null;
   onMic(): void;
+  /** Esc: abort listening or speaking (F28). */
+  onStop(): void;
 }
 
 export interface SiriusPanelProps {
@@ -99,7 +101,9 @@ export function SiriusPanel(props: SiriusPanelProps) {
     setDraft('');
   };
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && props.busy) props.onCancel();
+    if (e.key !== 'Escape') return;
+    if (voice.micOpen || props.avatar === 'speaking') voice.onStop();
+    else if (props.busy) props.onCancel();
   };
 
   return (

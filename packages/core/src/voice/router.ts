@@ -71,7 +71,7 @@ export class VoiceRouter implements TurnObserver {
     );
   }
 
-  private execute(intent: Intent, lang: Lang): string {
+  private execute(intent: Intent, lang: Lang): string | null {
     const say = replies(lang);
     const run = this.run();
     switch (intent.kind) {
@@ -143,12 +143,13 @@ export class VoiceRouter implements TurnObserver {
     return say.snoozed(reminder.label);
   }
 
-  private decide(lang: Lang, confirm: boolean): string {
+  /** F28: "cancel" with nothing to decline just ends the session, so it stays silent. */
+  private decide(lang: Lang, confirm: boolean): string | null {
     const say = replies(lang);
     const pending = this.run()
       .run('list_proposals', {}, USER)
       .sort((a, b) => b.created_at - a.created_at)[0];
-    if (!pending) return say.nothingToConfirm;
+    if (!pending) return confirm ? say.nothingToConfirm : null;
     if (!confirm) {
       this.run().run('reject_proposal', { id: pending.id }, USER);
       return say.rejected;

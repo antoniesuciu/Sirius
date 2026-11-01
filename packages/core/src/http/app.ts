@@ -42,7 +42,7 @@ function pathParams(path: string): string[] {
   return [...path.matchAll(/\{(\w+)\}/g)].map((m) => m[1] as string);
 }
 
-function eventStream(core: Core): Response {
+function eventStream(core: Core, isVoiceService: boolean): Response {
   const encoder = new TextEncoder();
   let stop = () => {};
   const stream = new ReadableStream<Uint8Array>({
@@ -53,9 +53,11 @@ function eventStream(core: Core): Response {
         write(`data: ${JSON.stringify(event)}\n\n`),
       );
       const heartbeat = setInterval(() => write(': ping\n\n'), HEARTBEAT_MS);
+      const detach = isVoiceService ? core.voice.attach() : () => {};
       stop = () => {
         unsubscribe();
         clearInterval(heartbeat);
+        detach();
       };
     },
     cancel: () => stop(),
@@ -116,7 +118,9 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
     return next();
   });
 
-  app.get('/v1/events', () => eventStream(core));
+  app.get('/v1/events', (c) =>
+    eventStream(core, c.req.header('x-sirius-client') === 'voice-service'),
+  );
 
   for (const name of opNames) register(app, core, name);
 
