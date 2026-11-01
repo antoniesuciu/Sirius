@@ -31,7 +31,17 @@ const call = async (name: string, args: Record<string, unknown> = {}) =>
   (await mcp.callTool({ name, arguments: args })) as Result;
 
 beforeEach(async () => {
-  core = createCore({ dbPath: ':memory:', timeZone: 'UTC', notifier: { notify() {} } });
+  const adapter = (id: AgentId) => ({
+    id,
+    available: async () => ({ ok: true }),
+    async *run() {},
+  });
+  core = createCore({
+    dbPath: ':memory:',
+    timeZone: 'UTC',
+    notifier: { notify() {} },
+    adapters: { claude: adapter('claude'), codex: adapter('codex') },
+  });
   mcp = await connect('claude');
 });
 

@@ -1,4 +1,7 @@
 /** The composition root: everything the service is, minus the process around it. */
+
+import type { AgentId } from '@sirius/contracts';
+import type { AgentAdapter } from './agents/types.ts';
 import { Backups } from './backups.ts';
 import { EventBus } from './bus.ts';
 import { migrate } from './db/migrate.ts';
@@ -21,6 +24,7 @@ export interface CoreOptions {
   backupDir?: string;
   timeZone: string;
   notifier: Notifier;
+  adapters: Record<AgentId, AgentAdapter>;
   clock?: () => number;
 }
 
@@ -31,6 +35,7 @@ export interface Core {
   dispatcher: Dispatcher;
   scheduler: Scheduler;
   attention: Attention;
+  chat: Chat;
   close(): void;
 }
 
@@ -46,7 +51,7 @@ export function createCore(options: CoreOptions): Core {
   const settings = new Settings(store);
   const attention = new Attention(store, bus, notifier, timeZone);
   const hooks: OpHooks = { quietEnded: (since) => attention.releaseSince(since) };
-  const chat = new Chat(store, settings);
+  const chat = new Chat(store, settings, bus, options.adapters);
   const agents = new Agents(store, settings, chat, attention, timeZone);
   const voice = new VoiceState(bus);
   const decisions = new Decisions(store, timeZone, hooks);
@@ -91,6 +96,7 @@ export function createCore(options: CoreOptions): Core {
     dispatcher,
     scheduler,
     attention,
+    chat,
     close() {
       scheduler.stop();
       sqlite.close();

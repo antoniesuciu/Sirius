@@ -1,4 +1,5 @@
 import type { OpInput, OpName, OpOutput, SiriusEvent } from '@sirius/contracts';
+import type { AgentAdapter, AgentStreamEvent } from '../src/agents/types.ts';
 import { type Core, createCore } from '../src/core.ts';
 import type { Caller } from '../src/dispatcher.ts';
 import type { Notification } from '../src/notifier.ts';
@@ -9,6 +10,28 @@ export const TZ = 'Europe/Lisbon';
 export const USER: Caller = { actor: 'user', via: 'ui' };
 export const CLAUDE: Caller = { actor: 'claude', via: 'chat' };
 
+/** A scripted agent. Each call to `run` plays the next script. */
+export function fakeAgent(id: 'claude' | 'codex', scripts: AgentStreamEvent[][] = []) {
+  const prompts: Array<{ prompt: string; model: string; sessionId?: string }> = [];
+  const adapter: AgentAdapter = {
+    id,
+    available: async () => ({ ok: true }),
+    async *run(turn) {
+      prompts.push({
+        prompt: turn.prompt,
+        model: turn.model,
+        ...(turn.sessionId ? { sessionId: turn.sessionId } : {}),
+      });
+      for (const event of scripts.shift() ?? [{ type: 'done' }]) {
+        if (turn.signal.aborted) return;
+        await Bun.sleep(1);
+        yield event;
+      }
+    },
+  };
+  return { adapter, prompts, scripts };
+}
+
 export interface Harness {
   core: Core;
   notified: Notification[];
@@ -18,7 +41,10 @@ export interface Harness {
   run<N extends OpName>(name: N, input: OpInput<N>, caller?: Caller): OpOutput<N>;
 }
 
-export function harness(start = NOON_ISH): Harness {
+export function harness(
+  start = NOON_ISH,
+  adapters = { claude: fakeAgent('claude').adapter, codex: fakeAgent('codex').adapter },
+): Harness {
   const now = { value: start };
   const notified: Notification[] = [];
   const events: SiriusEvent[] = [];
@@ -27,6 +53,7 @@ export function harness(start = NOON_ISH): Harness {
     timeZone: TZ,
     clock: () => now.value,
     notifier: { notify: (n) => notified.push(n) },
+    adapters,
   });
   core.bus.subscribe((e) => events.push(e));
   return {

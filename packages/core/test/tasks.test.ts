@@ -97,3 +97,9 @@ test('soft delete hides a task but keeps the row', () => {
   expect(h.run('get_today', {}).tasks).toEqual([]);
   expect(h.core.store.write('user', (tx) => tx.peek('tasks', id))?.deleted_at).toBe(h.now.value);
 });
+
+test('ids sort in creation order even within one millisecond', () => {
+  const h = harness();
+  const ids = Array.from({ length: 50 }, (_, i) => h.run('add_task', { title: `t${i}` }).id);
+  expect([...ids].sort()).toEqual(ids);
+});
