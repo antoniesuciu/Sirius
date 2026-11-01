@@ -1,0 +1,21 @@
+/* Design tokens: spec section 11. */
+:root {
+  --bg: #ebe3d1;
+  --panel: #f4eee1;
+  --panel-border: rgba(26, 24, 20, 0.13);
+  --line-soft: rgba(26, 24, 20, 0.35);
+  --line-mid: rgba(26, 24, 20, 0.3);
+  --rail: rgba(26, 24, 20, 0.16);
+  --ink: #1a1814;
+  --ink-2: #3a362e;
+  --muted: #5f5849;
+  --placeholder: #6b6455;
+  --accent: #5f6b3a;
+  --bubble-sirius: #eae1ce;
+  --input: #fbf8f0;
+  --on-ink: #f4eee1;
+  --on-ink-soft: rgba(244, 238, 225, 0.6);
+
+  --radius-panel: 20px;
+  --font: "Newsreader Variable", Georgia, "Times New Roman", serif;
+}

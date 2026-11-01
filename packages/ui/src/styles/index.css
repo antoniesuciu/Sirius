@@ -1,0 +1,5 @@
+@import "@fontsource-variable/newsreader/opsz.css";
+@import "@fontsource-variable/newsreader/opsz-italic.css";
+@import "./tokens.css";
+@import "./dashboard.css";
+@import "./motion.css";
