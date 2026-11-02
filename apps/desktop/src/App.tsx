@@ -22,7 +22,9 @@ import {
   usePageHidden,
   useResting,
   WellbeingPanel,
+  WindowControls,
 } from '@sirius/ui';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useMemo, useState } from 'react';
 import { browserVoiceSupported, useBrowserVoice } from './data/browserVoice.ts';
 import {
@@ -186,6 +188,13 @@ export function App() {
 
   return (
     <div className={`app ${hidden ? 'paused' : ''} ${resting ? 'resting' : ''}`}>
+      {'__TAURI_INTERNALS__' in window && (
+        <WindowControls
+          onMinimize={() => void getCurrentWindow().minimize()}
+          onToggleMaximize={() => void getCurrentWindow().toggleMaximize()}
+          onClose={() => void getCurrentWindow().close()}
+        />
+      )}
       {settings?.['ui.leaves'] !== false && <Leaves />}
       <Header
         greeting={today ? greeting(OWNER, hour, openPriorities) : null}

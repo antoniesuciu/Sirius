@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import { useState } from 'react';
 import { useSmoothedText } from './hooks.ts';
 import { MicIcon, SendIcon } from './Icons.tsx';
+import { ModelPicker } from './ModelPicker.tsx';
 import { type AvatarState, SiriusAvatar } from './SiriusAvatar.tsx';
 
 export interface ChatLine {
@@ -131,20 +132,14 @@ export function SiriusPanel(props: SiriusPanelProps) {
       </div>
 
       <div className="sirius-meta">
-        <label className="model-select">
+        <div className="model-select">
           <span>via</span>
-          <select
-            aria-label="Model"
+          <ModelPicker
+            models={active?.models ?? []}
             value={active?.model ?? ''}
-            onChange={(e) => props.onSelectModel(e.target.value)}
-          >
-            {active?.models.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={props.onSelectModel}
+          />
+        </div>
         <span className="agent-states">
           {props.agents.map((agent) => (
             <span className="agent-state" key={agent.id}>

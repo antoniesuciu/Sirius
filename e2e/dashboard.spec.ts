@@ -4,6 +4,41 @@ import { expect, type Page, test } from '@playwright/test';
 const open = (page: Page, query = '?fixtures&toastMs=600000') => page.goto(`/${query}`);
 const typed = (page: Page) => expect(page.locator('h1 .caret')).toHaveCount(0, { timeout: 10_000 });
 
+test.describe('window without a system title bar', () => {
+  test('the desktop app draws its own controls and they reach Tauri', async ({ page }) => {
+    await page.addInitScript(() => {
+      const calls: string[] = [];
+      Object.assign(window, {
+        tauriCalls: calls,
+        __TAURI_INTERNALS__: {
+          metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
+          invoke: async (command: string) => calls.push(command),
+        },
+      });
+    });
+    await open(page);
+    await expect(page.locator('.window-drag')).toHaveAttribute('data-tauri-drag-region', 'true');
+    for (const name of ['Minimise', 'Maximise', 'Close']) {
+      await page.getByRole('button', { name, exact: true }).click();
+    }
+    const calls = await page.evaluate(
+      () => (window as unknown as { tauriCalls: string[] }).tauriCalls,
+    );
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        'plugin:window|minimize',
+        'plugin:window|toggle_maximize',
+        'plugin:window|close',
+      ]),
+    );
+  });
+
+  test('a browser or phone keeps its own window chrome', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('.window-controls')).toHaveCount(0);
+  });
+});
+
 test.describe('header', () => {
   test('types the greeting from the number of open priorities', async ({ page }) => {
     await open(page);
@@ -150,10 +185,52 @@ test.describe('sirius', () => {
     await expect(page.locator('.chat-log')).toContainText("Voice isn't running right now.");
   });
 
+  test('the model picker works by mouse and closes when you click away', async ({ page }) => {
+    await open(page);
+    const picker = page.getByRole('button', { name: /^Model:/ });
+    await expect(picker).toContainText('Haiku');
+    await picker.click();
+    await page.getByRole('option', { name: 'Claude Sonnet 5.5' }).click();
+    await expect(picker).toContainText('Sonnet');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+
+    await picker.click();
+    await expect(page.getByRole('option', { name: 'Claude Sonnet 5.5' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.locator('h1').click();
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+  });
+
+  test('the model picker works by keyboard', async ({ page }) => {
+    await open(page);
+    const picker = page.getByRole('button', { name: /^Model:/ });
+    await picker.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('listbox')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(picker).toBeFocused();
+
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(picker).toContainText('Sonnet');
+    await expect(picker).toBeFocused();
+  });
+
+  test('the open model list has no accessibility violations', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: /^Model:/ }).click();
+    const results = await new AxeBuilder({ page }).include('.model-picker').analyze();
+    expect(results.violations).toEqual([]);
+  });
+
   test('switching agent changes the model list', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'Codex', exact: true }).click();
-    await expect(page.getByLabel('Model')).toHaveValue('gpt-6.1-sol');
+    await expect(page.getByRole('button', { name: /^Model:/ })).toContainText(/sol/i);
     await expect(page.getByRole('button', { name: 'Codex', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',

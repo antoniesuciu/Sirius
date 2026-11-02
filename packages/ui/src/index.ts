@@ -10,3 +10,4 @@ export { type AvatarState, SiriusAvatar } from './SiriusAvatar.tsx';
 export { type ChatLine, SiriusPanel } from './SiriusPanel.tsx';
 export { TodayPanel } from './TodayPanel.tsx';
 export { WellbeingPanel } from './WellbeingPanel.tsx';
+export { WindowControls } from './WindowControls.tsx';

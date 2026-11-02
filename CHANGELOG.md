@@ -72,3 +72,14 @@
 - M8, built but not deployed: the core serves the UI as an installable PWA, with ntfy notifications
   and browser push-to-talk through `sirius-voice`.
 - The images have never been built here, because this user cannot reach the Docker daemon.
+
+## First real use (2026-11-02)
+
+- One conversation until "New conversation": it stays when the agent changes, and the CLI session
+  under it is replaced on a switch and after 20 turns, to limit usage (ADR 0008).
+- Sirius remembers: a `remember` tool writes to one Markdown file, set by `SIRIUS_MEMORY_FILE`.
+- The desktop window has no system title bar. It draws its own drag strip and controls.
+- The model choice is a list drawn by Sirius instead of the GTK popup of a native select.
+- Voice grammar learned phrases from a real voice: "and … today" as a misheard "add",
+  "adaugă … azi", "lazi", "am ceva de făcut azi" and "ce mai am de făcut".
+- Whisper decodes with a beam of 5 instead of greedily, and knows more of the Romanian commands.
