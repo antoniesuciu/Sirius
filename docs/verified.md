@@ -69,7 +69,7 @@ Service memory: 98 MB with the mic closed, about 970 MB with models loaded. Back
 Things found the hard way:
 
 - The `silero-vad` package needs torch. faster-whisper ships the same model as ONNX.
-- `openwakeword` depends on `tflite-runtime`, which has no Python 3.12 wheels. This matters for M7.
+- `openwakeword` depends on `tflite-runtime`, which has no Python 3.12 wheels. This matters for M9.
 - onnxruntime 1.31 reports to `mobile.events.data.microsoft.com` by default on Linux.
   `ORT_DISABLE_TELEMETRY=1` must be set before it initialises;
   `disable_telemetry_events()` alone does not stop it.
@@ -81,4 +81,3 @@ Things found the hard way:
 
 Not verified with a real human voice yet: accuracy, and the 1.5 s end-to-end budget.
 
-Not yet verified: the licence attribution text for the avatar (spec section 13, item 8).

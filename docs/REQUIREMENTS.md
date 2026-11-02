@@ -1,6 +1,6 @@
 # Sirius: Calm Dashboard Requirements
 
-Status: v1.3 spec, 2026-11-01 (v1 voice is push-to-talk only; the wake word moves to M7; see `docs/adr/0005-voice-ptt-first.md`). Owner: Antonie.
+Status: v1.4 spec, 2026-11-02 (laptop only for now; M7 and M8 wait for a homelab; the wake word moves to M9, Special additions; see `docs/adr/0006-laptop-only.md`). Owner: Antonie.
 Design references: `design/dashboard-reference.dc.html` (interactive mockup; its avatar `<img src="/_blob/…">` points to `design/sirius.svg`) and `design/sirius.svg` (final avatar).
 
 > **Success criterion.** Opening the computer should make the day feel clearer and less chaotic. It should not create another project to manage.
@@ -11,7 +11,7 @@ Design references: `design/dashboard-reference.dc.html` (interactive mockup; its
 
 - Read this whole document before writing code. Section 5 (architecture decisions) is binding. Change a decision only with a short ADR in `docs/adr/` that explains why.
 - `design/dashboard-reference.dc.html` is a **reference mockup**, written in a proprietary component format (`<x-dc>`, `<sc-if>`, `<sc-for>`, `renderVals()`). Do **not** port that runtime. Re-implement the layout, copy, colors, animations and interactions in React. Take the CSS keyframes and SVG markup almost as-is.
-- `design/sirius.svg` is the production avatar. Turn it into a React component whose `state` prop is `idle | listening | thinking | speaking | asleep` (see F15a). It is a traced, layered version of a free stock wolf icon with custom eyes. Credit the original author in the About screen and README, as its free licence requires (**[verify]** the exact attribution text on the source site). The file is grouped by class:
+- `design/sirius.svg` is the production avatar. Turn it into a React component whose `state` prop is `idle | listening | thinking | speaking | asleep` (see F15a). It is a traced, layered version of a free stock wolf icon with custom eyes. The file is grouped by class:
   - `ruff`, `body`, `shade`, `light`, `earin`, `nose`, `noseb`, `line` (the navy outline, drawn on top);
   - `eyes`: the sclera, with an `iris` group per eye clipped by `#sirius-eyes`. This is what animates.
   Ears and jaw are **not** separate parts, so the head-level states use whole-image transforms (bob, tilt, scale) plus eye animation (blink = scaleY on `.eyes`, glance = translate on `.iris`). Inline the SVG; don't use `<img>`, so CSS can reach the classes. It's about 150 KB, so it's worth one more optimisation pass.
@@ -34,7 +34,7 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 | **Well-being** | Breathing exercise, next gentle nudge |
 | **Sirius** | Embedded assistant chat with a wolf avatar. Runs Claude Code or Codex headlessly, on the user's subscriptions |
 | **Agent attention** | Quiet toast and notification when Claude or Codex (running elsewhere on the machine) needs input |
-| **Voice** | Push-to-talk, personal-assistant-style requests. Speech recognition and synthesis run locally. "Hey Sirius" comes later (M7) |
+| **Voice** | Push-to-talk, personal-assistant-style requests. Speech recognition and synthesis run locally. "Hey Sirius" comes later (M9) |
 
 **Design principles** (from the original notes, all binding): calm over productivity metrics; minimal over feature-rich; personal over prescriptive; quiet by default; local-first; no obligation to optimize every minute; rest is a valid suggestion.
 
@@ -42,7 +42,7 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 
 **v1 (milestones M0–M6):** the desktop app on Ubuntu, local core service, MCP server, Sirius chat via Claude/Codex CLIs, agent-attention notifications, local push-to-talk voice.
 
-**Later (M7–M8):** the "Hey Sirius" wake word; core hosted on the homelab and reachable remotely; phone client.
+**Later:** M9, Special additions, including the "Hey Sirius" wake word. M7 and M8 (core on a homelab, phone client) are parked until a homelab exists; today everything runs on the laptop.
 
 **Non-goals:** multi-user, accounts, sharing, calendar sync, analytics, streaks, scores, gamification, a plugin system, Windows/macOS packaging (it shouldn't be prevented, just not done).
 
@@ -100,7 +100,7 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 - **F25** Rate limits: at most one notification per source per 2 minutes, and duplicate events are coalesced.
 
 ### 3.8 Voice
-- **F26** *(deferred to M7)* **Wake word** "Hey Sirius" starts listening, hands-free, whether or not the window is open. In v1, listening starts from push-to-talk (F27); the earcon, the `listening` avatar and the live transcript line apply to that.
+- **F26** *(deferred to M9)* **Wake word** "Hey Sirius" starts listening, hands-free, whether or not the window is open. In v1, listening starts from push-to-talk (F27); the earcon, the `listening` avatar and the live transcript line apply to that.
 - **F27** **Push-to-talk**, the way to start voice in v1:
   - the mic button in the chat;
   - a system keyboard shortcut, registered as a GNOME custom shortcut that runs `sirius voice ptt`. Ubuntu's default Wayland session doesn't reliably allow app-level global hotkeys, so the shortcut is set at the system level.
@@ -111,12 +111,12 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
   - "what's next", "what time is it";
   - "start breathing", "I'm done for today", "snooze that", "confirm" / "cancel".
   Everything else goes to the selected agent (F16) with `source=voice`, and the prompt asks for a short, speakable answer.
-- **F31** Replies are spoken by local TTS, streamed sentence by sentence, and also appear in the chat. Pressing PTT while Sirius is speaking stops it (barge-in); from M7, so does the wake word.
+- **F31** Replies are spoken by local TTS, streamed sentence by sentence, and also appear in the chat. Pressing PTT while Sirius is speaking stops it (barge-in); from M9, so does the wake word.
 - **F32** Proposals (F19) can be confirmed by voice ("yes" / "confirm" within 15 s) **except deletes**, which always need a tap in the UI.
 - **F33** **Privacy:**
   - audio is processed in memory on the machine and never stored or uploaded by default; only the final transcript reaches the agent;
   - the mic is closed unless a push-to-talk session is running in v1; a visible mic indicator shows whenever it is open;
-  - PTT works in quiet mode; from M7, quiet mode disables the wake word by default (configurable);
+  - PTT works in quiet mode; from M9, quiet mode disables the wake word by default (configurable);
   - one setting turns all voice off and stops the service.
 
 ## 4. Non-functional requirements
@@ -247,7 +247,7 @@ Rules:
 **ADR-10: Voice is a separate local service, `sirius-voice` (Python 3.12, managed with uv, run as a systemd user service). Everything runs on-device.**
 - *Pipeline:*
   1. Capture: PipeWire via PortAudio (`sounddevice`), 16 kHz mono.
-  2. **openWakeWord** *(M7, not v1)*: a custom "hey Sirius" model trained on synthetic speech (**[verify]** training workflow); a bundled pre-trained word serves as a placeholder until then. In v1, PTT opens the mic instead.
+  2. **openWakeWord** *(M9, not v1)*: a custom "hey Sirius" model trained on synthetic speech (**[verify]** training workflow); a bundled pre-trained word serves as a placeholder until then. In v1, PTT opens the mic instead.
   3. **Silero VAD** for endpointing.
   4. **faster-whisper** (CTranslate2) for speech-to-text. Model `small` by default, `medium` optional. Uses CUDA on the LOQ's NVIDIA GPU when available, with a CPU int8 fallback. Multilingual, so Romanian and English both work.
   5. Post the utterance to the core, which routes it either to the **fast-path intent grammar** or to an **agent turn**.
@@ -412,8 +412,9 @@ The mockup uses Newsreader as a stand-in for Claude's typeface, which is proprie
 | **M4** | Sirius chat: adapters, streaming, sessions, agent switch, error states, avatar states | Both agents complete add, move (proposal) and roadmap flows; built-in tools provably disabled (test: ask it to read a file, which must fail); latency measured |
 | **M5** | Agent attention: `sirius notify`, hook setup, toasts and native notifications, quiet-mode queueing | A Claude permission prompt in another terminal produces one toast and one notification within 2 s; suppressed in quiet mode and shown on "Welcome back" |
 | **M6** | Voice: `sirius-voice` service with push-to-talk; fast-path grammar; Piper replies; barge-in; avatar listening and speaking states | PTT "add buy rice to today" lands in Today and is acknowledged aloud within the section 4.1 budgets; works in Romanian and English; no audio files on disk |
-| **M7** | Wake word: openWakeWord "Hey Sirius". Remote mode: Docker, compose, Litestream, Cloudflare Tunnel + Access; desktop can point at a remote core | The wake word false-accepts fewer than once per hour across a normal 2-hour work session (measured); core runs on the homelab; desktop works against it; restore-from-backup drill documented and done once |
-| **M8** | Phone: PWA from the remote core, responsive layout, ntfy/Web Push notifier, push-to-talk voice | Add to home screen on the phone; Today, Goals and Learning usable; agent-attention push arrives; voice PTT works over the tunnel |
+| **M7** | *Parked until a homelab exists.* Remote mode: Docker, compose, Litestream, Cloudflare Tunnel + Access; desktop can point at a remote core | Core runs on the homelab; desktop works against it; restore-from-backup drill documented and done once |
+| **M8** | *Parked until a homelab exists.* Phone: PWA from the remote core, responsive layout, ntfy/Web Push notifier, push-to-talk voice | Add to home screen on the phone; Today, Goals and Learning usable; agent-attention push arrives; voice PTT works over the tunnel |
+| **M9** | Special additions: extras that make Sirius nicer but are not needed for v1. They run on the laptop and need no homelab, so this does not wait for M7 or M8. First item: the openWakeWord "Hey Sirius" wake word (F26). More are added here as they come up | Wake word: false-accepts fewer than once per hour across a normal 2-hour work session (measured). Each new item states its own acceptance when it is added |
 
 ## 13. Open questions and things to verify
 
@@ -428,4 +429,3 @@ The mockup uses Newsreader as a stand-in for Claude's typeface, which is proprie
    - the CUDA and cuDNN versions faster-whisper needs on the LOQ's driver;
    - the quality of Piper's Romanian voice;
    - PipeWire mic access from a systemd user service.
-8. Avatar: the attribution text and placement the icon's free licence requires.
