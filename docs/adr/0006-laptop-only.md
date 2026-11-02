@@ -1,6 +1,6 @@
 # ADR 0006: laptop only for now, with a Special additions milestone
 
-Status: accepted, 2026-11-02. Decided by the owner.
+Status: accepted, 2026-11-02. Decided by the owner. ADR 0007 later built M7 and M8 without deploying them.
 
 There is no homelab at the moment, only the laptop. M7 (remote core) and M8 (phone) depend on
 one, so both are parked. Their design stays in the spec, and the core's env-driven config and the

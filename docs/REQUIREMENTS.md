@@ -1,6 +1,6 @@
 # Sirius: Calm Dashboard Requirements
 
-Status: v1.4 spec, 2026-11-02 (laptop only for now; M7 and M8 wait for a homelab; the wake word moves to M9, Special additions; see `docs/adr/0006-laptop-only.md`). Owner: Antonie.
+Status: v1.4 spec, 2026-11-02 (laptop only for now; M7 and M8 are built but not deployed; the wake word moves to M9, Special additions; `deployment.env` chooses local or deployed; see `docs/adr/0006-laptop-only.md` and `0007-deployment-switch.md`). Owner: Antonie.
 Design references: `design/dashboard-reference.dc.html` (interactive mockup; its avatar `<img src="/_blob/…">` points to `design/sirius.svg`) and `design/sirius.svg` (final avatar).
 
 > **Success criterion.** Opening the computer should make the day feel clearer and less chaotic. It should not create another project to manage.
@@ -42,7 +42,7 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 
 **v1 (milestones M0–M6):** the desktop app on Ubuntu, local core service, MCP server, Sirius chat via Claude/Codex CLIs, agent-attention notifications, local push-to-talk voice.
 
-**Later:** M9, Special additions, including the "Hey Sirius" wake word. M7 and M8 (core on a homelab, phone client) are parked until a homelab exists; today everything runs on the laptop.
+**Later:** M9, Special additions, including the "Hey Sirius" wake word. M7 and M8 (core on a homelab, phone client) are built and tested locally but not deployed, because there is no homelab yet. Everything runs on the laptop, and `deployment.env` is the switch.
 
 **Non-goals:** multi-user, accounts, sharing, calendar sync, analytics, streaks, scores, gamification, a plugin system, Windows/macOS packaging (it shouldn't be prevented, just not done).
 
@@ -412,8 +412,8 @@ The mockup uses Newsreader as a stand-in for Claude's typeface, which is proprie
 | **M4** | Sirius chat: adapters, streaming, sessions, agent switch, error states, avatar states | Both agents complete add, move (proposal) and roadmap flows; built-in tools provably disabled (test: ask it to read a file, which must fail); latency measured |
 | **M5** | Agent attention: `sirius notify`, hook setup, toasts and native notifications, quiet-mode queueing | A Claude permission prompt in another terminal produces one toast and one notification within 2 s; suppressed in quiet mode and shown on "Welcome back" |
 | **M6** | Voice: `sirius-voice` service with push-to-talk; fast-path grammar; Piper replies; barge-in; avatar listening and speaking states | PTT "add buy rice to today" lands in Today and is acknowledged aloud within the section 4.1 budgets; works in Romanian and English; no audio files on disk |
-| **M7** | *Parked until a homelab exists.* Remote mode: Docker, compose, Litestream, Cloudflare Tunnel + Access; desktop can point at a remote core | Core runs on the homelab; desktop works against it; restore-from-backup drill documented and done once |
-| **M8** | *Parked until a homelab exists.* Phone: PWA from the remote core, responsive layout, ntfy/Web Push notifier, push-to-talk voice | Add to home screen on the phone; Today, Goals and Learning usable; agent-attention push arrives; voice PTT works over the tunnel |
+| **M7** | *Built, not deployed: acceptance needs a homelab.* Remote mode: Docker, compose, Litestream, Cloudflare Tunnel + Access; desktop can point at a remote core | Core runs on the homelab; desktop works against it; restore-from-backup drill documented and done once |
+| **M8** | *Built, not deployed: acceptance needs a homelab and a phone.* Phone: PWA from the remote core, responsive layout, ntfy/Web Push notifier, push-to-talk voice | Add to home screen on the phone; Today, Goals and Learning usable; agent-attention push arrives; voice PTT works over the tunnel |
 | **M9** | Special additions: extras that make Sirius nicer but are not needed for v1. They run on the laptop and need no homelab, so this does not wait for M7 or M8. First item: the openWakeWord "Hey Sirius" wake word (F26). More are added here as they come up | Wake word: false-accepts fewer than once per hour across a normal 2-hour work session (measured). Each new item states its own acceptance when it is added |
 
 ## 13. Open questions and things to verify

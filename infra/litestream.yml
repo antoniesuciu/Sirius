@@ -1,0 +1,7 @@
+# Continuous SQLite replication (ADR-8). `path: /backup` is a local volume, which is free.
+# For object storage, replace the replica with an `s3` one.
+dbs:
+  - path: /data/sirius.sqlite
+    replicas:
+      - type: file
+        path: /backup/sirius

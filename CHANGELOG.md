@@ -62,3 +62,13 @@
 - An open window now notices the 04:00 rollover even when no task had to move.
 - Speaking while a turn is running gets a spoken answer instead of silence.
 - `sirius voice on|off` turns voice off and stops the service (F33).
+
+## Local or deployed (2026-11-02)
+
+- `deployment.env` and `scripts/deploy.sh` choose where Sirius runs (ADR 0007). The default stays
+  local, and the branch `local-only` keeps a copy from before this work.
+- M7, built but not deployed: Docker image, compose stack with Litestream and Cloudflare Tunnel,
+  verified Cloudflare Access logins, and a desktop app that can point at a remote core.
+- M8, built but not deployed: the core serves the UI as an installable PWA, with ntfy notifications
+  and browser push-to-talk through `sirius-voice`.
+- The images have never been built here, because this user cannot reach the Docker daemon.

@@ -1,0 +1,50 @@
+# The remote stack (ADR-8). scripts/deploy.sh runs this; deployment.env configures it.
+services:
+  core:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    restart: unless-stopped
+    environment:
+      SIRIUS_NTFY_URL: ${SIRIUS_NTFY_URL:-}
+      SIRIUS_CF_TEAM_DOMAIN: ${SIRIUS_CF_TEAM_DOMAIN:-}
+      SIRIUS_CF_AUD: ${SIRIUS_CF_AUD:-}
+    volumes:
+      - sirius-data:/data
+    # Loopback only. Other devices come in through the tunnel, never an open port.
+    ports:
+      - "127.0.0.1:7337:7337"
+
+  litestream:
+    image: litestream/litestream:0.3.13
+    restart: unless-stopped
+    command: replicate
+    volumes:
+      - sirius-data:/data
+      - sirius-backup:/backup
+      - ./litestream.yml:/etc/litestream.yml:ro
+    depends_on:
+      - core
+
+  cloudflared:
+    profiles: [tunnel]
+    image: cloudflare/cloudflared:2025.10.0
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - core
+
+  ntfy:
+    profiles: [phone]
+    image: binwiederhier/ntfy:v2.14.0
+    restart: unless-stopped
+    command: serve
+    volumes:
+      - ntfy-cache:/var/cache/ntfy
+
+volumes:
+  sirius-data:
+  sirius-backup:
+  ntfy-cache:
