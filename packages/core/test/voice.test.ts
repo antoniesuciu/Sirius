@@ -125,6 +125,15 @@ describe('routing', () => {
     ]);
   });
 
+  test('asking while a turn is running gets a spoken answer, in your language', async () => {
+    const claude = fakeAgent('claude', [[{ type: 'text', delta: 'x' }, { type: 'done' }]]);
+    const h = harness(NOON_ISH, { claude: claude.adapter, codex: fakeAgent('codex').adapter });
+    h.run('send_chat', { text: 'first' });
+    expect(say(h, 'why is the sky blue').reply).toContain('still answering');
+    expect(say(h, 'de ce e cerul albastru', 'ro').reply).toContain('Încă răspund');
+    await Bun.sleep(20);
+  });
+
   test('chat text from the keyboard is not spoken', async () => {
     const claude = fakeAgent('claude', [[{ type: 'text', delta: 'Hi' }, { type: 'done' }]]);
     const h = harness(NOON_ISH, { claude: claude.adapter, codex: fakeAgent('codex').adapter });

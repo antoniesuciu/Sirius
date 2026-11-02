@@ -49,6 +49,13 @@ export class VoiceRouter implements TurnObserver {
       return { route: 'fast_path', turn_id: uuidv7(), intent: intent.kind, reply };
     }
 
+    if (this.chat().activeAgent()) {
+      // Said aloud, this needs an answer: a silent 409 would look like Sirius ignored you.
+      const reply = replies(lang).stillAnswering;
+      this.record(input, 'fast_path', 'busy');
+      return { route: 'fast_path', turn_id: uuidv7(), intent: 'busy', reply };
+    }
+
     const { turn_id } = this.chat().send({ text: input.transcript, via: 'voice' });
     this.turnLang.set(turn_id, lang);
     this.record(input, 'agent', null);

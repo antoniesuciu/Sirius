@@ -134,6 +134,14 @@ async function doctor(): Promise<void> {
   }
 }
 
+/** F33: one switch turns all voice off and stops the service. */
+async function setVoice(enabled: boolean): Promise<void> {
+  await client().call('set_setting', { key: 'voice.enabled', value: enabled });
+  const action = enabled ? 'start' : 'stop';
+  execFileSync('systemctl', ['--user', action, 'sirius-voice'], { stdio: 'inherit' });
+  console.log(`Voice is ${enabled ? 'on' : 'off'}.`);
+}
+
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
   switch (command) {
@@ -153,10 +161,11 @@ async function main(): Promise<void> {
         await client(HOOK_TIMEOUT_MS).call('voice_ptt', {});
         return;
       }
+      if (rest[0] === 'on' || rest[0] === 'off') return setVoice(rest[0] === 'on');
       break;
   }
   console.log(
-    'Usage: sirius notify | setup-hooks [--apply] [--with-stop] | doctor | backup | voice ptt',
+    'Usage: sirius notify | setup-hooks [--apply] [--with-stop] | doctor | backup | voice ptt|on|off',
   );
   process.exitCode = command ? 1 : 0;
 }

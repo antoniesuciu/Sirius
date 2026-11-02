@@ -6,6 +6,7 @@
 import { formatDate, localParts, logicalDate, weekdayOf, zonedInstant } from '@sirius/contracts';
 import { and, eq, isNull, lt, lte } from 'drizzle-orm';
 import type { Backups } from './backups.ts';
+import type { EventBus } from './bus.ts';
 import { proposals, reminders, tasks } from './db/schema.ts';
 import type { Notifier } from './notifier.ts';
 import { makeContext, type OpHooks } from './ops/context.ts';
@@ -27,6 +28,7 @@ export class Scheduler {
     private readonly attention: Attention,
     private readonly hooks: OpHooks,
     private readonly backups: Backups | null,
+    private readonly bus: EventBus,
   ) {}
 
   start(): void {
@@ -56,7 +58,11 @@ export class Scheduler {
     this.rollover(today);
     this.expireProposals(now);
     this.fireReminders(now);
-    if (this.lastDate !== null && this.lastDate !== today) this.releaseQuiet(this.lastDate);
+    if (this.lastDate !== null && this.lastDate !== today) {
+      this.releaseQuiet(this.lastDate);
+      // An open window has no other way to learn this when no task had to move.
+      this.bus.publish({ type: 'day_changed', date: today });
+    }
     this.lastDate = today;
     this.backups?.runDaily(today);
   }

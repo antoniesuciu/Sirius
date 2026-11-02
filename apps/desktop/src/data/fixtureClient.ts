@@ -195,6 +195,13 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
 
   const script = (turnId: string, text: string) => {
     const lower = text.toLowerCase();
+    if (lower === 'fail fast') {
+      // A real turn can end before its send_chat response arrives. This reproduces that order.
+      emit({ type: 'chat', kind: 'start', turn_id: turnId, agent: state.selected });
+      pushMessage('assistant', 'That failed straight away.');
+      emit({ type: 'chat', kind: 'error', turn_id: turnId, message: 'failed' });
+      return;
+    }
     const goalMatch = text.match(/^add\s+(?:a\s+)?goal[:\s]+(.+)/i);
     if (goalMatch?.[1]) {
       const title = goalMatch[1].trim();

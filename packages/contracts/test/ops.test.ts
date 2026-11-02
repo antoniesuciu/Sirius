@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { prepareRequest, readSseStream } from '../src/client.ts';
-import type { SiriusEvent } from '../src/events.ts';
+import { isUndoableChange, type SiriusEvent } from '../src/events.ts';
 import { isAgentTool, isProposable, type OpDefinition, opNames, ops } from '../src/ops.ts';
 
 describe('operation classes (spec section 7)', () => {
@@ -53,6 +53,21 @@ describe('operation classes (spec section 7)', () => {
     expect(isProposable('propose_changes')).toBe(false);
     expect(isProposable('confirm_proposal')).toBe(false);
     expect(isProposable('nonsense')).toBe(false);
+  });
+});
+
+describe('isUndoableChange (F20)', () => {
+  const change = (entity: 'tasks' | 'proposals', actor: 'claude' | 'user') =>
+    ({ type: 'change', entity, id: 'i', op: 'create', rev: 1, actor, change_id: 'c' }) as const;
+
+  test('offers undo for what an agent did', () => {
+    expect(isUndoableChange(change('tasks', 'claude'))).toBe(true);
+  });
+  test('not for a proposal, which changed nothing', () => {
+    expect(isUndoableChange(change('proposals', 'claude'))).toBe(false);
+  });
+  test('not for what the user did', () => {
+    expect(isUndoableChange(change('tasks', 'user'))).toBe(false);
   });
 });
 

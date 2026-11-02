@@ -114,6 +114,17 @@ test.describe('sirius', () => {
     await expect(page.locator('.goal-title', { hasText: 'learn to sail' })).toBeVisible();
   });
 
+  test('a turn that fails before its response arrives does not leave the panel stuck', async ({
+    page,
+  }) => {
+    await open(page);
+    await page.getByLabel('Message Sirius').fill('fail fast');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await expect(page.locator('.chat-log')).toContainText('That failed straight away.');
+    await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
+    await expect(page.locator('.sirius')).toHaveAttribute('data-state', 'idle');
+  });
+
   test('a proposal changes nothing until Confirm', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'I feel overwhelmed' }).click();

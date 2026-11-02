@@ -53,3 +53,12 @@
 - The wake word moved to M7 (ADR 0005).
 - The mic is a `pw-record` process that only exists during a session. Audio stays in memory, and
   onnxruntime's telemetry is off before it can initialise.
+
+## After M6 (2026-11-02)
+
+- Laptop only for now: M7 and M8 are parked, and M9, Special additions, holds the wake word.
+- Fixed a chat panel stuck on "thinking" when a turn failed before its response arrived.
+- Undo is no longer offered for a proposal, which has changed nothing yet.
+- An open window now notices the 04:00 rollover even when no task had to move.
+- Speaking while a turn is running gets a spoken answer instead of silence.
+- `sirius voice on|off` turns voice off and stops the service (F33).

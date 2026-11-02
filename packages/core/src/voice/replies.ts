@@ -22,6 +22,7 @@ const en = {
   needsTap: 'That one deletes something, so it needs a tap on the screen.',
   nothingToConfirm: 'There is nothing to confirm.',
   tooLate: 'That one has passed. It is on the screen if you still want it.',
+  stillAnswering: 'I am still answering the last one. Give me a moment.',
 };
 
 const ro: typeof en = {
@@ -40,6 +41,7 @@ const ro: typeof en = {
   needsTap: 'Asta șterge ceva, așa că e nevoie de o atingere pe ecran.',
   nothingToConfirm: 'Nu am nimic de confirmat.',
   tooLate: 'A trecut momentul. Rămâne pe ecran, dacă o mai vrei.',
+  stillAnswering: 'Încă răspund la ce ai cerut. Mai așteaptă puțin.',
 };
 
 export function replies(lang: Lang): typeof en {

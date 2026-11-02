@@ -1,4 +1,4 @@
-import type { ChangeEvent, SiriusEvent } from '@sirius/contracts';
+import { type ChangeEvent, isUndoableChange, type SiriusEvent } from '@sirius/contracts';
 import { CLOCK_RESYNC_EVENT } from '@sirius/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -16,8 +16,6 @@ export interface LiveState {
   breathingSignal: number;
   undoable: ChangeEvent | null;
   clearUndo(): void;
-  beginTurn(turnId: string): void;
-  endTurn(): void;
 }
 
 /** Owns the SSE subscription: cache invalidation plus the state only events carry. */
@@ -64,7 +62,7 @@ export function useLive(): LiveState {
       if (event.type === 'ui_action' && event.action === 'start_breathing') {
         setBreathingSignal((n) => n + 1);
       }
-      if (event.type === 'change' && (event.actor === 'claude' || event.actor === 'codex')) {
+      if (event.type === 'change' && isUndoableChange(event)) {
         setUndoable(event);
         clearTimeout(undoTimer.current);
         undoTimer.current = setTimeout(() => setUndoable(null), UNDO_WINDOW_MS);
@@ -74,6 +72,10 @@ export function useLive(): LiveState {
     return client.subscribe({
       onEvent,
       onConnected: () => {
+        // A turn's end may have happened while disconnected, so never stay stuck on it.
+        setTurnId(null);
+        setThinking(false);
+        setStreaming(null);
         // Anything may have changed while disconnected, and the machine may have slept.
         void qc.invalidateQueries();
         window.dispatchEvent(new Event(CLOCK_RESYNC_EVENT));
@@ -90,14 +92,5 @@ export function useLive(): LiveState {
     breathingSignal,
     undoable,
     clearUndo: () => setUndoable(null),
-    beginTurn: (id) => {
-      setTurnId(id);
-      setThinking(true);
-    },
-    endTurn: () => {
-      setTurnId(null);
-      setThinking(false);
-      setStreaming(null);
-    },
   };
 }

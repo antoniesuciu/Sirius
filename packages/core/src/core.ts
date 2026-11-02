@@ -114,7 +114,7 @@ export function createCore(options: CoreOptions): Core {
   };
 
   dispatcher = new Dispatcher(store, timeZone, system, hooks);
-  const scheduler = new Scheduler(store, timeZone, notifier, attention, hooks, backups);
+  const scheduler = new Scheduler(store, timeZone, notifier, attention, hooks, backups, bus);
 
   return {
     sqlite,

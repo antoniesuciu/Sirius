@@ -94,6 +94,9 @@ export const VoiceCommandEvent = z.object({
   command: z.enum(['ptt', 'stop']),
 });
 
+/** The logical day turned over at 04:00. Everything keyed to "today" is out of date. */
+export const DayChangedEvent = z.object({ type: z.literal('day_changed'), date: z.string() });
+
 export const UiActionEvent = z.object({
   type: z.literal('ui_action'),
   action: z.enum(['start_breathing']),
@@ -107,8 +110,17 @@ export const SiriusEvent = z.union([
   VoiceEvent,
   VoiceReplyEvent,
   VoiceCommandEvent,
+  DayChangedEvent,
   UiActionEvent,
 ]);
 export type SiriusEvent = z.infer<typeof SiriusEvent>;
 export type ChangeEvent = z.infer<typeof ChangeEvent>;
 export type ChatEvent = z.infer<typeof ChatEvent>;
+
+/**
+ * Whether a change is worth offering Undo for (F20): something an agent actually did. A
+ * proposal row is only a question, and undo skips proposals, so offering it would do nothing.
+ */
+export function isUndoableChange(event: ChangeEvent): boolean {
+  return (event.actor === 'claude' || event.actor === 'codex') && event.entity !== 'proposals';
+}

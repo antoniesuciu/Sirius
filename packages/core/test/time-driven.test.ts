@@ -44,6 +44,24 @@ describe('rollover (F8)', () => {
   });
 });
 
+describe('the day turning over', () => {
+  test('tells open windows even when no task had to move', () => {
+    const h = harness();
+    h.core.scheduler.tick();
+    h.now.value = at('2026-11-02T04:00:00Z');
+    h.core.scheduler.tick();
+    expect(h.events).toContainEqual({ type: 'day_changed', date: '2026-11-02' });
+  });
+
+  test('says nothing within a day', () => {
+    const h = harness();
+    h.core.scheduler.tick();
+    h.advance(60_000);
+    h.core.scheduler.tick();
+    expect(h.events.some((e) => e.type === 'day_changed')).toBe(false);
+  });
+});
+
 describe('reminders (F13)', () => {
   const remind = (h: ReturnType<typeof harness>, time = '17:40', weekdays = EVERY_DAY) =>
     h.run('set_reminder', { label: 'Pray', kind: 'prayer', time_local: time, weekdays });

@@ -161,10 +161,10 @@ export function App() {
     setSendError(null);
     setPendingText(text);
     try {
-      const { turn_id } = await client.call('send_chat', { text });
-      live.beginTurn(turn_id);
+      // The turn's own `start` event marks it active. Marking it here too would race a fast
+      // failure, whose events can arrive before this response and leave the panel stuck.
+      await client.call('send_chat', { text });
     } catch (error) {
-      live.endTurn();
       setSendError(error instanceof Error ? error.message : 'That did not reach me.');
     }
   };
