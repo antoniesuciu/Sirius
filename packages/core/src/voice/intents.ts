@@ -84,7 +84,7 @@ export function parseTime(raw: string): string | null {
 /** Whole-phrase commands, matched against folded text. */
 const PHRASES: Array<[RegExp, Intent]> = [
   [
-    /^(what'?s|what is) next$|^what should i do( now)?$|^ce urmeaza$|^ce am de facut$/,
+    /^(what'?s|what is) next$|^what should i do( now)?$|^what do i have to do( today)?$|^ce urmeaza$|^ce (mai )?am de facut( azi)?$|^(mai )?am ceva de facut( azi)?$/,
     { kind: 'whats_next' },
   ],
   [
@@ -106,8 +106,12 @@ const PHRASES: Array<[RegExp, Intent]> = [
 
 const ADD_PATTERNS: RegExp[] = [
   /^(?:add|put)\s+(.+?)\s+(?:to|on|in)\s+(?:today|my list|the list)$/,
+  /^add\s+(.+?)\s+today$/,
+  // Whisper often hears "add" as "and". "today" must end it, and ordinary sentences stay out.
+  /^and\s+(?!what|why|how|when|who|that|this|then|so\s|i\s)(.+?)\s+(?:to\s+)?today$/,
   /^add\s+(.+)$/,
-  /^(?:adauga|pune)\s+(.+?)\s+(?:la azi|la zi|pe azi|pentru azi|in lista)$/,
+  // "lazi" is "la azi" run together, which Whisper has written.
+  /^(?:adauga|pune)\s+(.+?)\s+(?:la azi|la zi|lazi|azi|pe azi|pentru azi|in lista)$/,
   /^adauga\s+(.+)$/,
 ];
 

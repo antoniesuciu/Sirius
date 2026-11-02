@@ -25,8 +25,13 @@ LEVEL_INTERVAL_S = 0.1
 #: Sirius's own vocabulary. It nudges Whisper towards commands on short, unclear audio.
 VOCABULARY = {
     "en": "Add to today. Remind me at five to call. What's next? I'm done for today.",
-    "ro": "Adaugă la azi. Amintește-mi la cinci să sun. Ce urmează? Cât e ceasul? Am terminat.",
+    "ro": (
+        "Adaugă la azi. Amintește-mi la cinci să sun. Ce urmează? Am ceva de făcut azi? "
+        "Ce am de făcut? Cât e ceasul? Am terminat."
+    ),
 }
+#: Real speech came back wrong with greedy decoding ("de făcut" as "dificultat").
+BEAM_SIZE = 5
 #: Below this share of the en+ro probability, both languages are tried.
 CLEAR_LANGUAGE_SHARE = 0.97
 #: The models stay loaded this long after an utterance.
@@ -178,7 +183,7 @@ class WhisperStt:
         segments, _ = model.transcribe(
             audio,
             language=lang,
-            beam_size=1,
+            beam_size=BEAM_SIZE,
             condition_on_previous_text=False,
             initial_prompt=VOCABULARY[lang],
         )

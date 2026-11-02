@@ -8,6 +8,10 @@ describe('grammar: English (F30)', () => {
     ['add buy rice to today', { kind: 'add_task', title: 'Buy rice' }],
     ['Add buy rice to today.', { kind: 'add_task', title: 'Buy rice' }],
     ['add water the plants', { kind: 'add_task', title: 'Water the plants' }],
+    ['add water the basil today', { kind: 'add_task', title: 'Water the basil' }],
+    // Heard from a real voice: Whisper wrote "add" as "and".
+    ['And water to the basil today.', { kind: 'add_task', title: 'Water to the basil' }],
+    ['what do I have to do today', { kind: 'whats_next' }],
     ['Hey Sirius, add buy rice to today.', { kind: 'add_task', title: 'Buy rice' }],
     ['remind me at 5 pm to call mum', { kind: 'remind', time: '17:00', label: 'Call mum' }],
     ['remind me to stretch at 17:40', { kind: 'remind', time: '17:40', label: 'Stretch' }],
@@ -29,6 +33,11 @@ describe('grammar: Romanian (F29)', () => {
   test.each([
     ['adaugă cumpără orez la azi', { kind: 'add_task', title: 'Cumpără orez' }],
     ['Adaugă cumpără orez.', { kind: 'add_task', title: 'Cumpără orez' }],
+    ['adaugă udă florile azi', { kind: 'add_task', title: 'Udă florile' }],
+    // Heard in the voice regression: Whisper ran "la azi" together.
+    ['adaugă udă florile lazi', { kind: 'add_task', title: 'Udă florile' }],
+    ['Am ceva de făcut azi?', { kind: 'whats_next' }],
+    ['ce mai am de făcut azi', { kind: 'whats_next' }],
     ['amintește-mi la 17:40 să mă rog', { kind: 'remind', time: '17:40', label: 'Mă rog' }],
     ['amintește-mi la cinci să sun acasă', { kind: 'remind', time: '05:00', label: 'Sun acasă' }],
     ['ce urmează', { kind: 'whats_next' }],
@@ -52,12 +61,17 @@ describe('grammar: Romanian (F29)', () => {
 });
 
 describe('grammar: everything else is for the agent', () => {
-  test.each(['why is the sky blue', 'tell me about my goals', 'move my tasks to tomorrow'])(
-    '%s',
-    (text) => {
-      expect(parseIntent(text)).toBeNull();
-    },
-  );
+  test.each([
+    'why is the sky blue',
+    'tell me about my goals',
+    'move my tasks to tomorrow',
+    'and what about today',
+    'and that was today',
+    'and then I went home',
+    'Am ceva dificultat?',
+  ])('%s', (text) => {
+    expect(parseIntent(text)).toBeNull();
+  });
 
   test('a bad time falls through instead of guessing', () => {
     expect(parseIntent('remind me at noonish to eat')).toBeNull();
