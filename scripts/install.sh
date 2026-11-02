@@ -121,6 +121,9 @@ if $with_desktop; then
   echo
   echo "To install the desktop app:"
   echo "  sudo apt install ./apps/desktop/src-tauri/target/release/bundle/deb/Sirius_0.1.0_amd64.deb"
+  # Closing only hides to the tray, and a second launch raises the old process.
+  echo "If Sirius is already open, restart it so the new version loads:"
+  echo "  pkill -x sirius-desktop"
 fi
 
 echo
