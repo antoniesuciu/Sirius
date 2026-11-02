@@ -44,6 +44,8 @@ export interface HttpClientOptions {
   token?: string;
   actor?: Actor;
   via?: Via;
+  /** Extra headers on every call, such as a Cloudflare Access service token. */
+  headers?: Record<string, string>;
   fetch?: typeof fetch;
 }
 
@@ -69,7 +71,7 @@ export function prepareRequest(def: OpDefinition, input: Record<string, unknown>
 
 export function createHttpClient(options: HttpClientOptions): SiriusClient {
   const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...options.headers };
   if (options.token) headers.authorization = `Bearer ${options.token}`;
   if (options.actor) headers['x-sirius-actor'] = options.actor;
   if (options.via) headers['x-sirius-via'] = options.via;

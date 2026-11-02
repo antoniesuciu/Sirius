@@ -15,12 +15,20 @@ import { ZodError } from 'zod';
 import type { Core } from '../core.ts';
 import type { Caller } from '../dispatcher.ts';
 import { DomainError } from '../errors.ts';
+import { serveUi } from './static.ts';
 
 export interface AppOptions {
   token: string;
   mode: 'local' | 'remote';
   version: string;
+  /** Accepts Cloudflare Access logins as well as the bearer token. */
+  verifyAccess?: (jwt: string) => Promise<boolean>;
+  uiDir?: string;
+  voiceUrl?: string;
 }
+
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+const TRANSCRIBE_TIMEOUT_MS = 30_000;
 
 const HEARTBEAT_MS = 25_000;
 const UI_ORIGINS = ['tauri://localhost', 'http://tauri.localhost', 'http://localhost:5173'];
@@ -112,10 +120,10 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
   app.use('/v1/*', async (c, next) => {
     const header = c.req.header('authorization') ?? '';
     const given = header.startsWith('Bearer ') ? header.slice(7) : '';
-    if (!tokensMatch(given, options.token)) {
-      return c.json({ code: 'unauthorized', message: 'Missing or invalid token' }, 401);
-    }
-    return next();
+    if (tokensMatch(given, options.token)) return next();
+    const jwt = c.req.header('cf-access-jwt-assertion');
+    if (jwt && (await options.verifyAccess?.(jwt))) return next();
+    return c.json({ code: 'unauthorized', message: 'Missing or invalid token' }, 401);
   });
 
   app.get('/v1/events', (c) =>
@@ -124,10 +132,39 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
 
   for (const name of opNames) register(app, core, name);
 
+  // Phone push-to-talk (ADR-10): the browser records, the voice service transcribes.
+  app.post('/v1/voice/audio', async (c) => {
+    if (!options.voiceUrl) {
+      throw new DomainError(503, 'voice_unavailable', "Voice isn't running right now.");
+    }
+    const audio = await c.req.arrayBuffer();
+    if (audio.byteLength === 0 || audio.byteLength > MAX_AUDIO_BYTES) {
+      throw new DomainError(400, 'invalid_audio', 'That recording could not be used.');
+    }
+    const response = await fetch(`${options.voiceUrl}/transcribe`, {
+      method: 'POST',
+      body: audio,
+      signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
+    }).catch(() => null);
+    if (!response?.ok) {
+      throw new DomainError(503, 'voice_unavailable', "Voice isn't running right now.");
+    }
+    const { text, lang } = (await response.json()) as { text: string; lang: string };
+    if (!text) return c.json({ transcript: '', reply: null });
+    const result = core.dispatcher.run(
+      'voice_utterance',
+      { transcript: text, lang },
+      { actor: 'user', via: 'voice' },
+    );
+    return c.json({ ...result, transcript: text });
+  });
+
   app.doc31('/v1/openapi.json', {
     openapi: '3.1.0',
     info: { title: 'Sirius core', version: options.version },
   });
+
+  if (options.uiDir) serveUi(app, options.uiDir);
 
   app.onError((error, c) => {
     if (error instanceof DomainError) {

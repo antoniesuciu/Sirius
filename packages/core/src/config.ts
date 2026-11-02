@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import type { AccessConfig } from './http/access.ts';
 
 export interface Config {
   dataDir: string;
@@ -10,6 +11,12 @@ export interface Config {
   mode: 'local' | 'remote';
   tokenFile: string;
   timeZone: string;
+  /** Set for the phone: the built UI this core should serve. */
+  uiDir?: string;
+  ntfyUrl?: string;
+  /** Where a sirius-voice instance accepts uploaded audio. */
+  voiceUrl?: string;
+  access?: AccessConfig;
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
@@ -20,6 +27,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     mode: env.SIRIUS_MODE === 'remote' ? 'remote' : 'local',
     tokenFile: env.SIRIUS_TOKEN_FILE ?? join(dataDir, 'token'),
     timeZone: env.SIRIUS_TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ...(env.SIRIUS_UI_DIR ? { uiDir: env.SIRIUS_UI_DIR } : {}),
+    ...(env.SIRIUS_NTFY_URL ? { ntfyUrl: env.SIRIUS_NTFY_URL } : {}),
+    ...(env.SIRIUS_VOICE_URL ? { voiceUrl: env.SIRIUS_VOICE_URL } : {}),
+    ...(env.SIRIUS_CF_TEAM_DOMAIN && env.SIRIUS_CF_AUD
+      ? { access: { teamDomain: env.SIRIUS_CF_TEAM_DOMAIN, audience: env.SIRIUS_CF_AUD } }
+      : {}),
   };
 }
 

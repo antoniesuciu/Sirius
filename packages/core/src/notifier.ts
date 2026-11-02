@@ -21,6 +21,25 @@ export class LibnotifyNotifier implements Notifier {
   }
 }
 
+/** Phone notifications through a self-hosted ntfy topic (ADR-9). */
+export class NtfyNotifier implements Notifier {
+  constructor(private readonly topicUrl: string) {}
+
+  notify({ title, body }: Notification): void {
+    fetch(this.topicUrl, { method: 'POST', body, headers: { title } }).catch((error) => {
+      console.warn('ntfy failed:', error);
+    });
+  }
+}
+
+export class FanOutNotifier implements Notifier {
+  constructor(private readonly targets: Notifier[]) {}
+
+  notify(notification: Notification): void {
+    for (const target of this.targets) target.notify(notification);
+  }
+}
+
 export const NOTIFY_WINDOW_MS = 2 * 60 * 1000;
 
 /** At most one notification per key per window. Later ones in the window are dropped. */

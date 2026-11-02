@@ -8,14 +8,23 @@ import { createCodexAdapter } from './agents/codex.ts';
 import type { AdapterOptions } from './agents/types.ts';
 import { loadConfig, loadOrCreateToken } from './config.ts';
 import { createCore } from './core.ts';
+import { createAccessVerifier } from './http/access.ts';
 import { createApp } from './http/app.ts';
-import { LibnotifyNotifier } from './notifier.ts';
+import { FanOutNotifier, LibnotifyNotifier, type Notifier, NtfyNotifier } from './notifier.ts';
 import { serve } from './runtime/serve.ts';
 import { seedDemo } from './seed.ts';
 
 const VERSION = '0.1.0';
 
 const config = loadConfig();
+
+/** A desktop gets libnotify, and a server has no desktop. Either can add ntfy for the phone. */
+function buildNotifier(): Notifier {
+  const targets: Notifier[] = config.mode === 'local' ? [new LibnotifyNotifier()] : [];
+  if (config.ntfyUrl) targets.push(new NtfyNotifier(config.ntfyUrl));
+  return new FanOutNotifier(targets);
+}
+
 mkdirSync(config.dataDir, { recursive: true });
 const agentCwd = join(config.dataDir, 'agent-cwd');
 mkdirSync(agentCwd, { recursive: true });
@@ -48,7 +57,7 @@ const core = createCore({
   dbPath: join(config.dataDir, 'sirius.sqlite'),
   backupDir: join(config.dataDir, 'backups'),
   timeZone: config.timeZone,
-  notifier: new LibnotifyNotifier(),
+  notifier: buildNotifier(),
   adapters: {
     claude: createClaudeAdapter({ ...adapterBase, bin: process.env.SIRIUS_CLAUDE_BIN ?? 'claude' }),
     codex: createCodexAdapter({ ...adapterBase, bin: process.env.SIRIUS_CODEX_BIN ?? 'codex' }),
@@ -62,6 +71,9 @@ const app = createApp(core, {
   token: loadOrCreateToken(config.tokenFile),
   mode: config.mode,
   version: VERSION,
+  ...(config.access ? { verifyAccess: createAccessVerifier(config.access) } : {}),
+  ...(config.uiDir ? { uiDir: config.uiDir } : {}),
+  ...(config.voiceUrl ? { voiceUrl: config.voiceUrl } : {}),
 });
 const hostname = config.mode === 'remote' ? '0.0.0.0' : '127.0.0.1';
 const server = serve(app.fetch, { port: config.port, hostname });

@@ -2,7 +2,7 @@
 //! core service, so this process can crash or quit without touching any data.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{env, fs, path::PathBuf};
+use std::{collections::HashMap, env, fs, path::PathBuf};
 
 use serde::Serialize;
 use tauri::{
@@ -17,6 +17,25 @@ const DEFAULT_CORE_URL: &str = "http://127.0.0.1:7337";
 struct CoreConnection {
     url: String,
     token: Option<String>,
+    headers: HashMap<String, String>,
+}
+
+/// `~/.config/sirius/desktop.env`, written by `scripts/deploy.sh` when the core is remote.
+/// Plain KEY=VALUE lines. A missing file means the local core.
+fn desktop_settings() -> HashMap<String, String> {
+    let Ok(home) = env::var("HOME") else {
+        return HashMap::new();
+    };
+    let path = PathBuf::from(home).join(".config/sirius/desktop.env");
+    parse_settings(&fs::read_to_string(path).unwrap_or_default())
+}
+
+fn parse_settings(text: &str) -> HashMap<String, String> {
+    text.lines()
+        .filter(|line| !line.trim_start().starts_with('#'))
+        .filter_map(|line| line.split_once('='))
+        .map(|(key, value)| (key.trim().to_string(), value.trim().to_string()))
+        .collect()
 }
 
 fn token_path() -> Option<PathBuf> {
@@ -33,11 +52,25 @@ fn token_path() -> Option<PathBuf> {
 /// Where the core is. Read at runtime so the token is never compiled into the bundle.
 #[tauri::command]
 fn core_connection() -> CoreConnection {
+    let settings = desktop_settings();
+    let setting = |key: &str| env::var(key).ok().or_else(|| settings.get(key).cloned());
+    let mut headers = HashMap::new();
+    for (key, header) in [
+        ("CF_ACCESS_CLIENT_ID", "CF-Access-Client-Id"),
+        ("CF_ACCESS_CLIENT_SECRET", "CF-Access-Client-Secret"),
+    ] {
+        if let Some(value) = setting(key) {
+            headers.insert(header.to_string(), value);
+        }
+    }
     CoreConnection {
-        url: env::var("SIRIUS_CORE_URL").unwrap_or_else(|_| DEFAULT_CORE_URL.to_string()),
-        token: token_path()
-            .and_then(|path| fs::read_to_string(path).ok())
-            .map(|token| token.trim().to_string()),
+        url: setting("SIRIUS_CORE_URL").unwrap_or_else(|| DEFAULT_CORE_URL.to_string()),
+        token: setting("SIRIUS_CORE_TOKEN").or_else(|| {
+            token_path()
+                .and_then(|path| fs::read_to_string(path).ok())
+                .map(|token| token.trim().to_string())
+        }),
+        headers,
     }
 }
 
@@ -121,4 +154,27 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("error while running Sirius");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_settings;
+
+    #[test]
+    fn reads_key_value_lines_and_skips_comments() {
+        let settings = parse_settings("# note\nSIRIUS_CORE_URL=https://a.example\nnonsense\nX = y\n");
+        assert_eq!(settings["SIRIUS_CORE_URL"], "https://a.example");
+        assert_eq!(settings["X"], "y");
+        assert_eq!(settings.len(), 2);
+    }
+
+    #[test]
+    fn keeps_equals_signs_in_values() {
+        assert_eq!(parse_settings("TOKEN=ab=cd==")["TOKEN"], "ab=cd==");
+    }
+
+    #[test]
+    fn an_empty_file_means_the_local_core() {
+        assert!(parse_settings("").is_empty());
+    }
 }
