@@ -22,6 +22,11 @@ if (!root) throw new Error('#root is missing from index.html');
 
 const client = await connect();
 
+// Only the phone app needs this: the desktop serves its files from inside the binary.
+if (window.location.protocol === 'https:' && 'serviceWorker' in navigator) {
+  void navigator.serviceWorker.register('./sw.js');
+}
+
 createRoot(root).render(
   <StrictMode>
     <ClientContext.Provider value={client}>

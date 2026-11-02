@@ -18,6 +18,7 @@ from .engines import (
     earcon,
 )
 from .session import VoiceSession
+from .upload import start_upload_server
 
 log = logging.getLogger("sirius_voice")
 
@@ -81,6 +82,10 @@ def main() -> None:
     threading.Thread(
         target=core.events, args=(on_event, stopping.is_set), daemon=True, name="events"
     ).start()
+    if port := os.environ.get("SIRIUS_VOICE_PORT"):
+        start_upload_server(
+            session.stt, os.environ.get("SIRIUS_VOICE_HOST", "127.0.0.1"), int(port)
+        )
     log.info("ready; the microphone stays closed until push-to-talk")
     session.run()
 

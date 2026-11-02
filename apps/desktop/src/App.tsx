@@ -24,6 +24,7 @@ import {
   WellbeingPanel,
 } from '@sirius/ui';
 import { useMemo, useState } from 'react';
+import { browserVoiceSupported, useBrowserVoice } from './data/browserVoice.ts';
 import {
   useAddTask,
   useAgentEvents,
@@ -100,6 +101,7 @@ export function App() {
   const [dismissedToasts, setDismissedToasts] = useState<ReadonlySet<string>>(new Set());
   const [sendError, setSendError] = useState<string | null>(null);
   const [pendingText, setPendingText] = useState<string | null>(null);
+  const browserVoice = useBrowserVoice(setSendError);
 
   const quiet = today?.quiet_mode ?? false;
   const tasks = today?.tasks;
@@ -265,10 +267,11 @@ export function App() {
               newConversation.mutate({});
             }}
             voice={{
-              micOpen: voice?.mic_open ?? false,
+              micOpen: (voice?.mic_open ?? false) || browserVoice.recording,
               transcript: voice?.transcript ?? null,
               onMic: () => {
                 setSendError(null);
+                if (browserVoiceSupported()) return browserVoice.toggle();
                 client.call('voice_ptt', {}).catch((error: Error) => setSendError(error.message));
               },
               onStop: () => {
