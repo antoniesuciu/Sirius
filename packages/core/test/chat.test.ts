@@ -1,6 +1,11 @@
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import type { AgentStreamEvent } from '../src/agents/types.ts';
-import { codeOf, fakeAgent, harness, NOON_ISH } from './harness.ts';
+import { SESSION_TURNS } from '../src/services/chat.ts';
+import { Memory } from '../src/services/memory.ts';
+import { CLAUDE, codeOf, fakeAgent, harness, NOON_ISH } from './harness.ts';
 
 function setup(...scripts: AgentStreamEvent[][]) {
   const claude = fakeAgent('claude', scripts);
@@ -68,14 +73,127 @@ describe('a turn', () => {
     expect(claude.prompts[1]?.sessionId).toBeUndefined();
   });
 
-  test('switching agent starts fresh, since sessions do not transfer', async () => {
+  test('switching agent keeps the thread, with a new CLI session under it', async () => {
     const { h, claude, codex, turn } = setup([{ type: 'done', sessionId: 's1' }]);
     await turn('one');
     h.run('select_agent', { agent: 'codex' });
     await turn('two');
     expect(claude.prompts.length).toBe(1);
     expect(codex.prompts[0]?.sessionId).toBeUndefined();
-    expect(texts(h)).toEqual([['user', 'two']]);
+    expect(texts(h)).toEqual([
+      ['user', 'one'],
+      ['user', 'two'],
+    ]);
+  });
+
+  test('the chat follows you to the other agent', async () => {
+    const { h, codex, turn } = setup([
+      { type: 'text', delta: 'Rice it is.' },
+      { type: 'done', sessionId: 's1' },
+    ]);
+    await turn('I want to cook rice tonight');
+    h.run('select_agent', { agent: 'codex' });
+    await turn('what was I cooking?');
+    const prompt = codex.prompts[0]?.prompt ?? '';
+    expect(prompt).toContain('Them: I want to cook rice tonight');
+    expect(prompt).toContain('Sirius: Rice it is.');
+    expect(prompt).toContain('what was I cooking?');
+  });
+
+  test('the carried chat is only sent until the new session exists', async () => {
+    const { h, codex, turn } = setup([{ type: 'done', sessionId: 's1' }]);
+    codex.scripts.push([{ type: 'done', sessionId: 'c1' }], [{ type: 'done', sessionId: 'c1' }]);
+    await turn('one');
+    h.run('select_agent', { agent: 'codex' });
+    await turn('two');
+    await turn('three');
+    expect(codex.prompts[0]?.prompt).toContain('Them: one');
+    expect(codex.prompts[1]?.prompt).toBe('three');
+  });
+
+  test('a first turn that fails does not lose the carried chat', async () => {
+    const { h, codex, turn } = setup([{ type: 'done', sessionId: 's1' }]);
+    codex.scripts.push([{ type: 'error', message: 'boom' }], [{ type: 'done', sessionId: 'c1' }]);
+    await turn('one');
+    h.run('select_agent', { agent: 'codex' });
+    await turn('two');
+    await turn('two again');
+    expect(codex.prompts[1]?.prompt).toContain('Them: one');
+  });
+
+  test('switching there and back keeps the whole thread', async () => {
+    const { h, claude, codex, turn } = setup(
+      [{ type: 'done', sessionId: 's1' }],
+      [{ type: 'done', sessionId: 's2' }],
+    );
+    codex.scripts.push([{ type: 'done', sessionId: 'c1' }]);
+    await turn('first');
+    h.run('select_agent', { agent: 'codex' });
+    await turn('second');
+    h.run('select_agent', { agent: 'claude' });
+    await turn('third');
+    const prompt = claude.prompts[1]?.prompt ?? '';
+    expect(prompt).toContain('Them: first');
+    expect(prompt).toContain('Them: second');
+  });
+
+  test('a long session is replaced, and the thread carries on', async () => {
+    const scripts = Array.from({ length: SESSION_TURNS + 1 }, (_, i) => [
+      { type: 'done' as const, sessionId: `s${i}` },
+    ]);
+    const { h, claude, turn } = setup(...scripts);
+    for (let i = 0; i < SESSION_TURNS; i++) await turn(`turn ${i}`);
+    expect(claude.prompts.at(-1)?.sessionId).toBeDefined();
+    await turn('one more');
+    const replaced = claude.prompts.at(-1);
+    expect(replaced?.sessionId).toBeUndefined();
+    expect(replaced?.prompt).toContain(`Them: turn ${SESSION_TURNS - 1}`);
+    expect(h.run('get_conversation', {}).messages.length).toBe(SESSION_TURNS + 1);
+  });
+
+  test('what it remembers reaches a new session on either agent', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'sirius-')), 'vault/memory.md');
+    const claude = fakeAgent('claude', [[{ type: 'done', sessionId: 's1' }]]);
+    const codex = fakeAgent('codex');
+    const h = harness(NOON_ISH, { claude: claude.adapter, codex: codex.adapter }, file);
+    h.run('remember', { fact: 'They cook rice on Mondays' }, CLAUDE);
+    expect(readFileSync(file, 'utf8')).toContain('They cook rice on Mondays');
+
+    const finished = new Promise<void>((resolve) => {
+      h.core.bus.subscribe((e) => e.type === 'chat' && e.kind === 'done' && resolve());
+    });
+    h.run('select_agent', { agent: 'codex' });
+    h.run('send_chat', { text: 'hi' });
+    await finished;
+    expect(codex.prompts[0]?.prompt).toContain('They cook rice on Mondays');
+  });
+
+  test('editing the memory file by hand is what the next session reads', async () => {
+    const memory = new Memory(join(mkdtempSync(join(tmpdir(), 'sirius-')), 'memory.md'));
+    expect(memory.read()).toBeNull();
+    memory.remember('First', '2026-11-02');
+    memory.remember('  Second\nline ', '2026-11-03');
+    memory.remember('First', '2026-11-04');
+    expect(memory.read()).toBe('- 2026-11-02: First\n- 2026-11-03: Second line');
+  });
+
+  test('New conversation still carries nothing across', async () => {
+    const { h, codex, turn } = setup([{ type: 'done', sessionId: 's1' }]);
+    await turn('secret plan');
+    h.run('select_agent', { agent: 'codex' });
+    h.run('new_conversation', {});
+    await turn('hello');
+    expect(codex.prompts[0]?.prompt).toBe('hello');
+  });
+
+  test('a calm error sentence is not passed along as if it were said', async () => {
+    const { h, codex, turn } = setup([{ type: 'error', message: 'boom' }]);
+    await turn('one');
+    h.run('select_agent', { agent: 'codex' });
+    await turn('two');
+    const prompt = codex.prompts[0]?.prompt ?? '';
+    expect(prompt).toContain('Them: one');
+    expect(prompt).not.toContain('Sirius:');
   });
 
   test('uses the selected model', async () => {

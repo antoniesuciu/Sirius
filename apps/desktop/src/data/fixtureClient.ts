@@ -355,6 +355,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       changed('day_state');
       return { quiet_mode: on };
     },
+    remember: () => ({ saved: true }),
     select_agent: ({ agent, model }) => {
       state.selected = agent;
       if (model) state.models[agent] = model;

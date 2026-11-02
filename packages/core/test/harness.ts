@@ -44,6 +44,7 @@ export interface Harness {
 export function harness(
   start = NOON_ISH,
   adapters = { claude: fakeAgent('claude').adapter, codex: fakeAgent('codex').adapter },
+  memoryFile?: string,
 ): Harness {
   const now = { value: start };
   const notified: Notification[] = [];
@@ -54,6 +55,7 @@ export function harness(
     clock: () => now.value,
     notifier: { notify: (n) => notified.push(n) },
     adapters,
+    ...(memoryFile ? { memoryFile } : {}),
   });
   core.bus.subscribe((e) => events.push(e));
   return {

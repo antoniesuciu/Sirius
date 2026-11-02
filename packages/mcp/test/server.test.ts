@@ -50,7 +50,15 @@ describe('tool list', () => {
     const names = (await mcp.listTools()).tools.map((t) => t.name);
     expect(names).toContain('add_goal');
     expect(names).toContain('propose_changes');
-    for (const hidden of ['delete_goal', 'reschedule_tasks', 'confirm_proposal', 'undo']) {
+    expect(names).toContain('remember');
+    for (const hidden of [
+      'delete_goal',
+      'reschedule_tasks',
+      'confirm_proposal',
+      'undo',
+      'set_setting',
+      'create_backup',
+    ]) {
       expect(names).not.toContain(hidden);
     }
   });

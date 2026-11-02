@@ -9,7 +9,7 @@ import {
   type OpInput,
   type OpOutput,
 } from '@sirius/contracts';
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import type { AgentAdapter } from '../agents/types.ts';
 import { calmError, TOOLS_UNAVAILABLE } from '../agents/types.ts';
 import type { EventBus } from '../bus.ts';
@@ -17,6 +17,7 @@ import { conversations, messages } from '../db/schema.ts';
 import { conflict } from '../errors.ts';
 import type { Row, Store } from '../store.ts';
 import { uuidv7 } from '../uuid.ts';
+import type { Memory } from './memory.ts';
 import type { Settings } from './settings.ts';
 
 export const SELECTED_AGENT = 'agent.selected';
@@ -28,6 +29,13 @@ const AVAILABILITY_TTL_MS = 5 * 60 * 1000;
 const TOOL_MARKUP = /<\/?(tool_call|function_calls|invoke)\b/;
 const SPOKEN_SUFFIX =
   '\n\n(This came through voice. Answer in one or two short sentences that read well aloud.)';
+/** A resumed CLI session resends its whole history, so it is replaced after this many turns. */
+export const SESSION_TURNS = 20;
+/** What a new session is told about the thread so far. Small, because it is sent as a prompt. */
+const BACKGROUND_LINES = 12;
+const BACKGROUND_CHARS = 6_000;
+/** The thread never ends, so the panel shows only its recent part. */
+const SHOWN_MESSAGES = 200;
 
 interface ActiveTurn {
   id: string;
@@ -50,6 +58,7 @@ export class Chat {
     private readonly settings: Settings,
     private readonly bus: EventBus,
     private readonly adapters: Record<AgentId, AgentAdapter>,
+    private readonly memory: Memory,
     private readonly observer?: TurnObserver,
   ) {}
 
@@ -94,15 +103,35 @@ export class Chat {
 
   view(): ConversationView {
     const conversation = this.current() ?? null;
-    const rows = conversation
-      ? this.store.db
-          .select()
-          .from(messages)
-          .where(and(eq(messages.conversation_id, conversation.id), isNull(messages.deleted_at)))
-          .orderBy(asc(messages.id))
-          .all()
-      : [];
+    const rows = conversation ? this.recentMessages(conversation.id, SHOWN_MESSAGES) : [];
     return { conversation, messages: rows, active_turn_id: this.active?.id ?? null };
+  }
+
+  private recentMessages(conversationId: string, limit: number): Row<'messages'>[] {
+    return this.store.db
+      .select()
+      .from(messages)
+      .where(and(eq(messages.conversation_id, conversationId), isNull(messages.deleted_at)))
+      .orderBy(desc(messages.id))
+      .limit(limit)
+      .all()
+      .reverse();
+  }
+
+  /** What a new CLI session needs to carry on: the memory file and the end of the thread. */
+  private background(conversation: Row<'conversations'>): string | null {
+    const said = this.recentMessages(conversation.id, BACKGROUND_LINES)
+      // An error sentence came from Sirius itself. The agent never said it.
+      .filter((message) => !(message.meta as { error?: boolean } | null)?.error)
+      .map((message) => `${message.role === 'user' ? 'Them' : 'Sirius'}: ${message.text}`)
+      .join('\n')
+      .slice(-BACKGROUND_CHARS);
+    const remembered = this.memory.read();
+    const parts = [
+      ...(remembered ? [`What you remember about them:\n\n${remembered}`] : []),
+      ...(said ? [`Earlier in this chat:\n\n${said}`] : []),
+    ];
+    return parts.length > 0 ? parts.join('\n\n') : null;
   }
 
   reset(): ConversationView {
@@ -113,17 +142,33 @@ export class Chat {
     return this.view();
   }
 
-  /** CLI sessions are not portable, so changing agent or model starts a new conversation. */
+  /**
+   * There is one thread until "New conversation". The CLI session under it is disposable: it
+   * cannot move between agents, and it costs more the longer it runs, so it is dropped on a
+   * switch and after SESSION_TURNS. background() carries the thread into the next one.
+   */
   private conversationFor(agent: AgentId, model: string): Row<'conversations'> {
     const current = this.current();
-    if (current?.agent === agent && current.model === model) return current;
-    return this.store.write('user', (tx) => tx.insert('conversations', { agent, model }));
+    if (!current)
+      return this.store.write('user', (tx) => tx.insert('conversations', { agent, model }));
+    const sameSession = current.agent === agent && current.model === model;
+    if (sameSession && current.session_turns < SESSION_TURNS) return current;
+    return this.store.write('user', (tx) =>
+      tx.update('conversations', current.id, {
+        agent,
+        model,
+        cli_session_id: null,
+        session_turns: 0,
+      }),
+    );
   }
 
   send({ text, via }: OpInput<'send_chat'>): OpOutput<'send_chat'> {
     if (this.active) throw conflict('Sirius is still answering.');
     const agent = this.selected();
     const conversation = this.conversationFor(agent, this.modelFor(agent));
+    // Read before this message lands, or it would appear twice.
+    const background = conversation.cli_session_id ? null : this.background(conversation);
     this.store.write('user', (tx) => {
       tx.insert('messages', { conversation_id: conversation.id, role: 'user', text });
       if (!conversation.title)
@@ -132,7 +177,9 @@ export class Chat {
 
     const turn: ActiveTurn = { id: uuidv7(), agent, controller: new AbortController() };
     this.active = turn;
-    void this.runTurn(turn, conversation, via === 'voice' ? `${text}${SPOKEN_SUFFIX}` : text);
+    const asked = via === 'voice' ? `${text}${SPOKEN_SUFFIX}` : text;
+    const prompt = background ? `${background}\n\nTheir message now:\n\n${asked}` : asked;
+    void this.runTurn(turn, conversation, prompt);
     return { turn_id: turn.id, conversation_id: conversation.id };
   }
 
@@ -203,7 +250,12 @@ export class Chat {
 
     this.active = null;
     this.store.write('system', (tx) => {
-      if (sessionId) tx.update('conversations', conversation.id, { cli_session_id: sessionId });
+      if (sessionId) {
+        tx.update('conversations', conversation.id, {
+          cli_session_id: sessionId,
+          session_turns: conversation.session_turns + 1,
+        });
+      }
       const text = calm ?? reply.trim();
       if (text) {
         tx.insert('messages', {

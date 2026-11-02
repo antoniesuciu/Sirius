@@ -61,6 +61,8 @@ export interface OpDefinition<
   input: I;
   output: O;
   userOnly?: boolean;
+  /** Exposes a system op to agents. Other system ops stay out of their tool list. */
+  agentTool?: boolean;
 }
 
 function op<I extends z.ZodObject, O extends z.ZodType>(def: OpDefinition<I, O>) {
@@ -432,6 +434,14 @@ export const ops = {
     input: SendChatInput,
     output: SendChatResult,
   }),
+  remember: op({
+    class: 'system',
+    agentTool: true,
+    summary: 'Keep one lasting fact about the person, for every future session and agent.',
+    http: { method: 'post', path: '/memory' },
+    input: z.object({ fact: z.string().trim().min(1).max(300) }),
+    output: z.object({ saved: z.boolean() }),
+  }),
   cancel_chat: op({
     class: 'system',
     userOnly: true,
@@ -555,6 +565,10 @@ export function isProposable(name: string): name is OpName {
 export function isAgentTool(name: OpName): boolean {
   const def = ops[name] as OpDefinition;
   return (
-    !def.userOnly && (def.class === 'read' || def.class === 'additive' || def.class === 'proposal')
+    !def.userOnly &&
+    (def.class === 'read' ||
+      def.class === 'additive' ||
+      def.class === 'proposal' ||
+      def.agentTool === true)
   );
 }

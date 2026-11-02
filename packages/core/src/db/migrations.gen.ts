@@ -7,5 +7,9 @@ export const migrations = [
   {
     "tag": "0001_calm_valkyrie",
     "sql": "ALTER TABLE `reminders` ADD `once` integer DEFAULT false NOT NULL;"
+  },
+  {
+    "tag": "0002_salty_living_mummy",
+    "sql": "ALTER TABLE `conversations` ADD `session_turns` integer DEFAULT 0 NOT NULL;"
   }
 ];

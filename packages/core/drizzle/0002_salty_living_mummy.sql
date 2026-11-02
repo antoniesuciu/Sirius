@@ -1,0 +1,1 @@
+ALTER TABLE `conversations` ADD `session_turns` integer DEFAULT 0 NOT NULL;

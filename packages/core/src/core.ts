@@ -16,6 +16,7 @@ import { Agents } from './services/agents.ts';
 import { Attention } from './services/attention.ts';
 import { Chat } from './services/chat.ts';
 import { Decisions } from './services/decisions.ts';
+import { Memory } from './services/memory.ts';
 import { Settings } from './services/settings.ts';
 import { VoiceState } from './services/voice.ts';
 import { Store } from './store.ts';
@@ -27,6 +28,8 @@ export interface CoreOptions {
   timeZone: string;
   notifier: Notifier;
   adapters: Record<AgentId, AgentAdapter>;
+  /** The Markdown file Sirius remembers in. Without one, nothing is kept. */
+  memoryFile?: string;
   clock?: () => number;
 }
 
@@ -65,7 +68,8 @@ export function createCore(options: CoreOptions): Core {
     () => dispatcher,
     timeZone,
   );
-  chat = new Chat(store, settings, bus, options.adapters, router);
+  const memory = new Memory(options.memoryFile ?? null);
+  chat = new Chat(store, settings, bus, options.adapters, memory, router);
   const agents = new Agents(store, settings, chat, attention, timeZone);
   const voice = new VoiceState(bus);
   const decisions = new Decisions(store, timeZone, hooks);
@@ -81,6 +85,7 @@ export function createCore(options: CoreOptions): Core {
     get_conversation: () => chat.view(),
     new_conversation: () => chat.reset(),
     send_chat: (input) => chat.send(input),
+    remember: ({ fact }) => memory.remember(fact, logicalDate(store.now(), timeZone)),
     cancel_chat: ({ turn_id }) => {
       chat.cancel(turn_id);
       return { ok: true };

@@ -49,6 +49,9 @@ for tool in claude codex node; do
   fi
 done
 echo "SIRIUS_MCP_COMMAND=$BIN/sirius-mcp" >> "$env_file"
+if [ -n "${SIRIUS_MEMORY_FILE:-}" ]; then
+  echo "SIRIUS_MEMORY_FILE=$SIRIUS_MEMORY_FILE" >> "$env_file"
+fi
 echo "PATH=$path" >> "$env_file"
 mv "$env_file" "$CONFIG/env"
 

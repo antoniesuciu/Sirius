@@ -116,6 +116,8 @@ export const conversations = sqliteTable('conversations', {
   agent: text('agent', { enum: ['claude', 'codex'] }).notNull(),
   model: text('model').notNull(),
   cli_session_id: text('cli_session_id'),
+  /** Turns on the current CLI session. Long sessions cost usage, so they are replaced. */
+  session_turns: integer('session_turns').notNull().default(0),
   title: text('title'),
 });
 

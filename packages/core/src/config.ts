@@ -11,6 +11,8 @@ export interface Config {
   mode: 'local' | 'remote';
   tokenFile: string;
   timeZone: string;
+  /** Sirius's long-term memory. Point it into an Obsidian vault to read it there. */
+  memoryFile: string;
   /** Set for the phone: the built UI this core should serve. */
   uiDir?: string;
   ntfyUrl?: string;
@@ -27,6 +29,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     mode: env.SIRIUS_MODE === 'remote' ? 'remote' : 'local',
     tokenFile: env.SIRIUS_TOKEN_FILE ?? join(dataDir, 'token'),
     timeZone: env.SIRIUS_TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+    memoryFile: env.SIRIUS_MEMORY_FILE || join(dataDir, 'memory.md'),
     ...(env.SIRIUS_UI_DIR ? { uiDir: env.SIRIUS_UI_DIR } : {}),
     ...(env.SIRIUS_NTFY_URL ? { ntfyUrl: env.SIRIUS_NTFY_URL } : {}),
     ...(env.SIRIUS_VOICE_URL ? { voiceUrl: env.SIRIUS_VOICE_URL } : {}),

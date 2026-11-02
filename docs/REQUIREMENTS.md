@@ -1,6 +1,6 @@
 # Sirius: Calm Dashboard Requirements
 
-Status: v1.4 spec, 2026-11-02 (laptop only for now; M7 and M8 are built but not deployed; the wake word moves to M9, Special additions; `deployment.env` chooses local or deployed; see `docs/adr/0006-laptop-only.md` and `0007-deployment-switch.md`). Owner: Antonie.
+Status: v1.5 spec, 2026-11-02 (one conversation with shared memory, see `docs/adr/0008-one-thread-shared-memory.md`; laptop only for now; M7 and M8 are built but not deployed; the wake word moves to M9, Special additions; `deployment.env` chooses local or deployed; see `docs/adr/0006-laptop-only.md` and `0007-deployment-switch.md`). Owner: Antonie.
 Design references: `design/dashboard-reference.dc.html` (interactive mockup; its avatar `<img src="/_blob/…">` points to `design/sirius.svg`) and `design/sirius.svg` (final avatar).
 
 > **Success criterion.** Opening the computer should make the day feel clearer and less chaotic. It should not create another project to manage.
@@ -91,7 +91,7 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 - **F18** Sirius changes data **only through Sirius MCP tools** (section 7). It never edits files or runs shell commands.
 - **F19** Additive single operations apply immediately: add a task, goal, milestone, roadmap, step or reminder. An operation that modifies or deletes more than one existing item, or deletes anything, becomes a **proposal**. The UI shows a Confirm / Not now card, and only Confirm applies it. The core enforces this, not the prompt.
 - **F20** Every agent-applied change is recorded in the change log and can be undone with one click ("Undo") for 30 s after it applies.
-- **F21** Conversations persist. Follow-ups resume the CLI session (**[verify]** resume flags). "New conversation" clears context.
+- **F21** There is one conversation until "New conversation" clears it, and it stays when the agent changes. Follow-ups resume the CLI session, which is replaced on a switch and after 20 turns, because a long session costs more usage. A new session gets the end of the thread and the memory file (ADR 0008). The agent-available `remember` tool adds to that file, which survives "New conversation".
 - **F22** If the CLI is missing, not logged in, or out of quota, Sirius says so in one calm sentence and suggests the fix (`claude login`, etc.). The rest of the dashboard is unaffected.
 
 ### 3.7 Agent attention and notifications

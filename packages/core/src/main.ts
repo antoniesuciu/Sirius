@@ -57,6 +57,7 @@ const core = createCore({
   dbPath: join(config.dataDir, 'sirius.sqlite'),
   backupDir: join(config.dataDir, 'backups'),
   timeZone: config.timeZone,
+  memoryFile: config.memoryFile,
   notifier: buildNotifier(),
   adapters: {
     claude: createClaudeAdapter({ ...adapterBase, bin: process.env.SIRIUS_CLAUDE_BIN ?? 'claude' }),
