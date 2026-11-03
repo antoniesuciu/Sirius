@@ -131,7 +131,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       roadmap('Real analysis', 'Abbott · chapter 2 of 8', 'active', [
         ['Sequences and limits, §2.4', 30],
       ]),
-      roadmap('Probability theory', 'After analysis, with no hurry', 'later', [
+      roadmap('Probability theory', 'After real analysis', 'later', [
         ['Measure basics, one section', null],
       ]),
       roadmap('Stochastic processes', 'Markov chains, martingales, Brownian motion', 'later', [
@@ -209,7 +209,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       const title = goalMatch[1].trim();
       state.goals.push({ ...goal(title, 'No deadline yet', 0), milestones: [] });
       changed('goals');
-      return replyWith(turnId, `Added the goal “${title}”. No deadline and no pressure.`);
+      return replyWith(turnId, `Added the goal “${title}”, with no deadline.`);
     }
     const learnMatch = text.match(/^learn[:\s]+(.+)/i);
     if (learnMatch?.[1]) {

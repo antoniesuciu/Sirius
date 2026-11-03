@@ -1,4 +1,4 @@
-# Sirius: Calm Dashboard Requirements
+# Sirius: Requirements
 
 Status: v1.5 spec, 2026-11-02 (one conversation with shared memory, see `docs/adr/0008-one-thread-shared-memory.md`; laptop only for now; M7 and M8 are built but not deployed; the wake word moves to M9, Special additions; `deployment.env` chooses local or deployed; see `docs/adr/0006-laptop-only.md` and `0007-deployment-switch.md`). Owner: Antonie.
 Design references: `design/dashboard-reference.dc.html` (interactive mockup; its avatar `<img src="/_blob/…">` points to `design/sirius.svg`) and `design/sirius.svg` (final avatar).
@@ -22,7 +22,7 @@ Design references: `design/dashboard-reference.dc.html` (interactive mockup; its
 
 ## 1. Product summary
 
-Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens automatically at login. It holds:
+Sirius is a small, single-screen desktop dashboard and personal assistant for Ubuntu. It opens automatically at login. It holds:
 
 | Section | Purpose |
 |---|---|
@@ -37,6 +37,8 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 | **Voice** | Push-to-talk, personal-assistant-style requests. Speech recognition and synthesis run locally. "Hey Sirius" comes later (M9) |
 
 **Design principles** (from the original notes, all binding): calm over productivity metrics; minimal over feature-rich; personal over prescriptive; quiet by default; local-first; no obligation to optimize every minute; rest is a valid suggestion.
+
+**Amended 2026-11-03 by the owner (ADR 0011):** Sirius is a direct personal assistant, not a calming presence. Its voice drops reassurance, rest advice and filler. The visual calm stays: leaves, breathing, no scores or streaks.
 
 ## 2. Scope
 
@@ -92,7 +94,7 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 - **F19** Additive single operations apply immediately: add a task, goal, milestone, roadmap, step or reminder. An operation that modifies or deletes more than one existing item, or deletes anything, becomes a **proposal**. The UI shows a Confirm / Not now card, and only Confirm applies it. The core enforces this, not the prompt.
 - **F20** Every agent-applied change is recorded in the change log and can be undone with one click ("Undo") for 30 s after it applies.
 - **F21** There is one conversation until "New conversation" clears it, and it stays when the agent changes. Follow-ups resume the CLI session, which is replaced on a switch and after 20 turns, because a long session costs more usage. A new session gets the end of the thread and the memory file (ADR 0008). The agent-available `remember` tool adds to that file, which survives "New conversation".
-- **F22** If the CLI is missing, not logged in, or out of quota, Sirius says so in one calm sentence and suggests the fix (`claude login`, etc.). The rest of the dashboard is unaffected.
+- **F22** If the CLI is missing, not logged in, or out of quota, Sirius says so in one plain sentence and suggests the fix (`claude login`, etc.). The rest of the dashboard is unaffected.
 
 ### 3.7 Agent attention and notifications
 - **F23** Claude Code hooks and Codex `notify` (section 9) post events to the core. The UI shows a toast ("Claude is waiting for an approval in quant-lab. No rush, it will keep.") with **Got it / Later**, and the agent status line updates.
@@ -338,7 +340,7 @@ interface AgentAdapter {
 
 Common to both:
 - Working directory is an empty `~/.local/share/sirius/agent-cwd/`.
-- The system prompt comes from `packages/core/prompts/sirius.md`: calm, brief, uses tools, never asks to change files, prefers `propose_changes` for anything bulk.
+- The system prompt comes from `packages/core/prompts/sirius.md`: direct, brief, uses tools, never asks to change files, prefers `propose_changes` for anything bulk.
 - Timeout 60 s; cancellable from the UI.
 - Spawn with `execFile`-style argv, never a shell string.
 

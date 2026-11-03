@@ -42,7 +42,7 @@ export const TOOLS_UNAVAILABLE = 'sirius tools unavailable';
 const LOGIN_PATTERN = /log ?in|logged (out|in)|unauthori[sz]ed|authenticat|invalid api key|401/i;
 const QUOTA_PATTERN = /usage limit|rate limit|quota|limit reached|credit|too many requests|429/i;
 
-/** F22: whatever a CLI printed becomes one calm sentence with the fix in it. */
+/** F22: whatever a CLI printed becomes one plain sentence with the fix in it. */
 export function calmError(agent: AgentId, raw: string): string {
   const name = agent === 'claude' ? 'Claude' : 'Codex';
   const login = agent === 'claude' ? 'claude login' : 'codex login';
@@ -52,8 +52,8 @@ export function calmError(agent: AgentId, raw: string): string {
   if (/ENOENT|command not found|no such file/i.test(raw)) {
     return `${name} isn't installed here yet. Everything else still works.`;
   }
-  if (QUOTA_PATTERN.test(raw)) return `${name} has reached its usage limit for now. It will reset.`;
+  if (QUOTA_PATTERN.test(raw)) return `${name} has hit its usage limit. It resets later.`;
   if (LOGIN_PATTERN.test(raw))
     return `${name} needs you to log in first. Running ${login} will do it.`;
-  return `${name} ran into a problem, so nothing changed. You could try again in a moment.`;
+  return `${name} ran into a problem, so nothing changed. Try again.`;
 }

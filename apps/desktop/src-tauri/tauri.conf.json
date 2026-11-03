@@ -36,7 +36,7 @@
     "active": true,
     "targets": ["deb", "appimage"],
     "category": "Productivity",
-    "shortDescription": "A calm dashboard for the day",
+    "shortDescription": "A personal dashboard and assistant",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"],
     "linux": {
       "deb": { "depends": ["libnotify-bin"] }

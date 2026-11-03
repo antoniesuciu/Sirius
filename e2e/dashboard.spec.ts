@@ -59,22 +59,22 @@ test.describe('header', () => {
   });
 
   test('cycles local suggestions on each press', async ({ page }) => {
-    // Suggestions depend on the hour: late in the evening, rest comes first.
+    // Priorities come first, in order.
     await page.clock.setFixedTime(new Date('2026-11-01T15:45:00'));
     await open(page);
     const button = page.getByRole('button', { name: 'What should I do now?' });
     await button.click();
     await expect(page.locator('.suggestion')).toContainText('Derive the covariance update');
     await button.click();
-    await expect(page.locator('.suggestion')).toContainText('Sequences and limits');
+    await expect(page.locator('.suggestion')).toContainText('Ten pages of Abbott');
   });
 
   test('quiet mode dims Today and Goals, sleeps Sirius, and undoes', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: "I'm done for today" }).click();
-    await expect(page.getByText('Quiet until tomorrow.')).toBeVisible();
+    await expect(page.getByText('Quiet mode until tomorrow.')).toBeVisible();
     await expect(page.locator('.sirius')).toHaveAttribute('data-state', 'asleep');
-    await expect(page.locator('.sirius-status')).toHaveText('asleep until tomorrow');
+    await expect(page.locator('.sirius-status')).toHaveText('quiet until tomorrow');
     await expect(page.locator('.panel-dim')).toHaveCount(2);
     await page.getByRole('button', { name: 'Welcome back' }).click();
     await expect(page.locator('.sirius')).toHaveAttribute('data-state', 'idle');
@@ -87,7 +87,7 @@ test.describe('today', () => {
     await open(page);
     await page.getByLabel('Add a task', { exact: true }).fill('Water the basil');
     await page.getByRole('button', { name: 'Add task' }).click();
-    await expect(page.getByText('Planted in Today.')).toBeVisible();
+    await expect(page.getByText('Added to Today.')).toBeVisible();
     await expect(page.locator('.smalls')).toContainText('Water the basil');
   });
 
@@ -115,7 +115,7 @@ test.describe('learning', () => {
   test('selecting another roadmap swaps what is expanded', async ({ page }) => {
     await open(page);
     await page.locator('.node-button', { hasText: 'Stochastic calculus' }).click();
-    await expect(page.getByText('Nothing to do yet.')).toBeVisible();
+    await expect(page.getByText('Not started yet.')).toBeVisible();
     await expect(page.getByText('Next: Sequences and limits')).toHaveCount(0);
   });
 
@@ -197,7 +197,7 @@ test.describe('sirius', () => {
     await page.getByLabel('Message Sirius').fill('Add goal: learn to sail');
     await page.getByRole('button', { name: 'Send' }).click();
     await expect(page.locator('.bubble-me')).toHaveText('Add goal: learn to sail');
-    await expect(page.locator('.chat-log')).toContainText('No deadline and no pressure', {
+    await expect(page.locator('.chat-log')).toContainText('with no deadline', {
       timeout: 8000,
     });
     await expect(page.locator('.goal-title', { hasText: 'learn to sail' })).toBeVisible();
@@ -223,7 +223,7 @@ test.describe('sirius', () => {
     await expect(page.locator('.task')).toHaveCount(6);
     await card.getByRole('button', { name: 'Confirm' }).click();
     await expect(page.locator('.task')).toHaveCount(1);
-    await expect(page.getByText('5 resting until tomorrow')).toBeVisible();
+    await expect(page.getByText('5 moved to tomorrow')).toBeVisible();
   });
 
   test('Not now leaves everything as it was', async ({ page }) => {

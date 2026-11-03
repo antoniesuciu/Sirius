@@ -82,7 +82,7 @@ export function TodayPanel({
   };
 
   // Only something worth knowing goes here. The old slogans read as filler.
-  const meta = restingTomorrow > 0 ? `${restingTomorrow} resting until tomorrow` : null;
+  const meta = restingTomorrow > 0 ? `${restingTomorrow} moved to tomorrow` : null;
 
   return (
     <section className={`panel panel-dimmable rise d1 ${dimmed ? 'panel-dim' : ''}`}>
@@ -108,7 +108,7 @@ export function TodayPanel({
         <input
           type="text"
           aria-label="Add a task"
-          placeholder="Add something small"
+          placeholder="Add a task"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />
@@ -119,7 +119,7 @@ export function TodayPanel({
       {plantedAt !== null && (
         <div className="planted" key={plantedAt}>
           <SproutIcon />
-          <span>Planted in Today.</span>
+          <span>Added to Today.</span>
         </div>
       )}
     </section>

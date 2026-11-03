@@ -226,7 +226,7 @@ export const AgentInfo = z.object({
   model: z.string(),
   models: z.array(z.object({ id: z.string(), label: z.string() })),
   status: AgentStatusValue,
-  reason: z.string().nullable().describe('One calm sentence when the agent is unavailable'),
+  reason: z.string().nullable().describe('One sentence when the agent is unavailable'),
 });
 export type AgentInfo = z.infer<typeof AgentInfo>;
 

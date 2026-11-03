@@ -1,6 +1,6 @@
 # Sirius
 
-A calm, single-screen dashboard for the day, with a wolf you can talk to.
+A personal dashboard and assistant for the day, on Ubuntu and Android.
 
 Sirius opens at login on Ubuntu and shows what matters today, a few goals, a learning path,
 personal reminders and a short list of things to remember. The assistant in it runs the official
@@ -9,9 +9,6 @@ when one of those agents, running elsewhere on the machine, is waiting for you. 
 recognition and speech synthesis run on the laptop. A paired Android phone shows the same
 dashboard over a private Tailscale link, and keeps working from its own copy while the laptop
 is away.
-
-It is built to be quiet: no streaks, no scores, no percentages, and rest always counts as a
-valid answer.
 
 <p align="center">
   <img src="docs/images/desktop.png" alt="The Sirius dashboard on a laptop" width="72%">
@@ -43,8 +40,8 @@ valid answer.
 | **Goals** | A few goals, with milestone dots instead of percentages. You can add them by hand or ask Sirius. |
 | **Learning** | Roadmaps drawn as a growing vine. "Put it in Today" turns the next step into a task. |
 | **To remember** | A plain list for things to buy or remember, with no day or time attached. |
-| **Personal and Well-being** | Prayer and reflection reminders, a breathing exercise, and gentle nudges. |
-| **Agent attention** | A quiet toast and a desktop notification when Claude Code or Codex is blocked on a permission prompt or a question. |
+| **Personal and Well-being** | Prayer and reflection reminders, a breathing exercise and stretch nudges. |
+| **Agent attention** | A toast and a desktop notification when Claude Code or Codex is blocked on a permission prompt or a question. |
 | **Voice** | Push-to-talk with **Ctrl+Alt+Space**, in English and Romanian. Common commands such as "add milk to my list" or "ce urmează" are handled on the laptop without an agent turn, and anything else goes to the agent. |
 | **Phone** | An installable web app over Tailscale. It keeps an offline copy, queues the changes you make while away, and sends each one exactly once when the laptop is back. |
 

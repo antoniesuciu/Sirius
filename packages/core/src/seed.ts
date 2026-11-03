@@ -37,11 +37,7 @@ export function seedDemo(core: Core): void {
       'Abbott · chapter 2 of 8',
       [{ title: 'Sequences and limits, §2.4', est_minutes: 30 }],
     ],
-    [
-      'Probability theory',
-      'After analysis, with no hurry',
-      [{ title: 'Measure basics, one section' }],
-    ],
+    ['Probability theory', 'After real analysis', [{ title: 'Measure basics, one section' }]],
     [
       'Stochastic processes',
       'Markov chains, martingales, Brownian motion',

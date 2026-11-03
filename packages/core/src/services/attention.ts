@@ -130,7 +130,7 @@ export class Attention {
     const body =
       queued.length === 1
         ? describeAgentEvent(first)
-        : `${queued.length} things came in while you were away. No rush.`;
+        : `${queued.length} things came in during quiet mode.`;
     this.notifier.notify({ key: 'attention-queue', title: 'Sirius', body });
   }
 }

@@ -19,13 +19,12 @@ export function nextStep(roadmap: RoadmapView): RoadmapStep | undefined {
 
 function nextLine(roadmap: RoadmapView, step: RoadmapStep | undefined): string {
   if (step) {
-    const estimate = step.est_minutes ? ` About ${step.est_minutes} minutes, no more.` : '';
+    const estimate = step.est_minutes ? ` About ${step.est_minutes} minutes.` : '';
     return `Next: ${step.title}.${estimate}`;
   }
   if (roadmap.status === 'done' || roadmap.steps.length > 0) return 'All done here.';
-  if (roadmap.status === 'later')
-    return 'Nothing to do yet. It will be here when the rest is ready.';
-  return 'No first step yet. Ask Sirius to sketch one.';
+  if (roadmap.status === 'later') return 'Not started yet.';
+  return 'No steps yet. Ask Sirius to plan it.';
 }
 
 /** Measures where the vine should stop. Scaling a full-height rail keeps this transform-only. */

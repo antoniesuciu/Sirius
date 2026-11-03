@@ -190,7 +190,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
         <input
           type="text"
           aria-label="Message Sirius"
-          placeholder="Ask Sirius for something small"
+          placeholder="Ask Sirius"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />

@@ -201,7 +201,7 @@ export class Chat {
     if (this.active?.id === turnId) this.active.controller.abort();
   }
 
-  /** Never throws: any failure becomes a calm sentence in the chat (F22). */
+  /** Never throws: any failure becomes one plain sentence in the chat (F22). */
   private async runTurn(
     turn: ActiveTurn,
     conversation: Row<'conversations'>,
@@ -253,7 +253,7 @@ export class Chat {
       if (!signal.aborted) failure = error instanceof Error ? error.message : String(error);
     }
     if (signal.aborted && !controller.signal.aborted) failure = 'timed out';
-    // The user gets a calm sentence; the journal gets the real reason.
+    // The user gets one plain sentence; the journal gets the real reason.
     if (failure !== null) console.warn(`${agent} turn failed: ${failure}`);
     const calm =
       blocked?.ok === false
@@ -293,7 +293,7 @@ export class Chat {
 
 function failureSentence(agent: AgentId, failure: string): string {
   if (failure === 'timed out') {
-    return 'That took too long, so I stopped. Nothing else changed. You could try again.';
+    return 'That took too long, so I stopped. Nothing changed.';
   }
   return calmError(agent, failure);
 }

@@ -1,9 +1,8 @@
 /**
  * "What should I do now?" (F3): a local rule set, no AI call.
  *
- * The result is a list the header cycles through on each press. Real work comes
- * first, but well-being options are always in rotation, because rest is a valid
- * suggestion (design principles, spec section 1).
+ * The result is a list the header cycles through on each press: priorities first, then the
+ * next learning step, then small tasks. Only real work from the dashboard, no advice.
  */
 
 export interface SuggestionInput {
@@ -16,43 +15,21 @@ export interface SuggestionInput {
   hour: number;
 }
 
-const WELLBEING = [
-  'Stand up and look at something far away for a minute.',
-  'Nothing urgent. A glass of water is a good plan.',
-  'Take five slow breaths, then decide.',
-];
-
 function sentence(title: string): string {
   const t = title.trim().replace(/[.!]+$/, '');
   return `${t.charAt(0).toUpperCase()}${t.slice(1)}.`;
 }
 
 export function buildSuggestions(input: SuggestionInput): string[] {
-  if (input.quiet) {
-    return ['Nothing more today. That is the whole plan.', 'Rest is a good answer right now.'];
-  }
+  if (input.quiet) return ['Nothing left today. Quiet mode is on.'];
 
-  const out: string[] = [];
-  const [first, second] = input.openPriorities;
-  if (first) out.push(second ? `${sentence(first)} Then a short walk.` : sentence(first));
-
+  const out = input.openPriorities.map(sentence);
   if (input.nextStep) {
     const { title, est_minutes } = input.nextStep;
-    out.push(
-      est_minutes
-        ? `${sentence(title)} ${est_minutes} minutes, no more.`
-        : `${sentence(title)} One small piece of it.`,
-    );
+    out.push(est_minutes ? `${sentence(title)} About ${est_minutes} minutes.` : sentence(title));
   }
-
-  if (second) out.push(sentence(second));
-  const small = input.openSmalls[0];
-  if (small) out.push(sentence(small));
-
-  if (input.hour >= 21 || input.hour < 5) out.unshift('It is late. Rest is a good answer.');
-  if (!first && !small) out.push('Today is clear. A walk would be lovely.');
-
-  return [...out, ...WELLBEING];
+  out.push(...input.openSmalls.map(sentence));
+  return out.length > 0 ? out : ['Today is clear.'];
 }
 
 export function greetingPrefix(hour: number): string {
@@ -67,7 +44,7 @@ const COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five'];
 /** F2: the typed greeting depends on the time of day and the open priorities. */
 export function greeting(name: string, hour: number, openPriorities: number): string {
   const prefix = `${greetingPrefix(hour)}, ${name}.`;
-  if (openPriorities === 0) return `${prefix} Nothing is asking for you today.`;
+  if (openPriorities === 0) return `${prefix} Nothing planned for today.`;
   if (openPriorities === 1) return `${prefix} One thing matters today.`;
   const word = COUNT_WORDS[openPriorities] ?? 'A few';
   return `${prefix} ${word} things matter today.`;

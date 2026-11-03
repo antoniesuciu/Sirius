@@ -143,8 +143,8 @@ describe('routing', () => {
     const claude = fakeAgent('claude', [[{ type: 'text', delta: 'x' }, { type: 'done' }]]);
     const h = harness(NOON_ISH, { claude: claude.adapter, codex: fakeAgent('codex').adapter });
     h.run('send_chat', { text: 'first' });
-    expect(say(h, 'why is the sky blue').reply).toContain('still answering');
-    expect(say(h, 'de ce e cerul albastru', 'ro').reply).toContain('Încă răspund');
+    expect(say(h, 'why is the sky blue').reply).toContain('Still working');
+    expect(say(h, 'de ce e cerul albastru', 'ro').reply).toContain('Încă lucrez');
     await Bun.sleep(20);
   });
 
@@ -178,8 +178,8 @@ describe('commands', () => {
     expect(say(h, "what's next").reply).toBe('Next is the big one.');
   });
 
-  test("what's next on an empty day suggests rest", () => {
-    expect(say(harness(), "what's next").reply).toContain('rest');
+  test("what's next on an empty day says so", () => {
+    expect(say(harness(), "what's next").reply).toContain('Nothing left');
   });
 
   test("I'm done for today turns quiet mode on", () => {
@@ -219,7 +219,7 @@ describe('commands', () => {
     });
     h.now.value = Date.parse('2026-11-01T16:00:00Z');
     h.core.scheduler.tick();
-    expect(say(h, 'snooze that').reply).toBe('Stretch can wait an hour.');
+    expect(say(h, 'snooze that').reply).toBe('Stretch moved back an hour.');
     expect(h.run('list_reminders', {})[0]?.snoozed_until).toBe(h.now.value + 3_600_000);
   });
 });
@@ -247,7 +247,7 @@ describe('proposals by voice (F32)', () => {
     const h = harness();
     pending(h);
     h.advance(VOICE_CONFIRM_WINDOW_MS + 1);
-    expect(say(h, 'confirm').reply).toContain('passed');
+    expect(say(h, 'confirm').reply).toContain('expired');
     expect(h.run('list_proposals', {}).length).toBe(1);
   });
 
@@ -261,7 +261,7 @@ describe('proposals by voice (F32)', () => {
   test('no declines it', () => {
     const h = harness();
     pending(h);
-    expect(say(h, 'no').reply).toBe("Alright, I'll leave it as it is.");
+    expect(say(h, 'no').reply).toBe('OK, left as it is.');
     expect(h.run('list_proposals', {})).toEqual([]);
   });
 

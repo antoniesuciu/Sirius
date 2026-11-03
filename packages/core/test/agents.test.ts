@@ -237,13 +237,13 @@ describe('codex adapter', () => {
   });
 });
 
-describe('calm errors (F22)', () => {
+describe('plain errors (F22)', () => {
   test.each([
     ['Please run /login', 'Claude needs you to log in first. Running claude login will do it.'],
     ['HTTP 401 Unauthorized', 'Claude needs you to log in first. Running claude login will do it.'],
-    ['usage limit reached', 'Claude has reached its usage limit for now. It will reset.'],
+    ['usage limit reached', 'Claude has hit its usage limit. It resets later.'],
     ['spawn claude ENOENT', "Claude isn't installed here yet. Everything else still works."],
-    ['segfault', 'Claude ran into a problem, so nothing changed. You could try again in a moment.'],
+    ['segfault', 'Claude ran into a problem, so nothing changed. Try again.'],
   ])('%s', (raw, sentence) => {
     expect(calmError('claude', raw)).toBe(sentence);
   });

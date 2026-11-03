@@ -10,8 +10,8 @@ function note(reminders: ReminderView[], now: number): string {
   const upcoming = reminders
     .filter((r) => r.enabled && r.next_fire_at !== null && r.next_fire_at > now)
     .sort((a, b) => (a.next_fire_at ?? 0) - (b.next_fire_at ?? 0))[0];
-  if (!upcoming) return 'Nothing is set. The time is yours.';
-  return `A few quiet minutes are set for ${upcoming.time_local}. Nothing is asked of you before then.`;
+  if (!upcoming) return 'No reminders set.';
+  return `Next reminder at ${upcoming.time_local}.`;
 }
 
 export function PersonalPanel({ reminders, onToggle, onSnooze }: PersonalPanelProps) {

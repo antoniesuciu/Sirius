@@ -116,3 +116,6 @@
   existing Sirius hook instead of skipping it.
 - The agent is told what you changed on the dashboard since its last reply, such as a proposal you
   confirmed or a goal you deleted, so it no longer reports a confirmed card as still waiting.
+- Sirius speaks as a direct assistant (ADR 0011): no reassurance, rest advice or filler in the
+  prompt, voice replies, alerts, suggestions or panel text. The header's suggestions are only
+  real work now. The leaves and the breathing exercise stay.

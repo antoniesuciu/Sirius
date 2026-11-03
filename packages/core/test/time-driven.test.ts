@@ -173,9 +173,7 @@ describe('quiet mode (F4, F24)', () => {
     h.run('post_agent_event', { source: 'claude', kind: 'needs_input', project: 'a' });
     h.run('post_agent_event', { source: 'codex', kind: 'needs_input', project: 'b' });
     h.run('set_quiet_mode', { on: false });
-    expect(h.notified.map((n) => n.body)).toEqual([
-      '2 things came in while you were away. No rush.',
-    ]);
+    expect(h.notified.map((n) => n.body)).toEqual(['2 things came in during quiet mode.']);
   });
 
   test('queued events also surface when quiet mode ends at rollover', () => {
@@ -195,9 +193,7 @@ describe('agent attention (F23, F25)', () => {
   test('reads as one calm sentence', () => {
     const h = harness();
     h.run('post_agent_event', { ...event, message: 'Claude needs your permission to use Bash' });
-    expect(h.notified[0]?.body).toBe(
-      'Claude is waiting for an approval in quant-lab. No rush, it will keep.',
-    );
+    expect(h.notified[0]?.body).toBe('Claude is waiting for an approval in quant-lab.');
   });
 
   test('duplicates coalesce into one event and one notification', () => {

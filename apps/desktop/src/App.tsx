@@ -55,7 +55,7 @@ import { useLive } from './data/useLive.ts';
 const OWNER = 'Antonie';
 const SNOOZE_MS = 60 * 60 * 1000;
 const REST_AFTER_MS = 30_000;
-const WELCOME = 'Quiet on the agent front. Nothing needs you right now. Ask me for anything small.';
+const WELCOME = 'Ask me anything, or tell me what to add.';
 
 /** fetch rejects with a TypeError when nothing answered, which WebKit words as "Load failed". */
 function failureText(error: unknown): string {
@@ -151,11 +151,11 @@ export function App({ phone = false }: { phone?: boolean }) {
 
   // "listening" is reserved for the real microphone, so the idle line never implies it (F33).
   const status = {
-    idle: 'nearby',
+    idle: 'ready',
     listening: 'listening',
-    thinking: 'thinking it over',
+    thinking: 'thinking',
     speaking: 'speaking',
-    asleep: 'asleep until tomorrow',
+    asleep: 'quiet until tomorrow',
   }[avatar];
 
   const messages: ChatLine[] = (conversation?.messages ?? [])
@@ -216,11 +216,7 @@ export function App({ phone = false }: { phone?: boolean }) {
         onToggleQuiet={() => setQuiet.mutate(!quiet)}
       />
       {phone && <ConnectionLine />}
-      {quiet && (
-        <div className="quiet-line msg">
-          Quiet until tomorrow. Reminders are off, and nothing here needs you.
-        </div>
-      )}
+      {quiet && <div className="quiet-line msg">Quiet mode until tomorrow. Reminders are off.</div>}
       <main className="columns">
         {/* Sirius first, so the first thing on the screen is someone to talk to. */}
         <div className="col col-3">
