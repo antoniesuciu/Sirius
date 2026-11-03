@@ -1,7 +1,8 @@
 /** `sirius setup-hooks`: wires agents to `sirius notify` (spec section 9). */
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-const NOTIFICATION_MATCHER = 'permission_prompt|idle_prompt|elicitation_dialog';
+/** Only when Claude is blocked on you. An idle session is not news (owner, 2026-11-03). */
+const NOTIFICATION_MATCHER = 'permission_prompt|elicitation_dialog';
 
 interface CommandHook {
   type: 'command';
@@ -19,8 +20,10 @@ interface ClaudeSettings {
 function addHook(settings: ClaudeSettings, event: string, group: HookGroup, marker: string): void {
   settings.hooks ??= {};
   const groups = (settings.hooks[event] ??= []);
-  const present = groups.some((g) => g.hooks?.some((h) => h.command?.includes(marker)));
-  if (!present) groups.push(group);
+  const ours = groups.find((g) => g.hooks?.some((h) => h.command?.includes(marker)));
+  if (!ours) groups.push(group);
+  // Ours already: bring its matcher up to date, so a narrower one reaches existing installs.
+  else if (group.matcher) ours.matcher = group.matcher;
 }
 
 /** Adds Sirius's hooks, keeping everything already there. Safe to run twice. */

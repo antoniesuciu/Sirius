@@ -122,7 +122,7 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
     '*',
     cors({
       origin: UI_ORIGINS,
-      allowHeaders: ['authorization', 'content-type', 'x-sirius-client'],
+      allowHeaders: ['authorization', 'content-type', 'x-sirius-client', 'idempotency-key'],
     }),
   );
 

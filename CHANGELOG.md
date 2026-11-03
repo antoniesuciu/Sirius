@@ -109,3 +109,8 @@
 - Sirius and Well-being come first: the left column on the laptop, the top on the phone.
 - A roadmap is renamed where its title is, and deleting a goal or roadmap asks once more. On a
   touch screen, Edit takes its own room instead of covering the text.
+- Fixed: every change from the desktop app stayed queued, because the core's cross-origin rules
+  did not allow the new idempotency-key header. Queued changes go through once the core is updated.
+- Claude alerts only when it is blocked on you (a permission prompt or a question), not when a
+  session is merely idle. `sirius notify` ignores idle notices, and `setup-hooks` now updates an
+  existing Sirius hook instead of skipping it.

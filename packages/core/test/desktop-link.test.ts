@@ -72,6 +72,25 @@ describe('who counts as the desktop app', () => {
     expect(await open('voice-service')).toBe(0);
   });
 
+  test('the desktop app may send every header it uses across origins', async () => {
+    // The desktop window is tauri://localhost and the core 127.0.0.1, so each custom header
+    // must pass the preflight. A missing one fails every change silently (found 2026-11-03).
+    const app = createApp(harness().core, { token: 't', mode: 'local', version: 'x' });
+    const response = await app.request('/v1/tasks', {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'tauri://localhost',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers':
+          'authorization,content-type,idempotency-key,x-sirius-client',
+      },
+    });
+    const allowed = response.headers.get('access-control-allow-headers') ?? '';
+    for (const header of ['authorization', 'content-type', 'idempotency-key', 'x-sirius-client']) {
+      expect(allowed).toContain(header);
+    }
+  });
+
   test('the app may send its header across origins', async () => {
     const app = createApp(harness().core, { token: 't', mode: 'local', version: 'x' });
     const response = await app.request('/v1/events', {

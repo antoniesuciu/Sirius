@@ -19,6 +19,13 @@ describe('hook input', () => {
     });
   });
 
+  test('Claude: an idle session is not an alert', () => {
+    const idle = { cwd: '/home/x/sirius', message: 'Claude is waiting for your input' };
+    expect(fromClaudeHook(JSON.stringify(idle), 'needs_input')).toBeNull();
+    const typed = { cwd: '/x', message: 'x', notification_type: 'idle_prompt' };
+    expect(fromClaudeHook(JSON.stringify(typed), 'needs_input')).toBeNull();
+  });
+
   test('Codex: the documented payload is a finished turn', () => {
     const raw = JSON.stringify({
       type: 'agent-turn-complete',
@@ -47,13 +54,34 @@ describe('mergeClaudeSettings', () => {
   test('uses the documented matcher and needs_input', () => {
     const group = mergeClaudeSettings({}, BIN).hooks?.Notification?.[0];
     expect(group?.matcher).toContain('permission_prompt');
-    expect(group?.matcher).toContain('idle_prompt');
+    expect(group?.matcher).not.toContain('idle_prompt');
     expect(group?.hooks[0]?.command).toBe(`${BIN} notify --source claude --kind needs_input`);
   });
 
   test('the Stop hook is off unless asked for', () => {
     expect(mergeClaudeSettings({}, BIN).hooks?.Stop).toBeUndefined();
     expect(mergeClaudeSettings({}, BIN, { withStop: true }).hooks?.Stop?.length).toBe(1);
+  });
+
+  test('an existing Sirius hook gets the narrower matcher', () => {
+    const old = {
+      hooks: {
+        Notification: [
+          {
+            matcher: 'permission_prompt|idle_prompt|elicitation_dialog',
+            hooks: [
+              {
+                type: 'command' as const,
+                command: `${BIN} notify --source claude --kind needs_input`,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const groups = mergeClaudeSettings(old, BIN).hooks?.Notification ?? [];
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.matcher).toBe('permission_prompt|elicitation_dialog');
   });
 
   test('running twice adds nothing', () => {

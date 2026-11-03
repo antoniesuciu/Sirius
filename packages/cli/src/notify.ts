@@ -9,9 +9,12 @@ type AgentEventInput = OpInput<'post_agent_event'>;
 
 const projectOf = (cwd: unknown) => (typeof cwd === 'string' && cwd ? basename(cwd) : undefined);
 
-/** Claude Code sends the hook input as JSON on stdin. */
-export function fromClaudeHook(raw: string, kind: AgentEventKind): AgentEventInput {
-  const data = JSON.parse(raw) as { cwd?: string; message?: string };
+/** Claude Code sends the hook input as JSON on stdin. Null means not worth an alert. */
+export function fromClaudeHook(raw: string, kind: AgentEventKind): AgentEventInput | null {
+  const data = JSON.parse(raw) as { cwd?: string; message?: string; notification_type?: string };
+  // An idle session is not waiting on anything. Older hook setups still send these.
+  if (data.notification_type === 'idle_prompt') return null;
+  if (/waiting for your input/i.test(data.message ?? '')) return null;
   return {
     source: 'claude',
     kind,

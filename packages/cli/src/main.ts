@@ -57,7 +57,7 @@ async function notify(args: string[]): Promise<void> {
         'from-codex-json': { type: 'boolean' },
       },
     });
-    let input: OpInput<'post_agent_event'>;
+    let input: OpInput<'post_agent_event'> | null;
     if (values['from-codex-json']) {
       input = fromCodexJson(positionals[0] ?? '{}');
     } else {
@@ -72,7 +72,7 @@ async function notify(args: string[]): Promise<void> {
             ...(values.message ? { message: values.message } : {}),
           };
     }
-    await client(HOOK_TIMEOUT_MS).call('post_agent_event', input);
+    if (input) await client(HOOK_TIMEOUT_MS).call('post_agent_event', input);
   } catch {
     // Deliberately silent. A hook must never fail an agent.
   }
