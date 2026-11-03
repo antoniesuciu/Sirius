@@ -222,41 +222,7 @@ export function App({ phone = false }: { phone?: boolean }) {
         </div>
       )}
       <main className="columns">
-        <div className="col col-1">
-          <TodayPanel
-            tasks={today?.tasks ?? []}
-            restingTomorrow={today?.resting_tomorrow ?? 0}
-            dimmed={quiet}
-            onToggle={(task) => toggleTask.mutate(task)}
-            onAdd={(title) => addTask.mutate(title)}
-            onDrop={(task) => dropTask.mutate(task)}
-          />
-          <GoalsPanel
-            goals={goals}
-            dimmed={quiet}
-            onRename={(id, title) => renameGoal.mutate({ id, title })}
-            onDelete={(id) => deleteGoal.mutate({ id })}
-            onAdd={(title) => addGoal.mutate({ title })}
-          />
-        </div>
-        <div className="col col-2">
-          <LearningPanel
-            roadmaps={roadmaps}
-            onStepToToday={(id) => stepToToday.mutate({ id })}
-            onRename={(id, title) => renameRoadmap.mutate({ id, title })}
-            onDelete={(id) => deleteRoadmap.mutate({ id })}
-          />
-          <PersonalPanel
-            reminders={reminders.filter((r) => r.kind !== 'wellbeing')}
-            onToggle={(r) => setReminderEnabled.mutate({ id: r.id, enabled: !r.enabled })}
-            onSnooze={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
-          />
-          <ListPanel
-            items={listItems ?? []}
-            onAdd={(text) => addToList.mutate(text)}
-            onTick={(item) => tickListItem.mutate(item)}
-          />
-        </div>
+        {/* Sirius first, so the first thing on the screen is someone to talk to. */}
         <div className="col col-3">
           <SiriusPanel
             avatar={avatar}
@@ -313,6 +279,41 @@ export function App({ phone = false }: { phone?: boolean }) {
               snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })
             }
             startSignal={live.breathingSignal}
+          />
+        </div>
+        <div className="col col-1">
+          <TodayPanel
+            tasks={today?.tasks ?? []}
+            restingTomorrow={today?.resting_tomorrow ?? 0}
+            dimmed={quiet}
+            onToggle={(task) => toggleTask.mutate(task)}
+            onAdd={(title) => addTask.mutate(title)}
+            onDrop={(task) => dropTask.mutate(task)}
+          />
+          <GoalsPanel
+            goals={goals}
+            dimmed={quiet}
+            onRename={(id, title) => renameGoal.mutate({ id, title })}
+            onDelete={(id) => deleteGoal.mutate({ id })}
+            onAdd={(title) => addGoal.mutate({ title })}
+          />
+        </div>
+        <div className="col col-2">
+          <LearningPanel
+            roadmaps={roadmaps}
+            onStepToToday={(id) => stepToToday.mutate({ id })}
+            onRename={(id, title) => renameRoadmap.mutate({ id, title })}
+            onDelete={(id) => deleteRoadmap.mutate({ id })}
+          />
+          <PersonalPanel
+            reminders={reminders.filter((r) => r.kind !== 'wellbeing')}
+            onToggle={(r) => setReminderEnabled.mutate({ id: r.id, enabled: !r.enabled })}
+            onSnooze={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
+          />
+          <ListPanel
+            items={listItems ?? []}
+            onAdd={(text) => addToList.mutate(text)}
+            onTick={(item) => tickListItem.mutate(item)}
           />
         </div>
       </main>

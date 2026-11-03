@@ -114,9 +114,42 @@ test.describe('learning', () => {
 
   test('selecting another roadmap swaps what is expanded', async ({ page }) => {
     await open(page);
-    await page.getByRole('button', { name: /Stochastic calculus/ }).click();
+    await page.locator('.node-button', { hasText: 'Stochastic calculus' }).click();
     await expect(page.getByText('Nothing to do yet.')).toBeVisible();
     await expect(page.getByText('Next: Sequences and limits')).toHaveCount(0);
+  });
+
+  test('a roadmap is renamed where its title is', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Edit roadmap: Probability theory' }).click();
+    const field = page.getByLabel('Rename roadmap');
+    const title = page.locator('.node', { has: field });
+    await expect(title).toHaveCount(1);
+    await field.fill('Probability, gently');
+    await field.press('Enter');
+    await expect(page.locator('.node-title', { hasText: 'Probability, gently' })).toBeVisible();
+  });
+
+  test('deleting asks once more, and Keep keeps it', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: 'Edit roadmap: Probability theory' }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page.getByText('Delete for good?')).toBeVisible();
+    await page.getByRole('button', { name: 'Keep' }).click();
+    await expect(page.getByText('Delete for good?')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('.node-title', { hasText: 'Probability theory' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Edit roadmap: Probability theory' }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(page.locator('.node-title', { hasText: 'Probability theory' })).toHaveCount(0);
+  });
+
+  test('Sirius comes first on a phone', async ({ page }) => {
+    await open(page);
+    const first = await page.locator('main.columns section.panel').first().getAttribute('class');
+    expect(first).toContain('panel-sirius');
   });
 });
 

@@ -106,3 +106,6 @@
 - Goals can be added by hand (F34), and a new list holds things to remember or buy (F35), by
   hand, by voice ("add milk to my list") or through either agent.
 - The header's suggestions name the small task plainly, without "Something small:".
+- Sirius and Well-being come first: the left column on the laptop, the top on the phone.
+- A roadmap is renamed where its title is, and deleting a goal or roadmap asks once more. On a
+  touch screen, Edit takes its own room instead of covering the text.

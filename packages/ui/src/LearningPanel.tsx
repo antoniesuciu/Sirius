@@ -75,32 +75,39 @@ export function LearningPanel({ roadmaps, onStepToToday, onRename, onDelete }: L
               data-node={roadmap.id}
               style={{ animationDelay: `${0.7 + i * 0.35}s` }}
             >
-              <button
-                type="button"
-                className="node-button"
-                aria-expanded={isOpen}
-                onClick={() => {
-                  setTouched(true);
-                  setSelected(isOpen ? null : roadmap.id);
-                }}
+              <InlineEdit
+                title={roadmap.title}
+                noun="roadmap"
+                onRename={(title) => onRename(roadmap.id, title)}
+                onDelete={() => onDelete(roadmap.id)}
               >
-                <span className="node-mark">
-                  {isCurrent ? (
-                    <span className="node-current">
-                      <span className="ringwave" />
-                      <span className="node-current-dot" />
-                    </span>
-                  ) : (
-                    <span
-                      className={`node-later ${roadmap.status === 'done' ? 'node-done' : ''}`}
-                    />
-                  )}
-                </span>
-                <span className="node-text">
-                  <span className="node-title">{roadmap.title}</span>
-                  <span className="node-meta">{roadmap.subtitle ?? ''}</span>
-                </span>
-              </button>
+                <button
+                  type="button"
+                  className="node-button"
+                  aria-expanded={isOpen}
+                  onClick={() => {
+                    setTouched(true);
+                    setSelected(isOpen ? null : roadmap.id);
+                  }}
+                >
+                  <span className="node-mark">
+                    {isCurrent ? (
+                      <span className="node-current">
+                        <span className="ringwave" />
+                        <span className="node-current-dot" />
+                      </span>
+                    ) : (
+                      <span
+                        className={`node-later ${roadmap.status === 'done' ? 'node-done' : ''}`}
+                      />
+                    )}
+                  </span>
+                  <span className="node-text">
+                    <span className="node-title">{roadmap.title}</span>
+                    <span className="node-meta">{roadmap.subtitle ?? ''}</span>
+                  </span>
+                </button>
+              </InlineEdit>
               {isOpen && (
                 <div className="node-next msg">
                   <span>{nextLine(roadmap, step)}</span>
@@ -109,14 +116,6 @@ export function LearningPanel({ roadmaps, onStepToToday, onRename, onDelete }: L
                       Put it in Today
                     </button>
                   )}
-                  <InlineEdit
-                    title={roadmap.title}
-                    noun="roadmap"
-                    onRename={(title) => onRename(roadmap.id, title)}
-                    onDelete={() => onDelete(roadmap.id)}
-                  >
-                    {null}
-                  </InlineEdit>
                 </div>
               )}
             </div>

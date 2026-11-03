@@ -489,21 +489,28 @@ ul {
   background: var(--panel);
   opacity: 0;
 }
-.node-next .editable {
-  align-self: stretch;
-  min-height: 44px;
-}
-.node-next .edit-trigger {
-  left: 0;
-  right: auto;
-  opacity: 1;
+.confirm-question {
+  font-size: 15px;
+  color: var(--muted);
 }
 .editable:hover .edit-trigger,
 .editable:focus-within .edit-trigger {
   opacity: 1;
 }
+/* Without hover, Edit is always shown, so it takes its own room instead of covering text. */
 @media (hover: none) {
+  .editable {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .editable > :first-child {
+    flex: 1;
+    min-width: 0;
+  }
   .edit-trigger {
+    position: static;
+    margin-top: 0;
     opacity: 1;
   }
 }
@@ -578,6 +585,13 @@ ul {
   border: 0;
   padding: 10px 0;
   font-size: inherit;
+}
+/* Renaming a roadmap happens where its title is, clear of the vine's dot (22px mark + 18px gap). */
+.node > .inline-edit {
+  padding: 6px 0 6px 40px;
+}
+.node > .inline-edit input {
+  flex-basis: 100%;
 }
 .node-mark {
   flex: none;

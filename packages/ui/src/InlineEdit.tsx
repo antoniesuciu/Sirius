@@ -13,15 +13,21 @@ export interface InlineEditProps {
 /** F10: the only editing UI goals and roadmaps get. Everything else goes through Sirius. */
 export function InlineEdit({ title, noun, onRename, onDelete, children }: InlineEditProps) {
   const [draft, setDraft] = useState<string | null>(null);
+  // A delete has no undo for the user, so it asks once more.
+  const [confirming, setConfirming] = useState(false);
 
   const save = (e: FormEvent) => {
     e.preventDefault();
     const clean = draft?.trim();
     if (clean && clean !== title) onRename(clean);
     setDraft(null);
+    setConfirming(false);
   };
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') setDraft(null);
+    if (e.key === 'Escape') {
+      setDraft(null);
+      setConfirming(false);
+    }
   };
 
   if (draft === null) {
@@ -48,12 +54,26 @@ export function InlineEdit({ title, noun, onRename, onDelete, children }: Inline
         onKeyDown={onKey}
         autoFocus
       />
-      <button type="submit" className="text-button">
-        Save
-      </button>
-      <button type="button" className="text-button" onClick={onDelete}>
-        Delete
-      </button>
+      {confirming ? (
+        <>
+          <span className="confirm-question">Delete for good?</span>
+          <button type="button" className="text-button" onClick={onDelete}>
+            Yes, delete
+          </button>
+          <button type="button" className="text-button" onClick={() => setConfirming(false)}>
+            Keep
+          </button>
+        </>
+      ) : (
+        <>
+          <button type="submit" className="text-button">
+            Save
+          </button>
+          <button type="button" className="text-button" onClick={() => setConfirming(true)}>
+            Delete
+          </button>
+        </>
+      )}
     </form>
   );
 }
