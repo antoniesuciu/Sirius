@@ -65,6 +65,28 @@ test('an optimistic change rolls back when the core refuses', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Mark done: Walk before sunset' })).toBeVisible();
 });
 
+test('picking a model reaches the core and survives a reload', async ({ page }) => {
+  await page.goto('/');
+  await ready(page);
+  const picker = page.getByRole('button', { name: /^Model:/ });
+  await picker.click();
+  await page.getByRole('option', { name: 'Claude Sonnet 5.5' }).click();
+  await expect(picker).toContainText('Sonnet');
+  await page.reload();
+  await ready(page);
+  await expect(page.getByRole('button', { name: /^Model:/ })).toContainText('Sonnet');
+});
+
+test('a core that cannot be reached is explained, not shown as a raw error', async ({ page }) => {
+  await page.goto('/');
+  await ready(page);
+  await page.route('**/v1/agents/select', (route) => route.abort('connectionrefused'));
+  await page.getByRole('button', { name: /^Model:/ }).click();
+  await page.getByRole('option', { name: 'Claude Opus 5.5' }).click();
+  await expect(page.getByText("I can't reach my core just now.")).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Model:/ })).not.toContainText('Opus');
+});
+
 test('quiet mode reaches the core and survives a reload', async ({ page }) => {
   await page.goto('/');
   await ready(page);

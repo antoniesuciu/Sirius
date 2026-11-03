@@ -57,6 +57,12 @@ const CHIPS = [
 ];
 const WELCOME = 'Quiet on the agent front. Nothing needs you right now. Ask me for anything small.';
 
+/** fetch rejects with a TypeError when nothing answered, which WebKit words as "Load failed". */
+function failureText(error: unknown): string {
+  if (error instanceof Error && !(error instanceof TypeError)) return error.message;
+  return "I can't reach my core just now. It should be back in a moment. If not, try sirius doctor.";
+}
+
 function nextOfKind(reminders: ReminderView[], kind: ReminderView['kind']): ReminderView | null {
   return (
     reminders
@@ -161,6 +167,8 @@ export function App() {
     ...(sendError ? [{ id: 'error', mine: false, text: sendError }] : []),
   ];
 
+  const showFailure = { onError: (error: unknown) => setSendError(failureText(error)) };
+
   const send = async (text: string) => {
     setSendError(null);
     setPendingText(text);
@@ -169,7 +177,7 @@ export function App() {
       // failure, whose events can arrive before this response and leave the panel stuck.
       await client.call('send_chat', { text });
     } catch (error) {
-      setSendError(error instanceof Error ? error.message : 'That did not reach me.');
+      setSendError(failureText(error));
     }
   };
 
@@ -245,9 +253,9 @@ export function App() {
             status={status}
             selected={agents?.selected ?? 'claude'}
             agents={agents?.agents ?? fallbackAgents}
-            onSelectAgent={(agent) => selectAgent.mutate({ agent })}
+            onSelectAgent={(agent) => selectAgent.mutate({ agent }, showFailure)}
             onSelectModel={(model) =>
-              selectAgent.mutate({ agent: agents?.selected ?? 'claude', model })
+              selectAgent.mutate({ agent: agents?.selected ?? 'claude', model }, showFailure)
             }
             messages={lines}
             streaming={live.streaming}
@@ -281,7 +289,7 @@ export function App() {
               onMic: () => {
                 setSendError(null);
                 if (browserVoiceSupported()) return browserVoice.toggle();
-                client.call('voice_ptt', {}).catch((error: Error) => setSendError(error.message));
+                client.call('voice_ptt', {}).catch((error) => setSendError(failureText(error)));
               },
               onStop: () => {
                 void client.call('voice_stop', {}).catch(() => {});

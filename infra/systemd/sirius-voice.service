@@ -12,7 +12,8 @@ Environment=ORT_DISABLE_TELEMETRY=1
 Environment=HF_HOME=%h/.local/share/sirius/models
 # scripts/install.sh writes LD_LIBRARY_PATH here when an NVIDIA GPU is usable.
 EnvironmentFile=-%h/.config/sirius/voice-env
-Restart=on-failure
+# always, not on-failure: a stray SIGTERM exits 0, which on-failure treats as intended.
+Restart=always
 RestartSec=3
 
 [Install]

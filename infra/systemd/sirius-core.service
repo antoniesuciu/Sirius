@@ -9,7 +9,8 @@ Environment=BUN_OPTIONS=--smol
 # systemd does not inherit the login PATH, and agent CLIs often live under nvm or ~/.local.
 # scripts/install.sh writes the real locations here.
 EnvironmentFile=-%h/.config/sirius/env
-Restart=on-failure
+# always, not on-failure: a stray SIGTERM exits 0, which on-failure treats as intended.
+Restart=always
 RestartSec=2
 
 [Install]

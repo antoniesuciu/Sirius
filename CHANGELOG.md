@@ -80,6 +80,7 @@
 - Sirius remembers: a `remember` tool writes to one Markdown file, set by `SIRIUS_MEMORY_FILE`.
 - The desktop window has no system title bar. It draws its own drag strip and controls.
 - The model choice is a list drawn by Sirius instead of the GTK popup of a native select.
+- The services restart after any exit, and an unreachable core is explained in the chat.
 - Voice grammar learned phrases from a real voice: "and … today" as a misheard "add",
   "adaugă … azi", "lazi", "am ceva de făcut azi" and "ce mai am de făcut".
 - Whisper decodes with a beam of 5 instead of greedily, and knows more of the Romanian commands.
