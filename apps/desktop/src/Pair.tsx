@@ -3,7 +3,9 @@ import { saveToken } from './data/connect.ts';
 
 /** Names the phone in the laptop's list, from the model Android puts in the user agent. */
 function phoneName(): string {
-  return navigator.userAgent.match(/Android [\d.]+; ([^;)]+)/)?.[1]?.trim() ?? 'Phone';
+  const model = navigator.userAgent.match(/Android [\d.]+; ([^;)]+)/)?.[1]?.trim();
+  // Chrome hides the real model behind the letter K.
+  return model && model !== 'K' ? model : 'Android phone';
 }
 
 /** The first screen on a phone that has not paired yet (ADR 0010). */

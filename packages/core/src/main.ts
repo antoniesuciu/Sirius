@@ -75,7 +75,13 @@ const app = createApp(core, {
   version: VERSION,
   // A remote core serves other devices, so no one window decides its life.
   ...(config.mode === 'local'
-    ? { desktopLink: new DesktopLink(() => process.kill(process.pid, 'SIGTERM')) }
+    ? {
+        desktopLink: new DesktopLink(
+          () => process.kill(process.pid, 'SIGTERM'),
+          undefined,
+          () => core.phones.any(),
+        ),
+      }
     : {}),
   ...(config.access ? { verifyAccess: createAccessVerifier(config.access) } : {}),
   ...(config.uiDir ? { uiDir: config.uiDir } : {}),

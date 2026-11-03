@@ -97,7 +97,6 @@ export function TodayPanel({
       </ul>
       {smalls.length > 0 && (
         <div className="smalls">
-          <span className="label">Small things, if there's room</span>
           <ul className="tasks">
             {smalls.map((t) => (
               <TaskRow key={t.id} task={t} small onToggle={onToggle} onDrop={onDrop} />

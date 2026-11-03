@@ -914,26 +914,6 @@ ul {
   border-radius: 50%;
   background: var(--accent);
 }
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.chip {
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--line-soft);
-  background: transparent;
-  color: var(--ink);
-  font-size: 15px;
-}
-/* Chips sit at 40px in the mockup; touch needs the full 44px. */
-@media (pointer: coarse) {
-  .chip {
-    min-height: 44px;
-  }
-}
 .chat-form {
   display: flex;
   gap: 10px;

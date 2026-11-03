@@ -18,3 +18,8 @@ Cost: after a real Quit, reminders and agent alerts stop until the app is opened
 narrows F24 to a window closed to the tray. If the app never connected, as on a login where it
 did not start, the core keeps running. A remote core ignores all of this, because it serves other
 devices.
+
+Amended 2026-11-03, decided by the owner: once a phone is paired (ADR 0010) the laptop is its
+server, so the app leaving no longer stops the core. Stopping or killing the core still takes
+voice and the window with it, and opening the app still starts everything. With no phone paired,
+the rules above apply unchanged. `sirius forget-phones` returns to them.

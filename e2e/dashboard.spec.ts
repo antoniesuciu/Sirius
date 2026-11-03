@@ -162,7 +162,8 @@ test.describe('sirius', () => {
 
   test('a proposal changes nothing until Confirm', async ({ page }) => {
     await open(page);
-    await page.getByRole('button', { name: 'I feel overwhelmed' }).click();
+    await page.getByLabel('Message Sirius').fill('I feel overwhelmed');
+    await page.getByLabel('Message Sirius').press('Enter');
     const card = page.locator('.proposal');
     await expect(card).toContainText('Keep one priority', { timeout: 8000 });
     await expect(page.locator('.task')).toHaveCount(6);
@@ -173,7 +174,8 @@ test.describe('sirius', () => {
 
   test('Not now leaves everything as it was', async ({ page }) => {
     await open(page);
-    await page.getByRole('button', { name: 'I feel overwhelmed' }).click();
+    await page.getByLabel('Message Sirius').fill('I feel overwhelmed');
+    await page.getByLabel('Message Sirius').press('Enter');
     await page.locator('.proposal').getByRole('button', { name: 'Not now' }).click();
     await expect(page.locator('.proposal')).toHaveCount(0);
     await expect(page.locator('.task')).toHaveCount(6);

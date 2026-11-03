@@ -99,3 +99,7 @@
   applied once when the laptop is back, and one the laptop refuses is reported.
 - Each install also updates the phone app, which picks up the new version on its next visit.
 - The panel slogans are gone.
+- With a phone paired, quitting the desktop app leaves the core running for it (ADR 0009).
+- The phone reconnects whenever Sirius comes back on screen, since a sleeping phone's link dies
+  silently.
+- The chat's suggestion chips and the "Small things, if there's room" label are gone.

@@ -34,9 +34,11 @@ export function useLive(): LiveState {
   const connected = useRef(false);
 
   useEffect(() => {
-    // A phone waking up or finding a network is the moment the laptop may be back.
+    // Coming back on screen, the stream may be dead without knowing it: a phone that slept
+    // drops its connection silently, and the 60 s silence check would be the first to notice.
+    // So reconnect, which also refetches everything.
     const retry = () => {
-      if (!connected.current && document.visibilityState === 'visible') setAttempt((n) => n + 1);
+      if (document.visibilityState === 'visible') setAttempt((n) => n + 1);
     };
     window.addEventListener('online', retry);
     document.addEventListener('visibilitychange', retry);

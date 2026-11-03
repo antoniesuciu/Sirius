@@ -85,3 +85,23 @@ describe('who counts as the desktop app', () => {
     expect(response.headers.get('access-control-allow-headers')).toContain('x-sirius-client');
   });
 });
+
+describe('a paired phone keeps the laptop serving (ADR 0009, amended)', () => {
+  test('the app leaving does not stop the core while a phone needs it', async () => {
+    let gone = 0;
+    let phonePaired = true;
+    const link = new DesktopLink(
+      () => gone++,
+      GRACE,
+      () => phonePaired,
+    );
+    link.attach()();
+    await after(GRACE * 2);
+    expect(gone).toBe(0);
+
+    phonePaired = false;
+    link.attach()();
+    await after(GRACE * 2);
+    expect(gone).toBe(1);
+  });
+});

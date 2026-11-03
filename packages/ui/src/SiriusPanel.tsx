@@ -40,7 +40,6 @@ export interface SiriusPanelProps {
   onReject(proposal: Proposal): void;
   undoLabel: string | null;
   onUndo(): void;
-  chips: string[];
   onSend(text: string): void;
   onCancel(): void;
   onNewConversation(): void;
@@ -186,20 +185,6 @@ export function SiriusPanel(props: SiriusPanelProps) {
       </div>
 
       {voice.transcript && <div className="transcript">{voice.transcript}</div>}
-
-      <div className="chips">
-        {props.chips.map((chip) => (
-          <button
-            key={chip}
-            type="button"
-            className="chip"
-            disabled={props.busy}
-            onClick={() => props.onSend(chip)}
-          >
-            {chip}
-          </button>
-        ))}
-      </div>
 
       <form className="chat-form" onSubmit={submit}>
         <input

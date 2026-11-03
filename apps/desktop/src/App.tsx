@@ -51,11 +51,6 @@ import { useLive } from './data/useLive.ts';
 const OWNER = 'Antonie';
 const SNOOZE_MS = 60 * 60 * 1000;
 const REST_AFTER_MS = 30_000;
-const CHIPS = [
-  'Add goal: read twelve books this year',
-  'Learn: linear algebra',
-  'I feel overwhelmed',
-];
 const WELCOME = 'Quiet on the agent front. Nothing needs you right now. Ask me for anything small.';
 
 /** fetch rejects with a TypeError when nothing answered, which WebKit words as "Load failed". */
@@ -276,7 +271,6 @@ export function App({ phone = false }: { phone?: boolean }) {
               if (live.undoable) undo.mutate({ change_id: live.undoable.change_id });
               live.clearUndo();
             }}
-            chips={CHIPS}
             onSend={send}
             onCancel={() => {
               if (live.turnId) void client.call('cancel_chat', { turn_id: live.turnId });

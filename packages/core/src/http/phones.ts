@@ -67,6 +67,12 @@ export class Phones {
     return (rows[0]?.n ?? 0) > 0;
   }
 
+  /** With a phone paired, the laptop is its server and keeps running without the window. */
+  any(): boolean {
+    const [row] = this.sqlite.all<{ n: number }>('SELECT count(*) AS n FROM phones');
+    return (row?.n ?? 0) > 0;
+  }
+
   forgetAll(): { forgotten: number } {
     const [row] = this.sqlite.all<{ n: number }>('SELECT count(*) AS n FROM phones');
     this.sqlite.exec('DELETE FROM phones');
