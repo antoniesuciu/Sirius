@@ -86,6 +86,16 @@ test('on Sirius only the chat scrolls, even on a short screen', async ({ page })
   expect(agents?.y).toBeLessThan((avatar?.y ?? 0) + (avatar?.height ?? 0));
 });
 
+test('a new chat is started from the top of the card, not a row of its own', async ({ page }) => {
+  await openPhone(page);
+  await expect(page.locator('.chat-foot')).toHaveCount(0);
+  await page.getByLabel('Message Sirius').fill('add goal: Run a 10k');
+  await page.getByLabel('Message Sirius').press('Enter');
+  await expect(page.locator('.chat-log')).toContainText('Added the goal');
+  await page.getByRole('button', { name: 'New chat' }).click();
+  await expect(page.locator('.chat-log')).not.toContainText('Added the goal');
+});
+
 test('a draft survives switching sections', async ({ page }) => {
   await openPhone(page);
   await page.getByLabel('Message Sirius').fill('half a thought');

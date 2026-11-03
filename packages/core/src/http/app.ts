@@ -218,6 +218,7 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
   // Phone push-to-talk (ADR-10): the browser records, the voice service transcribes.
   app.post('/v1/voice/audio', async (c) => {
     if (!options.voiceUrl) {
+      console.warn('phone audio refused: SIRIUS_VOICE_URL is not set');
       throw new DomainError(503, 'voice_unavailable', "Voice isn't running right now.");
     }
     const audio = await c.req.arrayBuffer();
@@ -228,8 +229,17 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
       method: 'POST',
       body: audio,
       signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
-    }).catch(() => null);
+    }).catch((error: unknown) => {
+      console.warn(`phone audio: the voice service did not answer: ${String(error)}`);
+      return null;
+    });
+    // The voice service answers 422 when it cannot decode the recording.
+    if (response?.status === 422) {
+      console.warn('phone audio: the voice service could not decode the recording');
+      throw new DomainError(400, 'invalid_audio', 'That recording could not be used.');
+    }
     if (!response?.ok) {
+      if (response) console.warn(`phone audio: the voice service answered ${response.status}`);
       throw new DomainError(503, 'voice_unavailable', "Voice isn't running right now.");
     }
     const { text, lang } = (await response.json()) as { text: string; lang: string };

@@ -238,6 +238,19 @@ describe('phone audio', () => {
     expect(await res.json()).toMatchObject({ route: 'fast_path', lang: 'ro' });
   });
 
+  test('a recording the voice service cannot decode is not called a dead service', async () => {
+    globalThis.fetch = (async () => new Response(null, { status: 422 })) as never;
+    const app = createApp(harness().core, {
+      token: 't',
+      mode: 'remote',
+      version: 'x',
+      voiceUrl: 'http://voice',
+    });
+    const res = await upload(app, 'not-audio');
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ message: 'That recording could not be used.' });
+  });
+
   test('no voice service says so', async () => {
     const app = createApp(harness().core, { token: 't', mode: 'remote', version: 'x' });
     expect((await upload(app, 'x')).status).toBe(503);

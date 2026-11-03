@@ -134,3 +134,9 @@
 - Fixed: talking to the phone never worked once pairing existed, because the recording was sent
   without the phone's token. The phone now also says the answer with Android's own voice.
 - Fixed: semicolons in schedule titles were not escaped in the calendar feed.
+- Fixed: phone voice still could not work on a laptop install. The installer never opened the voice
+  service's upload port or told the core about it, and faster-whisper 1.2.1's decoder passes an
+  option PyAV 19 removed, so no recording could be decoded. Uploads are now decoded with PyAV
+  directly, checked with real WebM/Opus through Whisper, and the core logs why an upload failed.
+- The phone's Sirius card is compact: agent and model beside the avatar, "New chat" at the top, and
+  only the chat scrolls.

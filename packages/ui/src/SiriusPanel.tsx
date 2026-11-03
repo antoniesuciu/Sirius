@@ -158,7 +158,19 @@ export function SiriusPanel(props: SiriusPanelProps) {
         <div className="sirius-head sirius-head-compact">
           <SiriusAvatar state={props.avatar} level={props.level} still={props.still} />
           <div className="sirius-controls">
-            {agentSwitch}
+            <div className="sirius-controls-top">
+              {agentSwitch}
+              {/* Here rather than on a row of its own under the chat, which a phone cannot spare. */}
+              {!props.busy && (
+                <button
+                  type="button"
+                  className="text-button new-chat"
+                  onClick={props.onNewConversation}
+                >
+                  New chat
+                </button>
+              )}
+            </div>
             <div className="sirius-meta-line">
               {modelSelect}
               <span className="sirius-status">{props.status}</span>
@@ -315,25 +327,28 @@ export function SiriusPanel(props: SiriusPanelProps) {
         </button>
       </form>
 
-      <div className="chat-foot">
-        {voice.micOpen ? (
-          <span className="mic-indicator" role="status">
-            <span className="mic-indicator-dot mic-live" />
-            Microphone on
-          </span>
-        ) : (
-          <span />
-        )}
-        {props.busy ? (
-          <button type="button" className="text-button" onClick={props.onCancel}>
-            Stop
-          </button>
-        ) : (
-          <button type="button" className="text-button" onClick={props.onNewConversation}>
-            New conversation
-          </button>
-        )}
-      </div>
+      {/* On the phone the row appears only while it has something to say. */}
+      {(!props.compact || voice.micOpen || props.busy) && (
+        <div className="chat-foot">
+          {voice.micOpen ? (
+            <span className="mic-indicator" role="status">
+              <span className="mic-indicator-dot mic-live" />
+              Microphone on
+            </span>
+          ) : (
+            <span />
+          )}
+          {props.busy ? (
+            <button type="button" className="text-button" onClick={props.onCancel}>
+              Stop
+            </button>
+          ) : props.compact ? null : (
+            <button type="button" className="text-button" onClick={props.onNewConversation}>
+              New conversation
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }

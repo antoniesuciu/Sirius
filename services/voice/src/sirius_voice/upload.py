@@ -16,10 +16,27 @@ log = logging.getLogger(__name__)
 MAX_BYTES = 10 * 1024 * 1024
 
 
-def decode(data: bytes):
-    from faster_whisper import decode_audio
+SAMPLE_RATE = 16_000
 
-    return decode_audio(io.BytesIO(data))
+
+def decode(data: bytes):
+    """Any container PyAV reads (Chrome records WebM/Opus) to 16 kHz mono float32.
+
+    faster_whisper.decode_audio does the same, but 1.2.1 passes `metadata_errors` to av.open,
+    which PyAV 15 removed, so every upload failed to decode with the locked av 19.
+    """
+    import av
+    import numpy as np
+
+    resampler = av.AudioResampler(format="s16", layout="mono", rate=SAMPLE_RATE)
+    chunks = []
+    with av.open(io.BytesIO(data), mode="r") as container:
+        for frame in container.decode(audio=0):
+            chunks.extend(out.to_ndarray().reshape(-1) for out in resampler.resample(frame))
+        chunks.extend(out.to_ndarray().reshape(-1) for out in resampler.resample(None))
+    if not chunks:
+        raise ValueError("no audio in the upload")
+    return np.concatenate(chunks).astype(np.float32) / 32768.0
 
 
 def start_upload_server(stt: Stt, host: str, port: int, decoder=decode) -> ThreadingHTTPServer:

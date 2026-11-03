@@ -61,6 +61,11 @@ echo "SIRIUS_UI_DIR=$UI" >> "$env_file"
 if [ -n "${SIRIUS_MEMORY_FILE:-}" ]; then
   echo "SIRIUS_MEMORY_FILE=$SIRIUS_MEMORY_FILE" >> "$env_file"
 fi
+# Phone push-to-talk: the core hands the phone's recordings to the voice service on this port.
+VOICE_PORT=7340
+if $with_voice || [ -f "$CONFIG/voice-env" ]; then
+  echo "SIRIUS_VOICE_URL=http://127.0.0.1:$VOICE_PORT" >> "$env_file"
+fi
 # Phone notifications through the ntfy app, local or remote alike.
 if [ -n "${SIRIUS_NTFY_URL:-}" ]; then
   echo "SIRIUS_NTFY_URL=$SIRIUS_NTFY_URL" >> "$env_file"
@@ -123,6 +128,8 @@ if $with_voice; then
     echo "SIRIUS_VOICE_EN=$(basename "$voice_en" .onnx)"
     echo "SIRIUS_VOICE_RO=$(basename "$voice_ro" .onnx)"
     echo "SIRIUS_VOICE_PACE=${SIRIUS_VOICE_PACE:-1.0}"
+    # Only on 127.0.0.1: the phone reaches it through the core, which checks its login.
+    echo "SIRIUS_VOICE_PORT=$VOICE_PORT"
   } > "$CONFIG/voice-env"
   site="$("$VENV/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
   if [ -d "$site/nvidia/cublas/lib" ]; then
