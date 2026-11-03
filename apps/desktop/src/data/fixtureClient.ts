@@ -12,6 +12,7 @@ import {
   EVERY_DAY,
   type EventHandlers,
   type GoalView,
+  type ListItem,
   logicalDate,
   type Message,
   nextOccurrence,
@@ -138,6 +139,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       ]),
       roadmap('Stochastic calculus', 'Later, for quantitative finance', 'later', []),
     ],
+    list: [] as ListItem[],
     reminders: [
       reminder('Midday pause', 'prayer', '12:30'),
       reminder('Evening prayer or reflection', 'prayer', '17:40'),
@@ -159,7 +161,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
     for (const l of listeners) l.onEvent(event);
   };
   const changed = (
-    entity: 'tasks' | 'goals' | 'roadmaps' | 'reminders' | 'day_state' | 'proposals',
+    entity: 'tasks' | 'goals' | 'roadmaps' | 'reminders' | 'list_items' | 'day_state' | 'proposals',
   ) =>
     emit({ type: 'change', entity, id: 'x', op: 'update', rev: 1, actor: 'user', change_id: 'x' });
 
@@ -264,6 +266,25 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
     list_goals: () => state.goals,
     list_learning: () => state.roadmaps,
     list_reminders: () => state.reminders,
+    add_goal: ({ title }) => {
+      const added = { ...goal(title, 'No deadline yet', 0), milestones: [] };
+      state.goals.push(added);
+      changed('goals');
+      return added;
+    },
+    get_list: () => state.list.filter((item) => item.done_at === null),
+    add_to_list: ({ text }) => {
+      const item: ListItem = { ...common(), text, done_at: null };
+      state.list.push(item);
+      changed('list_items');
+      return item;
+    },
+    tick_list_item: ({ id }) => {
+      const item = find(state.list, id);
+      item.done_at = Date.now();
+      changed('list_items');
+      return item;
+    },
     list_proposals: () => state.proposals.filter((p) => p.status === 'pending'),
     list_agent_events: () => state.events.filter((e) => !e.acknowledged_at),
     get_agents: agentsView,

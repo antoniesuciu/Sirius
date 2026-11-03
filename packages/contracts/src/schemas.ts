@@ -89,6 +89,14 @@ export const Task = z.object({
 });
 export type Task = z.infer<typeof Task>;
 
+/** The list (F35): things to remember or buy, with no time and no day attached. */
+export const ListItem = z.object({
+  ...Common,
+  text: z.string(),
+  done_at: EpochMs.nullable(),
+});
+export type ListItem = z.infer<typeof ListItem>;
+
 export const Goal = z.object({
   ...Common,
   title: z.string(),

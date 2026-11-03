@@ -297,3 +297,27 @@ describe('the voice service connection', () => {
 test('cancel with nothing to decline stays silent (F28)', () => {
   expect(say(harness(), 'cancel').reply).toBeNull();
 });
+
+describe('the list by voice (F35)', () => {
+  test.each([
+    ['add milk to my list', { kind: 'add_to_list', text: 'Milk' }],
+    ['Put a birthday card on the shopping list.', { kind: 'add_to_list', text: 'A birthday card' }],
+    ['and bread to my list', { kind: 'add_to_list', text: 'Bread' }],
+    ['pune lapte pe listă', { kind: 'add_to_list', text: 'Lapte' }],
+    ['adaugă ouă în lista de cumpărături', { kind: 'add_to_list', text: 'Ouă' }],
+  ])('%s', (text, intent) => {
+    expect(parseIntent(text)).toEqual(intent);
+  });
+
+  test('saying it puts it on the list, not in today', () => {
+    const h = harness();
+    const result = h.run(
+      'voice_utterance',
+      { transcript: 'add milk to my list', lang: 'en' },
+      { actor: 'user', via: 'voice' },
+    );
+    expect(result.reply).toBe('Milk is on your list.');
+    expect(h.run('get_list', {}).map((i) => i.text)).toEqual(['Milk']);
+    expect(h.run('get_today', {}).tasks.some((t) => t.title === 'Milk')).toBe(false);
+  });
+});

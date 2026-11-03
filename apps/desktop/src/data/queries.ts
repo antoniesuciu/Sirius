@@ -5,6 +5,7 @@
 import {
   type EntityName,
   isUnreachable,
+  type ListItem,
   type OpInput,
   type OpName,
   type OpOutput,
@@ -40,6 +41,7 @@ export const useToday = () => useOpQuery('get_today', {});
 export const useGoals = () => useOpQuery('list_goals', {});
 export const useLearning = () => useOpQuery('list_learning', {});
 export const useReminders = () => useOpQuery('list_reminders', {});
+export const useList = () => useOpQuery('get_list', {});
 export const useProposals = () => useOpQuery('list_proposals', {});
 export const useAgents = () => useOpQuery('get_agents', {});
 export const useConversation = () => useOpQuery('get_conversation', {});
@@ -55,6 +57,7 @@ const INVALIDATES: Record<EntityName, OpName[]> = {
   roadmaps: ['list_learning'],
   roadmap_steps: ['list_learning'],
   reminders: ['list_reminders', 'get_today'],
+  list_items: ['get_list'],
   day_state: ['get_today', 'get_agents'],
   proposals: ['list_proposals'],
   agent_events: ['list_agent_events', 'get_agents'],
@@ -232,4 +235,66 @@ export function useSetQuiet() {
     (on: boolean) => ({ op: 'set_quiet_mode', input: { on } }),
     (today, on) => ({ ...today, quiet_mode: on }),
   );
+}
+
+/** The list ticks off at once, and gets its item back if the core refuses (F35). */
+export function useTickListItem() {
+  const qc = useQueryClient();
+  const key = ['get_list'];
+  const mutation = useMutation<unknown, Error, QueuedOp, { previous: ListItem[] | undefined }>({
+    mutationKey: OP_MUTATION,
+    onMutate: ({ input }) => {
+      const previous = qc.getQueryData<ListItem[]>(key);
+      void qc.cancelQueries({ queryKey: key });
+      if (previous)
+        qc.setQueryData(
+          key,
+          previous.filter((item) => item.id !== input.id),
+        );
+      return { previous };
+    },
+    onError: (_error, _queued, snapshot) => {
+      if (snapshot?.previous) qc.setQueryData(key, snapshot.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  });
+  return {
+    ...mutation,
+    mutate: (item: ListItem) =>
+      mutation.mutate({ op: 'tick_list_item', input: { id: item.id }, key: newKey() }),
+  };
+}
+
+/** Shows at once, like a task, and is replaced by the real item when the core answers. */
+export function useAddToList() {
+  const qc = useQueryClient();
+  const key = ['get_list'];
+  const mutation = useMutation<unknown, Error, QueuedOp, { previous: ListItem[] | undefined }>({
+    mutationKey: OP_MUTATION,
+    onMutate: ({ input }) => {
+      const previous = qc.getQueryData<ListItem[]>(key);
+      void qc.cancelQueries({ queryKey: key });
+      const now = Date.now();
+      const placeholder: ListItem = {
+        id: `optimistic-${now}`,
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
+        rev: 0,
+        text: String(input.text),
+        done_at: null,
+      };
+      qc.setQueryData(key, [...(previous ?? []), placeholder]);
+      return { previous };
+    },
+    onError: (_error, _queued, snapshot) => {
+      if (snapshot) qc.setQueryData(key, snapshot.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  });
+  return {
+    ...mutation,
+    mutate: (text: string) =>
+      mutation.mutate({ op: 'add_to_list', input: { text }, key: newKey() }),
+  };
 }

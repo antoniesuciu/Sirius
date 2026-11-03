@@ -5,6 +5,7 @@ export { Header } from './Header.tsx';
 export { usePageHidden, useResting } from './hooks.ts';
 export { LearningPanel, nextStep } from './LearningPanel.tsx';
 export { Leaves } from './Leaves.tsx';
+export { ListPanel } from './ListPanel.tsx';
 export { PersonalPanel } from './PersonalPanel.tsx';
 export { type AvatarState, SiriusAvatar } from './SiriusAvatar.tsx';
 export { type ChatLine, SiriusPanel } from './SiriusPanel.tsx';

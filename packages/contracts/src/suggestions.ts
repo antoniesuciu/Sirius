@@ -47,7 +47,7 @@ export function buildSuggestions(input: SuggestionInput): string[] {
 
   if (second) out.push(sentence(second));
   const small = input.openSmalls[0];
-  if (small) out.push(`Something small: ${small.trim().replace(/[.!]+$/, '')}.`);
+  if (small) out.push(sentence(small));
 
   if (input.hour >= 21 || input.hour < 5) out.unshift('It is late. Rest is a good answer.');
   if (!first && !small) out.push('Today is clear. A walk would be lovely.');

@@ -11,5 +11,9 @@ export const migrations = [
   {
     "tag": "0002_salty_living_mummy",
     "sql": "ALTER TABLE `conversations` ADD `session_turns` integer DEFAULT 0 NOT NULL;"
+  },
+  {
+    "tag": "0003_icy_kylun",
+    "sql": "CREATE TABLE `list_items` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\t`deleted_at` integer,\n\t`rev` integer DEFAULT 1 NOT NULL,\n\t`text` text NOT NULL,\n\t`done_at` integer\n);\n"
   }
 ];

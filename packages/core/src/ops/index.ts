@@ -3,6 +3,7 @@ import type { Handlers } from './context.ts';
 import { dayHandlers } from './day.ts';
 import { goalHandlers } from './goals.ts';
 import { learningHandlers } from './learning.ts';
+import { listHandlers } from './list.ts';
 import { reminderHandlers } from './reminders.ts';
 import { taskHandlers } from './tasks.ts';
 
@@ -12,6 +13,7 @@ export const domainHandlers = {
   ...goalHandlers,
   ...learningHandlers,
   ...reminderHandlers,
+  ...listHandlers,
   ...dayHandlers,
 } satisfies Partial<Handlers<OpName>>;
 

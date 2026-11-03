@@ -1,4 +1,6 @@
 import type { GoalView } from '@sirius/contracts';
+import { type FormEvent, useState } from 'react';
+import { PlusIcon } from './Icons.tsx';
 import { InlineEdit } from './InlineEdit.tsx';
 
 export interface GoalsPanelProps {
@@ -6,6 +8,7 @@ export interface GoalsPanelProps {
   dimmed: boolean;
   onRename(id: string, title: string): void;
   onDelete(id: string): void;
+  onAdd(title: string): void;
 }
 
 const MAX_DOTS = 5;
@@ -37,7 +40,15 @@ function Dots({ goal }: { goal: GoalView }) {
   );
 }
 
-export function GoalsPanel({ goals, dimmed, onRename, onDelete }: GoalsPanelProps) {
+export function GoalsPanel({ goals, dimmed, onRename, onDelete, onAdd }: GoalsPanelProps) {
+  const [draft, setDraft] = useState('');
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const clean = draft.trim();
+    if (!clean) return;
+    onAdd(clean);
+    setDraft('');
+  };
   return (
     <section className={`panel panel-goals panel-dimmable rise d2 ${dimmed ? 'panel-dim' : ''}`}>
       <div className="panel-head">
@@ -59,6 +70,18 @@ export function GoalsPanel({ goals, dimmed, onRename, onDelete }: GoalsPanelProp
           <Dots goal={goal} />
         </div>
       ))}
+      <form className="quick-add" onSubmit={submit}>
+        <input
+          type="text"
+          aria-label="Add a goal"
+          placeholder="Add a goal"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <button type="submit" className="round" aria-label="Add goal">
+          <PlusIcon />
+        </button>
+      </form>
     </section>
   );
 }

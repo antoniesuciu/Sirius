@@ -86,6 +86,10 @@ export class VoiceRouter implements TurnObserver {
         run.run('add_task', { title: intent.title }, USER);
         return say.added(intent.title);
       }
+      case 'add_to_list': {
+        run.run('add_to_list', { text: intent.text }, USER);
+        return say.listed(intent.text);
+      }
       case 'remind':
         this.remind(intent.time, intent.label);
         return say.reminded(intent.time);

@@ -15,6 +15,7 @@ import {
   Header,
   LearningPanel,
   Leaves,
+  ListPanel,
   nextStep,
   PersonalPanel,
   SiriusPanel,
@@ -30,6 +31,7 @@ import { ConnectionLine } from './ConnectionLine.tsx';
 import { browserVoiceSupported, useBrowserVoice } from './data/browserVoice.ts';
 import {
   useAddTask,
+  useAddToList,
   useAgentEvents,
   useAgents,
   useClient,
@@ -37,11 +39,13 @@ import {
   useDropTask,
   useGoals,
   useLearning,
+  useList,
   useOp,
   useProposals,
   useReminders,
   useSetQuiet,
   useSettings,
+  useTickListItem,
   useToday,
   useToggleTask,
   useVoiceState,
@@ -78,6 +82,7 @@ export function App({ phone = false }: { phone?: boolean }) {
   const goals = useGoals().data ?? [];
   const roadmaps = useLearning().data ?? [];
   const reminders = useReminders().data ?? [];
+  const listItems = useList().data;
   const proposals = useProposals().data ?? [];
   const agents = useAgents().data;
   const conversation = useConversation().data;
@@ -90,6 +95,9 @@ export function App({ phone = false }: { phone?: boolean }) {
   const dropTask = useDropTask();
   const setQuiet = useSetQuiet();
   const renameGoal = useOp('rename_goal', ['list_goals']);
+  const addGoal = useOp('add_goal', ['list_goals']);
+  const addToList = useAddToList();
+  const tickListItem = useTickListItem();
   const deleteGoal = useOp('delete_goal', ['list_goals']);
   const renameRoadmap = useOp('rename_roadmap', ['list_learning']);
   const deleteRoadmap = useOp('delete_roadmap', ['list_learning']);
@@ -228,6 +236,7 @@ export function App({ phone = false }: { phone?: boolean }) {
             dimmed={quiet}
             onRename={(id, title) => renameGoal.mutate({ id, title })}
             onDelete={(id) => deleteGoal.mutate({ id })}
+            onAdd={(title) => addGoal.mutate({ title })}
           />
         </div>
         <div className="col col-2">
@@ -241,6 +250,11 @@ export function App({ phone = false }: { phone?: boolean }) {
             reminders={reminders.filter((r) => r.kind !== 'wellbeing')}
             onToggle={(r) => setReminderEnabled.mutate({ id: r.id, enabled: !r.enabled })}
             onSnooze={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
+          />
+          <ListPanel
+            items={listItems ?? []}
+            onAdd={(text) => addToList.mutate(text)}
+            onTick={(item) => tickListItem.mutate(item)}
           />
         </div>
         <div className="col col-3">

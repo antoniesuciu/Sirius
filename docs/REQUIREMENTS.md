@@ -67,7 +67,7 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 
 ### 3.3 Goals
 - **F9** Each goal has a title, an optional horizon or target date, and ordered milestones. Progress is shown as dots, filled per milestone done; up to 5 visible, then the latest 5.
-- **F10** Goals, milestones, learning roadmaps and steps are created primarily **through Sirius** or an external Claude Code/Codex session via MCP. The v1 UI needs no forms for them beyond inline rename and delete.
+- **F10** Goals, milestones, learning roadmaps and steps are created primarily **through Sirius** or an external Claude Code/Codex session via MCP. The v1 UI needs no forms for them beyond inline rename and delete, plus a one-line add field for goals (F34).
 
 ### 3.4 Learning
 - **F11** Roadmaps are ordered. Each has ordered steps with an optional time estimate. The first active roadmap is "current" (filled node with a ring pulse). The vine fill animates to the current position on load.
@@ -118,6 +118,12 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
   - the mic is closed unless a push-to-talk session is running in v1; a visible mic indicator shows whenever it is open;
   - PTT works in quiet mode; from M9, quiet mode disables the wake word by default (configurable);
   - one setting turns all voice off and stops the service.
+
+### 3.x Added 2026-11-03, at the owner's request
+
+- **F34** Goals has a one-line add field, like Today's, for adding a goal by hand.
+- **F35** **The list ("To remember"):** things to remember or buy, with no day or time. Adding is one line; ticking an item clears it, and undo brings it back. It does not dim in quiet mode and the 04:00 rollover leaves it alone. Agents add to it with `add_to_list`, and the voice grammar sends "add X to my list" and "pune X pe listă" there instead of to Today.
+- Removed as filler: the panel slogans, "Small things, if there's room", the chat's suggestion chips, and the "Something small:" prefix in the header's suggestions.
 
 ## 4. Non-functional requirements
 

@@ -18,6 +18,7 @@ const entities = {
   roadmaps: { table: schema.roadmaps, pk: schema.roadmaps.id },
   roadmap_steps: { table: schema.roadmap_steps, pk: schema.roadmap_steps.id },
   reminders: { table: schema.reminders, pk: schema.reminders.id },
+  list_items: { table: schema.list_items, pk: schema.list_items.id },
   day_state: { table: schema.day_state, pk: schema.day_state.date },
   proposals: { table: schema.proposals, pk: schema.proposals.id },
   agent_events: { table: schema.agent_events, pk: schema.agent_events.id },

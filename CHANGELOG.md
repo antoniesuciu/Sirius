@@ -103,3 +103,6 @@
 - The phone reconnects whenever Sirius comes back on screen, since a sleeping phone's link dies
   silently.
 - The chat's suggestion chips and the "Small things, if there's room" label are gone.
+- Goals can be added by hand (F34), and a new list holds things to remember or buy (F35), by
+  hand, by voice ("add milk to my list") or through either agent.
+- The header's suggestions name the small task plainly, without "Something small:".

@@ -85,6 +85,12 @@ export const reminders = sqliteTable('reminders', {
   last_fired_on: text('last_fired_on'),
 });
 
+export const list_items = sqliteTable('list_items', {
+  ...common(),
+  text: text('text').notNull(),
+  done_at: integer('done_at'),
+});
+
 export const day_state = sqliteTable('day_state', {
   date: text('date').primaryKey(),
   ...stamps(),

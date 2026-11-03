@@ -9,6 +9,7 @@
 
 export type Intent =
   | { kind: 'add_task'; title: string }
+  | { kind: 'add_to_list'; text: string }
   | { kind: 'remind'; time: string; label: string }
   | { kind: 'whats_next' }
   | { kind: 'what_time' }
@@ -104,8 +105,14 @@ const PHRASES: Array<[RegExp, Intent]> = [
   [/^(no|nope|cancel|not now|nu|anuleaza|lasa)$/, { kind: 'cancel' }],
 ];
 
+/** "My list" is the list of things to remember or buy (F35), not today's tasks. */
+const LIST_PATTERNS: RegExp[] = [
+  /^(?:add|put|and)\s+(.+?)\s+(?:to|on)\s+(?:my|the)\s+(?:shopping\s+)?list$/,
+  /^(?:adauga|pune)\s+(.+?)\s+(?:pe|in)\s+lista(?:\s+de\s+cumparaturi)?$/,
+];
+
 const ADD_PATTERNS: RegExp[] = [
-  /^(?:add|put)\s+(.+?)\s+(?:to|on|in)\s+(?:today|my list|the list)$/,
+  /^(?:add|put)\s+(.+?)\s+(?:to|on|in)\s+today$/,
   /^add\s+(.+?)\s+today$/,
   // Whisper often hears "add" as "and". "today" must end it, and ordinary sentences stay out.
   /^and\s+(?!what|why|how|when|who|that|this|then|so\s|i\s)(.+?)\s+(?:to\s+)?today$/,
@@ -148,6 +155,12 @@ export function parseIntent(transcript: string): Intent | null {
     if (!time) continue;
     const label = captureOriginal(text, folded, match[labelGroup] ?? '');
     return { kind: 'remind', time, label: capitalise(label) };
+  }
+
+  for (const pattern of LIST_PATTERNS) {
+    const match = folded.match(pattern);
+    if (match?.[1])
+      return { kind: 'add_to_list', text: capitalise(captureOriginal(text, folded, match[1])) };
   }
 
   for (const pattern of ADD_PATTERNS) {

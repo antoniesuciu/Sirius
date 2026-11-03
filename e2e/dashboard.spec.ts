@@ -137,6 +137,27 @@ test('breathing starts and stops, with a live label', async ({ page }) => {
   await expect(page.locator('.breath-label')).toHaveText('Take a minute');
 });
 
+test.describe('adding things', () => {
+  test('a goal can be added by hand', async ({ page }) => {
+    await open(page);
+    await page.getByLabel('Add a goal').fill('Run a half marathon');
+    await page.getByRole('button', { name: 'Add goal', exact: true }).click();
+    await expect(page.locator('.goal-title', { hasText: 'Run a half marathon' })).toBeVisible();
+  });
+
+  test('the list takes things to remember and ticks them off (F35)', async ({ page }) => {
+    await open(page);
+    const list = page.locator('.panel-list');
+    await page.getByLabel('Add to the list').fill('Milk');
+    await page.getByRole('button', { name: 'Add to list' }).click();
+    await page.getByLabel('Add to the list').fill('A birthday card');
+    await page.keyboard.press('Enter');
+    await expect(list.locator('.task-text')).toHaveText(['Milk', 'A birthday card']);
+    await page.getByRole('button', { name: 'Tick off: Milk' }).click();
+    await expect(list.locator('.task-text')).toHaveText(['A birthday card']);
+  });
+});
+
 test.describe('sirius', () => {
   test('streams a reply and shows it', async ({ page }) => {
     await open(page);

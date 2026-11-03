@@ -8,6 +8,7 @@ export function replyLang(detected: string): Lang {
 
 const en = {
   added: (title: string) => `Added ${title} to today.`,
+  listed: (text: string) => `${text} is on your list.`,
   reminded: (time: string) => `I'll remind you at ${time}.`,
   next: (title: string) => `Next is ${title}.`,
   nextReminder: (label: string, time: string) => `Next is ${label}, at ${time}.`,
@@ -27,6 +28,7 @@ const en = {
 
 const ro: typeof en = {
   added: (title) => `Am adăugat ${title} la azi.`,
+  listed: (text) => `Am pus ${text} pe listă.`,
   reminded: (time) => `Îți amintesc la ${time}.`,
   next: (title) => `Urmează ${title}.`,
   nextReminder: (label, time) => `Urmează ${label}, la ${time}.`,
