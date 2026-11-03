@@ -7,9 +7,10 @@ import { MicIcon } from './Icons.tsx';
 
 export type PhoneTab = 'sirius' | 'today' | 'plan' | 'list';
 
+/** Today first: most opens are to check what needs doing, not to talk (owner, 2026-11-03). */
 export const PHONE_TABS: ReadonlyArray<{ id: PhoneTab; label: string }> = [
-  { id: 'sirius', label: 'Sirius' },
   { id: 'today', label: 'Today' },
+  { id: 'sirius', label: 'Sirius' },
   { id: 'plan', label: 'Plan' },
   { id: 'list', label: 'List' },
 ];

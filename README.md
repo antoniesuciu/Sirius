@@ -44,7 +44,7 @@ is away.
 | **Personal and Well-being** | Prayer and reflection reminders, a breathing exercise and stretch nudges. |
 | **Agent attention** | A toast and a desktop notification when Claude Code or Codex is blocked on a permission prompt or a question. |
 | **Voice** | Push-to-talk with **Ctrl+Alt+Space**, in English and Romanian. Common commands such as "add milk to my list" or "ce urmează" are handled on the laptop without an agent turn, and anything else goes to the agent. |
-| **Phone** | An installable web app over Tailscale, with its own layout: Sirius, Today, Plan and List behind a bottom bar, and a mic that sends your voice to the laptop and says the answer on the phone. It keeps an offline copy, queues the changes you make while away, and sends each one exactly once when the laptop is back. |
+| **Phone** | An installable web app over Tailscale, with its own layout: Today, Sirius, Plan and List behind a bottom bar, and a mic that sends your voice to the laptop and says the answer on the phone. It keeps an offline copy, queues the changes you make while away, and sends each one exactly once when the laptop is back. |
 
 Agents never change several things at once, or delete anything, without you confirming a
 proposal card. Single changes an agent makes can be undone for 30 seconds.

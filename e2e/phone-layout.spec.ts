@@ -7,6 +7,11 @@ import { expect, type Page, test } from '@playwright/test';
 test.skip(({ isMobile }) => !isMobile, 'phone only');
 
 const openPhone = (page: Page) => page.goto('/?fixtures&phone&toastMs=600000');
+/** The phone opens on Today; these tests start in the conversation. */
+async function openChat(page: Page): Promise<void> {
+  await openPhone(page);
+  await page.locator('.tab-bar .tab', { hasText: 'Sirius' }).click();
+}
 const tab = (page: Page, name: string) => page.locator('.tab-bar .tab', { hasText: name });
 
 /** Records what the page asks the phone to say, instead of saying it. */
@@ -35,15 +40,17 @@ async function captureSpeech(page: Page): Promise<void> {
   });
 }
 
-test('the phone opens on Sirius and shows one section at a time', async ({ page }) => {
+test('the phone opens on Today and shows one section at a time', async ({ page }) => {
   await openPhone(page);
-  await expect(page.locator('.panel-sirius')).toBeVisible();
-  await expect(page.locator('.task').first()).toBeHidden();
-  await expect(tab(page, 'Sirius')).toHaveAttribute('aria-current', 'page');
-
-  await tab(page, 'Today').click();
   await expect(page.locator('.task').first()).toBeVisible();
   await expect(page.locator('.panel-sirius')).toBeHidden();
+  await expect(tab(page, 'Today')).toHaveAttribute('aria-current', 'page');
+  // Today comes first in the bar, before Sirius.
+  await expect(page.locator('.tab-bar .tab').first()).toHaveText('Today');
+
+  await tab(page, 'Sirius').click();
+  await expect(page.locator('.panel-sirius')).toBeVisible();
+  await expect(page.locator('.task').first()).toBeHidden();
 
   await tab(page, 'Plan').click();
   await expect(page.locator('.goal-title').first()).toBeVisible();
@@ -60,7 +67,7 @@ test('the phone opens on Sirius and shows one section at a time', async ({ page 
 test('on Sirius only the chat scrolls, even on a short screen', async ({ page }) => {
   // Shorter than the Pixel 7: Chrome's own bars take room on a real phone.
   await page.setViewportSize({ width: 390, height: 700 });
-  await openPhone(page);
+  await openChat(page);
   for (let i = 0; i < 6; i++) {
     await page.getByLabel('Message Sirius').fill(`message ${i}`);
     await page.getByLabel('Message Sirius').press('Enter');
@@ -87,7 +94,7 @@ test('on Sirius only the chat scrolls, even on a short screen', async ({ page })
 });
 
 test('a new chat is started from the top of the card, not a row of its own', async ({ page }) => {
-  await openPhone(page);
+  await openChat(page);
   await expect(page.locator('.chat-foot')).toHaveCount(0);
   await page.getByLabel('Message Sirius').fill('add goal: Run a 10k');
   await page.getByLabel('Message Sirius').press('Enter');
@@ -100,7 +107,7 @@ test('on a 360 px phone the card header stays two lines, even with a long model 
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 760 });
-  await openPhone(page);
+  await openChat(page);
   await page.getByRole('button', { name: 'Codex', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Model:/ })).toHaveAttribute(
     'aria-label',
@@ -140,7 +147,7 @@ test('a section is there at once when its tab is opened', async ({ page }) => {
 });
 
 test('a draft survives switching sections', async ({ page }) => {
-  await openPhone(page);
+  await openChat(page);
   await page.getByLabel('Message Sirius').fill('half a thought');
   await tab(page, 'Today').click();
   await tab(page, 'Sirius').click();
@@ -150,7 +157,7 @@ test('a draft survives switching sections', async ({ page }) => {
 test('a reply links to what it changed, and that section says something is new', async ({
   page,
 }) => {
-  await openPhone(page);
+  await openChat(page);
   await page.getByLabel('Message Sirius').fill('add goal: Run a 10k');
   await page.getByLabel('Message Sirius').press('Enter');
   await expect(tab(page, 'Plan').locator('.tab-dot')).toBeVisible();
@@ -198,7 +205,7 @@ test('without the phone flag a narrow browser keeps the desktop columns', async 
 test('screenshots for review', async ({ page }) => {
   test.skip(!process.env.SIRIUS_SHOTS, 'only when asked for');
   const dir = process.env.SIRIUS_SHOTS ?? '';
-  await openPhone(page);
+  await openChat(page);
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `${dir}/sirius.png` });
   await page.getByLabel('Message Sirius').fill('add goal: Run a 10k');
