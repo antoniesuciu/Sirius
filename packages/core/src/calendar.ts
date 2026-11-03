@@ -19,7 +19,7 @@ export const REMIND_BEFORE_MIN = 10;
 function escape(text: string): string {
   return text
     .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\;')
+    .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
     .replace(/\r?\n/g, '\\n');
 }

@@ -125,6 +125,27 @@ describe('the calendar feed (F37)', () => {
       expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
   });
 
+  test('text escapes semicolons and commas, and back-to-back events only touch', () => {
+    const h = harness();
+    h.run('add_schedule_event', {
+      title: 'Lab; part 2',
+      date: '2026-11-05',
+      start_local: '17:00',
+      end_local: '19:00',
+    });
+    h.run('add_schedule_event', {
+      title: 'Dinner',
+      date: '2026-11-05',
+      start_local: '19:00',
+      end_local: '20:00',
+    });
+    const ics = toIcs(h.run('list_schedule', {}), 'Europe/Lisbon');
+    expect(ics).toContain('SUMMARY:Lab\\; part 2');
+    // DTEND is exclusive (RFC 5545 3.6.1), so 19:00 to 19:00 is not an overlap.
+    expect(ics).toContain('DTEND;TZID=Europe/Lisbon:20261105T190000');
+    expect(ics).toContain('DTSTART;TZID=Europe/Lisbon:20261105T190000');
+  });
+
   test('is served only with the right token, outside the API login', async () => {
     const h = harness();
     h.run('add_schedule_event', { title: 'Gym', weekdays: 2, start_local: '18:00' });
