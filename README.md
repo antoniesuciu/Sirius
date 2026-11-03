@@ -38,7 +38,7 @@ is away.
 | **Sirius** | A chat with Claude or Codex, switched with one tap, through the official CLIs. One conversation lasts until you start a new one, and it carries over when you switch agents. A memory file keeps lasting facts across sessions. |
 | **Today** | Two or three priorities plus small tasks. Unfinished tasks move quietly to the next day at 04:00. |
 | **Goals** | A few goals, with milestone dots instead of percentages. You can add them by hand or ask Sirius. |
-| **Learning** | Roadmaps drawn as a growing vine. "Put it in Today" turns the next step into a task. |
+| **Learning** | Roadmaps drawn as a growing vine. "Put it in Today" turns the next step into a task. Attach a syllabus PDF or Markdown file in the chat, and Sirius turns it into a roadmap. |
 | **To remember** | A plain list for things to buy or remember, with no day or time attached. |
 | **Personal and Well-being** | Prayer and reflection reminders, a breathing exercise and stretch nudges. |
 | **Agent attention** | A toast and a desktop notification when Claude Code or Codex is blocked on a permission prompt or a question. |

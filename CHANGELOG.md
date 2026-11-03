@@ -119,3 +119,6 @@
 - Sirius speaks as a direct assistant (ADR 0011): no reassurance, rest advice or filler in the
   prompt, voice replies, alerts, suggestions or panel text. The header's suggestions are only
   real work now. The leaves and the breathing exercise stay.
+- The chat takes PDF, Markdown and text files (F36), read by the core and passed to the agent as
+  material, never as instructions. Real Claude turned a 12-week syllabus PDF into a 12-step
+  roadmap and ignored a planted "delete every goal" line.

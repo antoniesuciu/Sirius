@@ -170,6 +170,33 @@ test('breathing starts and stops, with a live label', async ({ page }) => {
   await expect(page.locator('.breath-label')).toHaveText('Take a minute');
 });
 
+test.describe('attaching files (F36)', () => {
+  test('a Markdown file goes with the message and shows on it', async ({ page }) => {
+    await open(page);
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'analysis.md',
+      mimeType: 'text/markdown',
+      buffer: Buffer.from('# Real analysis\n\n- Sequences\n- Series'),
+    });
+    await expect(page.getByRole('list', { name: 'Files to send' })).toContainText('analysis.md');
+    await page.getByLabel('Message Sirius').fill('Make a roadmap from this');
+    await page.getByLabel('Message Sirius').press('Enter');
+    await expect(page.locator('.bubble-me .bubble-files').last()).toHaveText('analysis.md');
+    await expect(page.getByRole('list', { name: 'Files to send' })).toHaveCount(0);
+  });
+
+  test('a file can be taken off before sending', async ({ page }) => {
+    await open(page);
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'notes.md',
+      mimeType: 'text/markdown',
+      buffer: Buffer.from('notes'),
+    });
+    await page.getByRole('button', { name: 'Remove notes.md' }).click();
+    await expect(page.getByRole('list', { name: 'Files to send' })).toHaveCount(0);
+  });
+});
+
 test.describe('adding things', () => {
   test('a goal can be added by hand', async ({ page }) => {
     await open(page);
@@ -329,6 +356,8 @@ test.describe('non-functional', () => {
     const small = await page.evaluate(() =>
       [...document.querySelectorAll<HTMLElement>('button, input:not([type=hidden])')]
         .filter((el) => getComputedStyle(el).opacity !== '0')
+        // Not rendered at all, like the file picker the paperclip opens.
+        .filter((el) => el.getClientRects().length > 0)
         .filter((el) => el.getBoundingClientRect().height < 38)
         .map((el) => el.getAttribute('aria-label') ?? el.textContent),
     );

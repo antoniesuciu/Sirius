@@ -19,7 +19,18 @@ export interface CallOptions {
   idempotencyKey?: string;
 }
 
+/** A file the core has read and is keeping for a message (F36). */
+export interface AttachedFile {
+  id: string;
+  name: string;
+  chars: number;
+  truncated: boolean;
+  pages: number | null;
+}
+
 export interface SiriusClient {
+  /** Hands a file to the core, which reads it and keeps the text for an hour. */
+  attach(file: Blob, name: string): Promise<AttachedFile>;
   call<N extends OpName>(name: N, input: OpInput<N>, options?: CallOptions): Promise<OpOutput<N>>;
   /** Streams events, reconnecting on failure. Returns an unsubscribe function. */
   subscribe(handlers: EventHandlers): () => void;
@@ -104,6 +115,17 @@ export function createHttpClient(options: HttpClientOptions): SiriusClient {
         headers: callHeaders,
         ...(req.body ? { body: req.body } : {}),
         ...(options.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs) } : {}),
+      });
+      if (!res.ok) throw await toApiError(res);
+      return res.json();
+    },
+    async attach(file, name) {
+      const res = await fetchFn(`${options.baseUrl}/v1/attachments`, {
+        method: 'POST',
+        headers: { ...headers, 'x-filename': encodeURIComponent(name) },
+        body: file,
+        // A 20 MB file over a phone network takes longer than an ordinary call.
+        ...(options.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs * 8) } : {}),
       });
       if (!res.ok) throw await toApiError(res);
       return res.json();

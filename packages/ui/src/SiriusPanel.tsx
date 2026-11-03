@@ -1,8 +1,8 @@
 import type { AgentId, AgentInfo, AgentStatusValue, Proposal } from '@sirius/contracts';
 import type { FormEvent, KeyboardEvent } from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSmoothedText } from './hooks.ts';
-import { MicIcon, SendIcon } from './Icons.tsx';
+import { MicIcon, PaperclipIcon, SendIcon } from './Icons.tsx';
 import { ModelPicker } from './ModelPicker.tsx';
 import { type AvatarState, SiriusAvatar } from './SiriusAvatar.tsx';
 
@@ -10,6 +10,16 @@ export interface ChatLine {
   id: string;
   mine: boolean;
   text: string;
+  /** Names of files sent with the message (F36). */
+  attachments?: string[];
+}
+
+/** A file waiting to go with the next message. */
+export interface PendingFile {
+  id: string;
+  name: string;
+  /** Such as "12 pages" or "cut to fit". */
+  detail: string;
 }
 
 export interface VoiceProps {
@@ -41,6 +51,9 @@ export interface SiriusPanelProps {
   undoLabel: string | null;
   onUndo(): void;
   onSend(text: string): void;
+  files: PendingFile[];
+  onAttach(file: File): void;
+  onRemoveFile(id: string): void;
   onCancel(): void;
   onNewConversation(): void;
   voice: VoiceProps;
@@ -93,11 +106,12 @@ export function SiriusPanel(props: SiriusPanelProps) {
   const [draft, setDraft] = useState('');
   const active = props.agents.find((a) => a.id === props.selected);
 
+  const picker = useRef<HTMLInputElement>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const clean = draft.trim();
-    if (!clean || props.busy) return;
-    props.onSend(clean);
+    if ((!clean && props.files.length === 0) || props.busy) return;
+    props.onSend(clean || 'See the attached document.');
     setDraft('');
   };
   const onKey = (e: KeyboardEvent) => {
@@ -180,13 +194,56 @@ export function SiriusPanel(props: SiriusPanelProps) {
         {[...props.messages].reverse().map((m) => (
           <div key={m.id} className={m.mine ? 'bubble bubble-me msg' : 'bubble'}>
             {m.text}
+            {m.attachments && m.attachments.length > 0 && (
+              <span className="bubble-files">{m.attachments.join(' · ')}</span>
+            )}
           </div>
         ))}
       </div>
 
       {voice.transcript && <div className="transcript">{voice.transcript}</div>}
 
+      {props.files.length > 0 && (
+        <ul className="pending-files" aria-label="Files to send">
+          {props.files.map((f) => (
+            <li key={f.id} className="pending-file">
+              <span>
+                {f.name} <span className="pending-file-detail">{f.detail}</span>
+              </span>
+              <button
+                type="button"
+                className="text-button"
+                aria-label={`Remove ${f.name}`}
+                onClick={() => props.onRemoveFile(f.id)}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <form className="chat-form" onSubmit={submit}>
+        <input
+          ref={picker}
+          type="file"
+          hidden
+          multiple
+          accept=".pdf,.md,.markdown,.txt,application/pdf,text/markdown,text/plain"
+          onChange={(e) => {
+            for (const file of e.target.files ?? []) props.onAttach(file);
+            e.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          className="round round-lg attach"
+          aria-label="Attach a PDF or Markdown file"
+          disabled={props.busy || props.files.length >= 3}
+          onClick={() => picker.current?.click()}
+        >
+          <PaperclipIcon />
+        </button>
         <input
           type="text"
           aria-label="Message Sirius"

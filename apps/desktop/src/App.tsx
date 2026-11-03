@@ -17,6 +17,7 @@ import {
   Leaves,
   ListPanel,
   nextStep,
+  type PendingFile,
   PersonalPanel,
   SiriusPanel,
   TodayPanel,
@@ -113,6 +114,7 @@ export function App({ phone = false }: { phone?: boolean }) {
 
   const [dismissedToasts, setDismissedToasts] = useState<ReadonlySet<string>>(new Set());
   const [sendError, setSendError] = useState<string | null>(null);
+  const [files, setFiles] = useState<PendingFile[]>([]);
   const [pendingText, setPendingText] = useState<string | null>(null);
   const browserVoice = useBrowserVoice(setSendError);
 
@@ -160,7 +162,15 @@ export function App({ phone = false }: { phone?: boolean }) {
 
   const messages: ChatLine[] = (conversation?.messages ?? [])
     .filter((m) => m.role !== 'tool')
-    .map((m) => ({ id: m.id, mine: m.role === 'user', text: m.text }));
+    .map((m) => {
+      const files = (m.meta?.attachments as Array<{ name: string }> | undefined) ?? [];
+      return {
+        id: m.id,
+        mine: m.role === 'user',
+        text: m.text,
+        ...(files.length > 0 ? { attachments: files.map((f) => f.name) } : {}),
+      };
+    });
   const lines: ChatLine[] = [
     ...(messages.length === 0 && pendingText === null
       ? [{ id: 'welcome', mine: false, text: WELCOME }]
@@ -177,13 +187,30 @@ export function App({ phone = false }: { phone?: boolean }) {
   const send = async (text: string) => {
     setSendError(null);
     setPendingText(text);
+    const attachment_ids = files.map((f) => f.id);
     try {
       // The turn's own `start` event marks it active. Marking it here too would race a fast
       // failure, whose events can arrive before this response and leave the panel stuck.
-      await client.call('send_chat', { text });
+      await client.call('send_chat', {
+        text,
+        ...(attachment_ids.length ? { attachment_ids } : {}),
+      });
+      setFiles([]);
     } catch (error) {
       setSendError(failureText(error));
     }
+  };
+
+  const attach = (file: File) => {
+    setSendError(null);
+    client
+      .attach(file, file.name)
+      .then((kept) => {
+        const size = kept.pages ? `${kept.pages} page${kept.pages === 1 ? '' : 's'}` : '';
+        const detail = [size, kept.truncated ? 'cut to fit' : ''].filter(Boolean).join(', ');
+        setFiles((now) => [...now, { id: kept.id, name: kept.name, detail }]);
+      })
+      .catch((error) => setSendError(failureText(error)));
   };
 
   const toastEvent = quiet
@@ -248,6 +275,9 @@ export function App({ phone = false }: { phone?: boolean }) {
               live.clearUndo();
             }}
             onSend={send}
+            files={files}
+            onAttach={attach}
+            onRemoveFile={(id) => setFiles((now) => now.filter((f) => f.id !== id))}
             onCancel={() => {
               if (live.turnId) void client.call('cancel_chat', { turn_id: live.turnId });
             }}

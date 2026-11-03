@@ -2,6 +2,7 @@
 
 import { type AgentId, logicalDate } from '@sirius/contracts';
 import type { AgentAdapter } from './agents/types.ts';
+import { Attachments } from './attachments.ts';
 import { Backups } from './backups.ts';
 import { EventBus } from './bus.ts';
 import { migrate } from './db/migrate.ts';
@@ -44,6 +45,7 @@ export interface Core {
   chat: Chat;
   voice: VoiceState;
   phones: Phones;
+  attachments: Attachments;
   close(): void;
 }
 
@@ -78,6 +80,7 @@ export function createCore(options: CoreOptions): Core {
 
   const backups = options.backupDir ? new Backups(sqlite, options.backupDir) : null;
   const phones = new Phones(sqlite, clock);
+  const attachments = new Attachments(clock);
 
   const system: SystemHandlers = {
     confirm_proposal: ({ id }, caller) => decisions.confirm(id, caller.via),
@@ -87,7 +90,15 @@ export function createCore(options: CoreOptions): Core {
     select_agent: ({ agent, model }) => agents.select(agent, model),
     get_conversation: () => chat.view(),
     new_conversation: () => chat.reset(),
-    send_chat: (input) => chat.send(input),
+    send_chat: ({ attachment_ids, ...input }) => {
+      const documents = (attachment_ids ?? []).map((id: string) => {
+        const kept = attachments.take(id);
+        if (!kept)
+          throw new DomainError(410, 'attachment_gone', 'That file was not kept. Attach it again.');
+        return kept;
+      });
+      return chat.send(input, documents);
+    },
     start_phone_pairing: () => phones.startPairing(),
     forget_phones: () => phones.forgetAll(),
     remember: ({ fact }) => memory.remember(fact, logicalDate(store.now(), timeZone)),
@@ -136,6 +147,7 @@ export function createCore(options: CoreOptions): Core {
     chat,
     voice,
     phones,
+    attachments,
     close() {
       scheduler.stop();
       sqlite.close();

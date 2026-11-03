@@ -122,7 +122,13 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
     '*',
     cors({
       origin: UI_ORIGINS,
-      allowHeaders: ['authorization', 'content-type', 'x-sirius-client', 'idempotency-key'],
+      allowHeaders: [
+        'authorization',
+        'content-type',
+        'x-sirius-client',
+        'idempotency-key',
+        'x-filename',
+      ],
     }),
   );
 
@@ -188,6 +194,13 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
   });
 
   for (const name of opNames) register(app, core, name);
+
+  // F36: the raw file in the body, its name in a header, so nothing needs multipart parsing.
+  app.post('/v1/attachments', async (c) => {
+    const name = decodeURIComponent(c.req.header('x-filename') ?? 'file');
+    const bytes = new Uint8Array(await c.req.arrayBuffer());
+    return c.json(await core.attachments.put(name, bytes));
+  });
 
   // Phone push-to-talk (ADR-10): the browser records, the voice service transcribes.
   app.post('/v1/voice/audio', async (c) => {

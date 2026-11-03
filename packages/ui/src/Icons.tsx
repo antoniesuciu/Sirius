@@ -28,6 +28,14 @@ function Stroke({ size, stroke, width, d }: StrokeProps) {
 export const CheckIcon = ({ size, stroke }: { size: number; stroke: string }) => (
   <Stroke size={size} stroke={stroke} width={2.6} d="M5 12.5 L10 17.5 L19 7" />
 );
+export const PaperclipIcon = () => (
+  <Stroke
+    size={18}
+    stroke="#1A1814"
+    width={1.8}
+    d="M20 11.5 L12.5 19 a4.5 4.5 0 0 1 -6.4 -6.4 L13.6 5.1 a3 3 0 0 1 4.3 4.3 L10.4 16.9 a1.5 1.5 0 0 1 -2.1 -2.1 L15 8"
+  />
+);
 export const PlusIcon = () => (
   <Stroke size={18} stroke="#EBE3D1" width={2} d="M12 5 V19 M5 12 H19" />
 );

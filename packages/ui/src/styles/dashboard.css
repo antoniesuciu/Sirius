@@ -928,6 +928,37 @@ ul {
   border-radius: 50%;
   background: var(--accent);
 }
+/* Files waiting to go with the next message (F36). */
+.pending-files {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pending-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  font-size: 15px;
+}
+.pending-file-detail,
+.bubble-files {
+  color: var(--muted);
+  font-size: 14px;
+}
+.bubble-files {
+  display: block;
+  margin-top: 4px;
+}
+.round.attach {
+  background: transparent;
+  border: 1px solid var(--line-mid);
+}
 .chat-form {
   display: flex;
   gap: 10px;

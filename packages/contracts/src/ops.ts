@@ -79,6 +79,8 @@ export const UndoResult = z.object({ ok: z.literal(true), reverted: z.number().i
 export const SendChatInput = z.object({
   text: z.string().trim().min(1).max(8000),
   via: z.enum(['ui', 'voice']).optional().describe('voice asks for a short, speakable answer'),
+  /** Files read by the core first, through POST /v1/attachments (F36). */
+  attachment_ids: z.array(z.string().min(1).max(64)).max(3).optional(),
 });
 export const SendChatResult = z.object({ turn_id: z.string(), conversation_id: Id });
 

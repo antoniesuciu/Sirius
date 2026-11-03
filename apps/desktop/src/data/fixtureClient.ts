@@ -165,9 +165,10 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
   ) =>
     emit({ type: 'change', entity, id: 'x', op: 'update', rev: 1, actor: 'user', change_id: 'x' });
 
-  const pushMessage = (role: Message['role'], text: string) => {
-    state.messages.push({ ...common(), conversation_id: 'c1', role, text, meta: null });
+  const pushMessage = (role: Message['role'], text: string, meta: Message['meta'] = null) => {
+    state.messages.push({ ...common(), conversation_id: 'c1', role, text, meta });
   };
+  const attachedNames = new Map<string, string>();
 
   /** Streams a scripted reply through the same events a real turn produces. */
   const replyWith = (turnId: string, text: string, after?: () => void) => {
@@ -408,9 +409,14 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       changed('proposals');
       return { ok: true, proposal: p };
     },
-    send_chat: ({ text }) => {
+    send_chat: ({ text, attachment_ids }) => {
       const turnId = newId();
-      pushMessage('user', text);
+      const names = (attachment_ids ?? []).map((id) => attachedNames.get(id) ?? id);
+      pushMessage(
+        'user',
+        text,
+        names.length ? { attachments: names.map((name) => ({ name, chars: 0 })) } : null,
+      );
       script(turnId, text);
       return { turn_id: turnId, conversation_id: 'c1' };
     },
@@ -430,6 +436,18 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
   }, options.toastAfterMs);
 
   return {
+    async attach(file, name) {
+      const text = name.toLowerCase().endsWith('.pdf') ? 'x'.repeat(4200) : await file.text();
+      const id = `file-${Date.now()}`;
+      attachedNames.set(id, name);
+      return {
+        id,
+        name,
+        chars: text.length,
+        truncated: false,
+        pages: name.toLowerCase().endsWith('.pdf') ? 3 : null,
+      };
+    },
     async call(name, input) {
       const handler = handlers[name] as ((i: typeof input) => OpOutput<typeof name>) | undefined;
       if (!handler) throw new ApiError(501, 'not_implemented', `Fixture has no ${name}`);

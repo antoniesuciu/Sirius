@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, type Page, test } from '@playwright/test';
+import { tinyPdf } from '../packages/core/test/pdf.ts';
 import { LIVE_DATA_DIR, LIVE_PORT } from '../playwright.config.ts';
 
 const token = () => readFileSync(`${LIVE_DATA_DIR}/token`, 'utf8').trim();
@@ -107,4 +108,30 @@ test('fetches nothing from the network (offline, spec 4.2)', async ({ page }) =>
   await ready(page);
   await page.waitForTimeout(500);
   expect(foreign).toEqual([]);
+});
+
+test('a real PDF is read by the core, with its page count (F36)', async ({ page }) => {
+  await page.goto('/');
+  await ready(page);
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'Analiză syllabus.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from(tinyPdf(['Week 1: Sequences', 'Week 2: Series'], 2)),
+  });
+  await expect(page.getByRole('list', { name: 'Files to send' })).toContainText(
+    'Analiză syllabus.pdf 2 pages',
+  );
+});
+
+test('a file Sirius cannot read is explained (F36)', async ({ page }) => {
+  await page.goto('/');
+  await ready(page);
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'photo.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([137, 80, 78, 71]),
+  });
+  await expect(page.locator('.chat-log')).toContainText(
+    'Sirius reads PDF, Markdown and text files',
+  );
 });

@@ -1,7 +1,7 @@
 /** Errors the API reports on purpose. Anything else is a bug and becomes a 500. */
 export class DomainError extends Error {
   constructor(
-    readonly status: 400 | 401 | 403 | 404 | 409 | 410 | 503,
+    readonly status: 400 | 401 | 403 | 404 | 409 | 410 | 413 | 415 | 422 | 503,
     readonly code: string,
     message: string,
   ) {
