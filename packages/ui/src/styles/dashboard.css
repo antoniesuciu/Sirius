@@ -1463,7 +1463,8 @@ fieldset.agent-switch {
 @media (min-width: 901px) {
   .app:not(.app-tabbed) .header {
     flex-wrap: nowrap;
-    align-items: flex-start;
+    /* Centred on the clock and greeting together, not pinned to the top. */
+    align-items: center;
   }
   .app:not(.app-tabbed) .header-left {
     flex: 1 1 0;
