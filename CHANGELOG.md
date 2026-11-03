@@ -155,4 +155,4 @@
   agent alerts arrive as Android notifications with no extra app. Encrypted on the laptop for the
   phone (RFC 8291, checked against the RFC's test vector) and signed with a VAPID key kept in the
   data folder. A tap opens the matching tab. No new dependency: WebCrypto only.
-- A voice wave in the Sirius card, in place of the wolf: three thin lines that follow the microphone while listening and the voice while speaking, shimmer while thinking, and fold away when idle.
+- Sirius is a circle where the wolf was: still when idle, rippling rings while listening, a halo that follows the voice while speaking, a slow breath while thinking.

@@ -86,11 +86,11 @@ test('on Sirius only the chat scrolls, even on a short screen', async ({ page })
     };
   });
   expect(sizes).toEqual({ page: false, section: false, chat: true });
-  // No wolf for now (it stays in the code), so the header is just the controls.
+  // The circle sits where the wolf was, with the agent switch beside it.
   await expect(page.locator('.panel-sirius .sirius')).toHaveCount(0);
+  const orb = await page.locator('.panel-sirius .voice-orb').boundingBox();
   const agents = await page.getByRole('group', { name: 'Agent' }).boundingBox();
-  const card = await page.locator('.panel-sirius').boundingBox();
-  expect((agents?.x ?? 0) - (card?.x ?? 0)).toBeLessThan(30);
+  expect(agents?.x).toBeGreaterThan((orb?.x ?? 0) + (orb?.width ?? 0) - 1);
 });
 
 test('a new chat is started from the top of the card, not a row of its own', async ({ page }) => {
@@ -181,14 +181,14 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
   // The mic takes you to the conversation, where the answer appears.
   await expect(tab(page, 'Sirius')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.sirius-status')).toHaveText('listening');
-  // The wave opens while listening and moves.
-  const wave = page.locator('.voice-wave');
-  await expect(wave).toHaveAttribute('data-state', 'listening');
-  await expect.poll(async () => (await wave.boundingBox())?.height).toBeGreaterThan(40);
-  const shape = () => page.locator('.wave-ink').getAttribute('d');
-  const first = await shape();
-  await page.waitForTimeout(150);
-  expect(await shape()).not.toBe(first);
+  // The circle ripples while listening.
+  const orb = page.locator('.panel-sirius .voice-orb');
+  await expect(orb).toHaveAttribute('data-state', 'listening');
+  const ripples = () =>
+    orb.evaluate((el) =>
+      el.getAnimations({ subtree: true }).map((a) => (a as CSSAnimation).animationName),
+    );
+  expect(await ripples()).toContain('orb-ripple');
   if (process.env.SIRIUS_SHOTS)
     await page.screenshot({ path: `${process.env.SIRIUS_SHOTS}/listening.png` });
   await page.waitForTimeout(300);
@@ -202,8 +202,9 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
     .toEqual([{ text: 'Added water the basil to today.', lang: 'en-US' }]);
 
   await expect(tab(page, 'Today').locator('.tab-dot')).toBeVisible();
-  // Back to idle, the wave folds away.
-  await expect(wave).toHaveAttribute('data-state', 'idle');
+  // Back to idle, it is a still circle again.
+  await expect(orb).toHaveAttribute('data-state', 'idle');
+  expect(await ripples()).toEqual([]);
   await page.getByRole('button', { name: /Changed Today/ }).click();
   await expect(page.locator('.task', { hasText: 'Water the basil' })).toBeVisible();
 });

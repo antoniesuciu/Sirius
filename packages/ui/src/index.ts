@@ -20,6 +20,6 @@ export { type NewScheduleEvent, SchedulePanel } from './SchedulePanel.tsx';
 export { type AvatarState, SiriusAvatar } from './SiriusAvatar.tsx';
 export { type ChatLine, type PendingFile, SiriusPanel } from './SiriusPanel.tsx';
 export { TodayPanel } from './TodayPanel.tsx';
-export { VoiceWave } from './VoiceWave.tsx';
+export { VoiceOrb } from './VoiceOrb.tsx';
 export { WellbeingPanel } from './WellbeingPanel.tsx';
 export { WindowControls } from './WindowControls.tsx';

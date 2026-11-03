@@ -328,10 +328,13 @@ test.describe('sirius', () => {
     await expect(page.locator('.task')).toHaveCount(6);
   });
 
-  test('the voice wave takes no room while Sirius is idle', async ({ page }) => {
+  test('Sirius is a still circle while idle', async ({ page }) => {
     await open(page);
-    await expect(page.locator('.voice-wave')).toHaveAttribute('data-state', 'idle');
-    expect((await page.locator('.voice-wave').boundingBox())?.height ?? 0).toBe(0);
+    const orb = page.locator('.panel-sirius .voice-orb');
+    await expect(orb).toHaveAttribute('data-state', 'idle');
+    await expect(orb).toBeVisible();
+    const moving = await orb.evaluate((el) => el.getAnimations({ subtree: true }).length);
+    expect(moving).toBe(0);
   });
 
   test('the mic says so when voice is not running', async ({ page }) => {

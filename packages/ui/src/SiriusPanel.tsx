@@ -8,7 +8,7 @@ import type { PhoneTab, Receipt } from './PhoneTabs.tsx';
 // The wolf is kept in SiriusAvatar.tsx but not shown for now (owner, 2026-11-03). Its states
 // still show as the status line.
 import type { AvatarState } from './SiriusAvatar.tsx';
-import { VoiceWave } from './VoiceWave.tsx';
+import { VoiceOrb } from './VoiceOrb.tsx';
 
 export interface ChatLine {
   id: string;
@@ -161,6 +161,11 @@ export function SiriusPanel(props: SiriusPanelProps) {
     <section className="panel panel-sirius rise d3" onKeyDown={onKey}>
       {props.compact ? (
         <div className="sirius-head sirius-head-compact">
+          <VoiceOrb
+            state={props.avatar}
+            level={props.level}
+            {...(props.readLevel ? { readLevel: props.readLevel } : {})}
+          />
           <div className="sirius-controls">
             <div className="sirius-controls-top">
               {agentSwitch}
@@ -190,6 +195,11 @@ export function SiriusPanel(props: SiriusPanelProps) {
         <>
           <div className="sirius-head">
             <div className="sirius-identity" data-state={props.avatar}>
+              <VoiceOrb
+                state={props.avatar}
+                level={props.level}
+                {...(props.readLevel ? { readLevel: props.readLevel } : {})}
+              />
               <div className="sirius-name">
                 <span className="sirius-title">Sirius</span>
                 <span className="sirius-status">{props.status}</span>
@@ -292,12 +302,6 @@ export function SiriusPanel(props: SiriusPanelProps) {
           ))}
         </ul>
       )}
-
-      <VoiceWave
-        state={props.avatar}
-        level={props.level}
-        {...(props.readLevel ? { readLevel: props.readLevel } : {})}
-      />
 
       <form className="chat-form" onSubmit={submit}>
         <input
