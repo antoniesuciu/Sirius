@@ -2,17 +2,24 @@
  * Server state: React Query kept fresh by SSE (ADR-4). There is no polling. Mutations
  * that need to feel instant update the cache first and reconcile afterwards (F6).
  */
-import type {
-  EntityName,
-  OpInput,
-  OpName,
-  OpOutput,
-  SiriusClient,
-  SiriusEvent,
-  Task,
-  TodayView,
+import {
+  type EntityName,
+  isUnreachable,
+  type OpInput,
+  type OpName,
+  type OpOutput,
+  type SiriusClient,
+  type SiriusEvent,
+  type Task,
+  type TodayView,
 } from '@sirius/contracts';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  type MutateOptions,
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { createContext, useContext } from 'react';
 
 export const ClientContext = createContext<SiriusClient | null>(null);
@@ -77,41 +84,93 @@ export function invalidationsFor(event: SiriusEvent): OpName[] {
 }
 
 /** A fire-and-forget op that refetches its reads when it settles. */
+/**
+ * Every change is a queued op (ADR 0010): a plain object naming the op, its input and a key, so
+ * it can wait on a phone while the laptop is away, survive a reload, and be sent exactly once.
+ */
+export interface QueuedOp<A = unknown> {
+  op: OpName;
+  input: Record<string, unknown>;
+  key: string;
+  /** What the screen asked for, kept so an optimistic update can be applied from it. */
+  arg?: A;
+}
+
+export const OP_MUTATION = ['op'] as const;
+
+/** These depend on what the core holds at that moment, so they never wait in a queue. */
+const NEEDS_THE_CORE = new Set<OpName>([
+  'confirm_proposal',
+  'reject_proposal',
+  'undo',
+  'select_agent',
+  'new_conversation',
+]);
+
+function newKey(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
+/** Registered once, so a change restored after a reload still knows how to send itself. */
+export function registerQueuedOps(qc: QueryClient, client: SiriusClient): void {
+  qc.setMutationDefaults(OP_MUTATION, {
+    mutationFn: (queued: QueuedOp) =>
+      client.call(queued.op, queued.input as never, { idempotencyKey: queued.key }),
+    // Out of reach is not a refusal: keep trying, and wait while the core is offline.
+    retry: (_count, error) => isUnreachable(error),
+    retryDelay: 2000,
+  });
+}
+
+type Options = MutateOptions<unknown, Error, QueuedOp, unknown>;
+
 export function useOp<N extends OpName>(name: N, invalidates: OpName[]) {
-  const client = useClient();
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: OpInput<N>) => client.call(name, input),
+  const live = NEEDS_THE_CORE.has(name);
+  const mutation = useMutation<unknown, Error, QueuedOp>({
+    mutationKey: OP_MUTATION,
+    ...(live ? { networkMode: 'always' as const, retry: false } : {}),
     onSettled: () =>
       Promise.all(invalidates.map((key) => qc.invalidateQueries({ queryKey: [key] }))),
   });
+  return {
+    ...mutation,
+    mutate: (input: OpInput<N>, options?: Options) =>
+      mutation.mutate(
+        { op: name, input: input as Record<string, unknown>, key: newKey() },
+        options,
+      ),
+  };
 }
 
 interface TodaySnapshot {
   previous: TodayView | undefined;
 }
 
-/** Runs `apply` against the cached day, rolling back if the request fails. */
-function useOptimisticToday<I>(
-  mutationFn: (input: I) => Promise<unknown>,
-  apply: (today: TodayView, input: I) => TodayView,
+/** Runs `apply` against the cached day, rolling back if the core refuses the change. */
+function useOptimisticToday<A>(
+  toOp: (arg: A) => { op: OpName; input: Record<string, unknown> },
+  apply: (today: TodayView, arg: A) => TodayView,
 ) {
   const qc = useQueryClient();
   const key = ['get_today'];
-  return useMutation<unknown, Error, I, TodaySnapshot>({
-    mutationFn,
-    onMutate: (input) => {
+  const mutation = useMutation<unknown, Error, QueuedOp<A>, TodaySnapshot>({
+    mutationKey: OP_MUTATION,
+    onMutate: ({ arg }) => {
       // Synchronous on purpose: feedback must land inside the 50 ms budget (spec 4.1).
       const previous = qc.getQueryData<TodayView>(key);
       void qc.cancelQueries({ queryKey: key });
-      if (previous) qc.setQueryData(key, apply(previous, input));
+      if (previous && arg !== undefined) qc.setQueryData(key, apply(previous, arg));
       return { previous };
     },
-    onError: (_error, _input, snapshot) => {
+    onError: (_error, _queued, snapshot) => {
       if (snapshot?.previous) qc.setQueryData(key, snapshot.previous);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
   });
+  return { ...mutation, mutate: (arg: A) => mutation.mutate({ ...toOp(arg), key: newKey(), arg }) };
 }
 
 function placeholderTask(title: string, date: string): Task {
@@ -134,18 +193,18 @@ function placeholderTask(title: string, date: string): Task {
 }
 
 export function useAddTask() {
-  const client = useClient();
   return useOptimisticToday(
-    (title: string) => client.call('add_task', { title }),
+    (title: string) => ({ op: 'add_task', input: { title } }),
     (today, title) => ({ ...today, tasks: [...today.tasks, placeholderTask(title, today.date)] }),
   );
 }
 
 export function useToggleTask() {
-  const client = useClient();
   return useOptimisticToday(
-    (task: Task) =>
-      client.call(task.status === 'done' ? 'reopen_task' : 'complete_task', { id: task.id }),
+    (task: Task) => ({
+      op: task.status === 'done' ? 'reopen_task' : 'complete_task',
+      input: { id: task.id },
+    }),
     (today, task) => ({
       ...today,
       tasks: today.tasks.map((t) =>
@@ -162,17 +221,15 @@ export function useToggleTask() {
 }
 
 export function useDropTask() {
-  const client = useClient();
   return useOptimisticToday(
-    (task: Task) => client.call('drop_task', { id: task.id }),
+    (task: Task) => ({ op: 'drop_task', input: { id: task.id } }),
     (today, task) => ({ ...today, tasks: today.tasks.filter((t) => t.id !== task.id) }),
   );
 }
 
 export function useSetQuiet() {
-  const client = useClient();
   return useOptimisticToday(
-    (on: boolean) => client.call('set_quiet_mode', { on }),
+    (on: boolean) => ({ op: 'set_quiet_mode', input: { on } }),
     (today, on) => ({ ...today, quiet_mode: on }),
   );
 }

@@ -26,6 +26,7 @@ import {
 } from '@sirius/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useMemo, useState } from 'react';
+import { ConnectionLine } from './ConnectionLine.tsx';
 import { browserVoiceSupported, useBrowserVoice } from './data/browserVoice.ts';
 import {
   useAddTask,
@@ -71,7 +72,8 @@ function nextOfKind(reminders: ReminderView[], kind: ReminderView['kind']): Remi
   );
 }
 
-export function App() {
+/** `phone` is a browser: it keeps an offline copy and says when the laptop is away. */
+export function App({ phone = false }: { phone?: boolean }) {
   const client = useClient();
   const hidden = usePageHidden();
   const resting = useResting(REST_AFTER_MS);
@@ -210,6 +212,7 @@ export function App() {
         quiet={quiet}
         onToggleQuiet={() => setQuiet.mutate(!quiet)}
       />
+      {phone && <ConnectionLine />}
       {quiet && (
         <div className="quiet-line msg">
           Quiet until tomorrow. Reminders are off, and nothing here needs you.

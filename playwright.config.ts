@@ -4,6 +4,8 @@ export const LIVE_DATA_DIR = '.cache/e2e-core';
 export const LIVE_PORT = 7338;
 const REMOTE_PORT = 7347;
 const REMOTE_DIR = '.cache/e2e-remote';
+export const PHONE_PORT = 7349;
+export const PHONE_DIR = '.cache/e2e-phone';
 
 const previewEnv = { SIRIUS_PORT: String(LIVE_PORT), SIRIUS_DATA_DIR: `../../${LIVE_DATA_DIR}` };
 
@@ -25,12 +27,12 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
-      testIgnore: /(live|remote)\.spec/,
+      testIgnore: /(live|remote|phone)\.spec/,
       use: { viewport: { width: 1440, height: 900 } },
     },
     {
       name: 'phone',
-      testIgnore: /(live|remote)\.spec/,
+      testIgnore: /(live|remote|phone)\.spec/,
       use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } },
     },
     {
@@ -42,6 +44,13 @@ export default defineConfig({
         baseURL: `http://127.0.0.1:${REMOTE_PORT}`,
         extraHTTPHeaders: { authorization: 'Bearer e2e-token' },
       },
+    },
+    {
+      // A phone against a laptop's own core, which serves the app itself (ADR 0010).
+      name: 'phone-live',
+      testMatch: /phone\.spec/,
+      fullyParallel: false,
+      use: { ...devices['Pixel 7'], baseURL: `http://127.0.0.1:${PHONE_PORT}` },
     },
     {
       name: 'live',
@@ -59,6 +68,17 @@ export default defineConfig({
         SIRIUS_MODE: 'remote',
         SIRIUS_DATA_DIR: REMOTE_DIR,
         SIRIUS_PORT: String(REMOTE_PORT),
+        SIRIUS_UI_DIR: 'apps/desktop/dist',
+        SIRIUS_SEED: 'demo',
+      },
+    },
+    {
+      command: `rm -rf ${PHONE_DIR} && bun run packages/core/src/main.ts`,
+      url: `http://127.0.0.1:${PHONE_PORT}/v1/health`,
+      reuseExistingServer: false,
+      env: {
+        SIRIUS_DATA_DIR: PHONE_DIR,
+        SIRIUS_PORT: String(PHONE_PORT),
         SIRIUS_UI_DIR: 'apps/desktop/dist',
         SIRIUS_SEED: 'demo',
       },

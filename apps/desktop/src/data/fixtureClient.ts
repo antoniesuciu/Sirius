@@ -356,6 +356,8 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       return { quiet_mode: on };
     },
     remember: () => ({ saved: true }),
+    start_phone_pairing: () => ({ code: '123456', expires_at: Date.now() + 300_000 }),
+    forget_phones: () => ({ forgotten: 0 }),
     select_agent: ({ agent, model }) => {
       state.selected = agent;
       if (model) state.models[agent] = model;

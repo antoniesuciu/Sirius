@@ -167,6 +167,61 @@ ul {
   color: var(--muted);
 }
 
+/* The phone's line about the laptop being away (ADR 0010). */
+.connection-line {
+  position: relative;
+  z-index: 2;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.connection-line .pill {
+  margin-left: 8px;
+  min-height: 38px;
+}
+
+/* Pairing a phone ------------------------------------------------------------ */
+.pair {
+  min-height: 100vh;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 72px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: var(--bg);
+  font-size: 18px;
+  line-height: 1.5;
+}
+.pair h1 {
+  font-size: 34px;
+  font-weight: 400;
+  margin: 0;
+}
+.pair p {
+  margin: 0;
+}
+.pair code {
+  font-family: ui-monospace, monospace;
+  font-size: 16px;
+}
+.pair form {
+  display: flex;
+  gap: 12px;
+}
+.pair input {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 24px;
+  letter-spacing: 0.3em;
+  background: var(--input);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  color: var(--ink);
+}
+
 /* Buttons ----------------------------------------------------------------- */
 .pill {
   min-height: 44px;

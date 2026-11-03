@@ -91,3 +91,11 @@
 - Voice grammar learned phrases from a real voice: "and … today" as a misheard "add",
   "adaugă … azi", "lazi", "am ceva de făcut azi" and "ce mai am de făcut".
 - Whisper decodes with a beam of 5 instead of greedily, and knows more of the Romanian commands.
+
+## Phone (2026-11-03)
+
+- The phone uses the laptop's own core over Tailscale, paired once with `sirius pair` (ADR 0010).
+- It keeps a copy for when the laptop is away, and queues changes made meanwhile. Each change is
+  applied once when the laptop is back, and one the laptop refuses is reported.
+- Each install also updates the phone app, which picks up the new version on its next visit.
+- The panel slogans are gone.
