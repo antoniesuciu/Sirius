@@ -96,7 +96,7 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 
 ### 3.7 Agent attention and notifications
 - **F23** Claude Code hooks and Codex `notify` (section 9) post events to the core. The UI shows a toast ("Claude is waiting for an approval in quant-lab. No rush, it will keep.") with **Got it / Later**, and the agent status line updates.
-- **F24** The core sends native desktop notifications (libnotify) for reminders and agent attention, so they work when the window is closed. Quiet mode suppresses them; agent events queue and appear on "Welcome back".
+- **F24** The core sends native desktop notifications (libnotify) for reminders and agent attention, so they work when the window is closed to the tray, but not after a real Quit, which stops the core too (ADR 0009). Quiet mode suppresses them; agent events queue and appear on "Welcome back".
 - **F25** Rate limits: at most one notification per source per 2 minutes, and duplicate events are coalesced.
 
 ### 3.8 Voice

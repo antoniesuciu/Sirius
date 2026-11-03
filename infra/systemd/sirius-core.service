@@ -1,6 +1,7 @@
 [Unit]
 Description=Sirius core service
 Documentation=https://github.com/antoniesuciu/Sirius
+Wants=sirius-voice.service
 
 [Service]
 ExecStart=%h/.local/bin/sirius-core
@@ -9,8 +10,8 @@ Environment=BUN_OPTIONS=--smol
 # systemd does not inherit the login PATH, and agent CLIs often live under nvm or ~/.local.
 # scripts/install.sh writes the real locations here.
 EnvironmentFile=-%h/.config/sirius/env
-# always, not on-failure: a stray SIGTERM exits 0, which on-failure treats as intended.
-Restart=always
+# on-failure on purpose: a clean exit is how Sirius stops as a whole (ADR 0009). A crash restarts.
+Restart=on-failure
 RestartSec=2
 
 [Install]

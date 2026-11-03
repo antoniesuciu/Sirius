@@ -80,7 +80,9 @@
 - Sirius remembers: a `remember` tool writes to one Markdown file, set by `SIRIUS_MEMORY_FILE`.
 - The desktop window has no system title bar. It draws its own drag strip and controls.
 - The model choice is a list drawn by Sirius instead of the GTK popup of a native select.
-- The services restart after any exit, and an unreachable core is explained in the chat.
+- Sirius is all up or all down (ADR 0009). Quitting or killing the app stops the core and voice,
+  stopping the core closes the app, and opening the app starts everything. Voice alone restarts.
+- An unreachable core is explained in the chat instead of WebKit's "Load failed".
 - Voice grammar learned phrases from a real voice: "and … today" as a misheard "add",
   "adaugă … azi", "lazi", "am ceva de făcut azi" and "ce mai am de făcut".
 - Whisper decodes with a beam of 5 instead of greedily, and knows more of the Romanian commands.

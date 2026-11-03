@@ -8,6 +8,7 @@ import { createCodexAdapter } from './agents/codex.ts';
 import type { AdapterOptions } from './agents/types.ts';
 import { loadConfig, loadOrCreateToken } from './config.ts';
 import { createCore } from './core.ts';
+import { DesktopLink } from './desktopLink.ts';
 import { createAccessVerifier } from './http/access.ts';
 import { createApp } from './http/app.ts';
 import { FanOutNotifier, LibnotifyNotifier, type Notifier, NtfyNotifier } from './notifier.ts';
@@ -72,6 +73,10 @@ const app = createApp(core, {
   token: loadOrCreateToken(config.tokenFile),
   mode: config.mode,
   version: VERSION,
+  // A remote core serves other devices, so no one window decides its life.
+  ...(config.mode === 'local'
+    ? { desktopLink: new DesktopLink(() => process.kill(process.pid, 'SIGTERM')) }
+    : {}),
   ...(config.access ? { verifyAccess: createAccessVerifier(config.access) } : {}),
   ...(config.uiDir ? { uiDir: config.uiDir } : {}),
   ...(config.voiceUrl ? { voiceUrl: config.voiceUrl } : {}),

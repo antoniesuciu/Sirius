@@ -13,11 +13,14 @@ import {
 import { cors } from 'hono/cors';
 import { ZodError } from 'zod';
 import type { Core } from '../core.ts';
+import type { DesktopLink } from '../desktopLink.ts';
 import type { Caller } from '../dispatcher.ts';
 import { DomainError } from '../errors.ts';
 import { serveUi } from './static.ts';
 
 export interface AppOptions {
+  /** Set on a local core, which stops when the desktop app goes (ADR 0009). */
+  desktopLink?: DesktopLink;
   token: string;
   mode: 'local' | 'remote';
   version: string;
@@ -50,7 +53,7 @@ function pathParams(path: string): string[] {
   return [...path.matchAll(/\{(\w+)\}/g)].map((m) => m[1] as string);
 }
 
-function eventStream(core: Core, isVoiceService: boolean): Response {
+function eventStream(core: Core, attach: () => () => void): Response {
   const encoder = new TextEncoder();
   let stop = () => {};
   const stream = new ReadableStream<Uint8Array>({
@@ -61,7 +64,7 @@ function eventStream(core: Core, isVoiceService: boolean): Response {
         write(`data: ${JSON.stringify(event)}\n\n`),
       );
       const heartbeat = setInterval(() => write(': ping\n\n'), HEARTBEAT_MS);
-      const detach = isVoiceService ? core.voice.attach() : () => {};
+      const detach = attach();
       stop = () => {
         unsubscribe();
         clearInterval(heartbeat);
@@ -113,7 +116,13 @@ function register(app: OpenAPIHono, core: Core, name: OpName): void {
 export function createApp(core: Core, options: AppOptions): OpenAPIHono {
   const app = new OpenAPIHono();
 
-  app.use('*', cors({ origin: UI_ORIGINS, allowHeaders: ['authorization', 'content-type'] }));
+  app.use(
+    '*',
+    cors({
+      origin: UI_ORIGINS,
+      allowHeaders: ['authorization', 'content-type', 'x-sirius-client'],
+    }),
+  );
 
   app.get('/v1/health', (c) => c.json({ ok: true, version: options.version, mode: options.mode }));
 
@@ -126,9 +135,13 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
     return c.json({ code: 'unauthorized', message: 'Missing or invalid token' }, 401);
   });
 
-  app.get('/v1/events', (c) =>
-    eventStream(core, c.req.header('x-sirius-client') === 'voice-service'),
-  );
+  app.get('/v1/events', (c) => {
+    const client = c.req.header('x-sirius-client');
+    if (client === 'voice-service') return eventStream(core, () => core.voice.attach());
+    const { desktopLink } = options;
+    if (client === 'desktop' && desktopLink) return eventStream(core, () => desktopLink.attach());
+    return eventStream(core, () => () => {});
+  });
 
   for (const name of opNames) register(app, core, name);
 

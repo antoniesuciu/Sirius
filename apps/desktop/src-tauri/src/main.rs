@@ -2,7 +2,15 @@
 //! core service, so this process can crash or quit without touching any data.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::HashMap, env, fs, path::PathBuf};
+use std::{
+    collections::HashMap,
+    env, fs,
+    net::{SocketAddr, TcpStream},
+    path::PathBuf,
+    process::Command,
+    thread,
+    time::Duration,
+};
 
 use serde::Serialize;
 use tauri::{
@@ -12,6 +20,10 @@ use tauri::{
 };
 
 const DEFAULT_CORE_URL: &str = "http://127.0.0.1:7337";
+const CORE_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 7337);
+const CORE_CHECK_EVERY: Duration = Duration::from_secs(5);
+/// Long enough that a core restarting after a crash or an update does not close the window.
+const CORE_MISSES_ALLOWED: u32 = 3;
 
 #[derive(Serialize)]
 struct CoreConnection {
@@ -54,7 +66,8 @@ fn token_path() -> Option<PathBuf> {
 fn core_connection() -> CoreConnection {
     let settings = desktop_settings();
     let setting = |key: &str| env::var(key).ok().or_else(|| settings.get(key).cloned());
-    let mut headers = HashMap::new();
+    // How the core tells this app from a browser. See packages/core/src/desktopLink.ts.
+    let mut headers = HashMap::from([("x-sirius-client".to_string(), "desktop".to_string())]);
     for (key, header) in [
         ("CF_ACCESS_CLIENT_ID", "CF-Access-Client-Id"),
         ("CF_ACCESS_CLIENT_SECRET", "CF-Access-Client-Secret"),
@@ -72,6 +85,49 @@ fn core_connection() -> CoreConnection {
         }),
         headers,
     }
+}
+
+/// Counts checks of the core, and decides when it has really gone.
+#[derive(Default)]
+struct CoreWatch {
+    seen: bool,
+    misses: u32,
+}
+
+impl CoreWatch {
+    /// True once a core that was running has stayed down. A core never seen proves nothing,
+    /// so a development build without one keeps its window.
+    fn gone_after(&mut self, up: bool) -> bool {
+        self.seen |= up;
+        self.misses = if up { 0 } else { self.misses + 1 };
+        self.seen && self.misses >= CORE_MISSES_ALLOWED
+    }
+}
+
+fn core_is_up() -> bool {
+    let address = SocketAddr::from(CORE_ADDRESS);
+    TcpStream::connect_timeout(&address, Duration::from_millis(300)).is_ok()
+}
+
+/// Sirius is all up or all down (ADR 0009): opening the app starts a stopped core, and the app
+/// leaves when the core does. A remote core is not this laptop's to manage.
+fn follow_core(app: AppHandle) {
+    let settings = desktop_settings();
+    if env::var_os("SIRIUS_CORE_URL").is_some() || settings.contains_key("SIRIUS_CORE_URL") {
+        return;
+    }
+    thread::spawn(move || {
+        if !core_is_up() {
+            let _ = Command::new("systemctl")
+                .args(["--user", "start", "sirius-core"])
+                .status();
+        }
+        let mut watch = CoreWatch::default();
+        while !watch.gone_after(core_is_up()) {
+            thread::sleep(CORE_CHECK_EVERY);
+        }
+        app.exit(0);
+    });
 }
 
 fn show_main_window(app: &AppHandle) {
@@ -143,6 +199,7 @@ fn main() {
         .setup(|app| {
             build_tray(app.handle())?;
             enable_autostart(app.handle());
+            follow_core(app.handle().clone());
             Ok(())
         })
         // Closing hides to the tray. Reminders keep working because the core owns them.
@@ -158,7 +215,36 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_settings;
+    use super::{parse_settings, CoreWatch, CORE_MISSES_ALLOWED};
+
+    #[test]
+    fn leaves_only_after_a_running_core_stays_down() {
+        let mut watch = CoreWatch::default();
+        assert!(!watch.gone_after(true));
+        for _ in 1..CORE_MISSES_ALLOWED {
+            assert!(!watch.gone_after(false));
+        }
+        assert!(watch.gone_after(false));
+    }
+
+    #[test]
+    fn a_restart_between_checks_does_not_count() {
+        let mut watch = CoreWatch::default();
+        watch.gone_after(true);
+        watch.gone_after(false);
+        watch.gone_after(true);
+        for _ in 1..CORE_MISSES_ALLOWED {
+            assert!(!watch.gone_after(false));
+        }
+    }
+
+    #[test]
+    fn a_core_never_seen_keeps_the_window() {
+        let mut watch = CoreWatch::default();
+        for _ in 0..CORE_MISSES_ALLOWED * 3 {
+            assert!(!watch.gone_after(false));
+        }
+    }
 
     #[test]
     fn reads_key_value_lines_and_skips_comments() {

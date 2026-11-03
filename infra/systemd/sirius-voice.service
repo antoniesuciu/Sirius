@@ -1,7 +1,8 @@
 [Unit]
 Description=Sirius voice service
 After=sirius-core.service pipewire.service
-Wants=sirius-core.service
+# Voice is useless without the core, so it stops with it.
+BindsTo=sirius-core.service
 
 [Service]
 ExecStart=%h/.local/share/sirius/voice-venv/bin/sirius-voice
@@ -12,7 +13,7 @@ Environment=ORT_DISABLE_TELEMETRY=1
 Environment=HF_HOME=%h/.local/share/sirius/models
 # scripts/install.sh writes LD_LIBRARY_PATH here when an NVIDIA GPU is usable.
 EnvironmentFile=-%h/.config/sirius/voice-env
-# always, not on-failure: a stray SIGTERM exits 0, which on-failure treats as intended.
+# always: voice killed on its own just comes back. Stopping the core or the unit still stops it.
 Restart=always
 RestartSec=3
 
