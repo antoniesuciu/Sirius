@@ -11,8 +11,21 @@ import {
   type OpInput,
   type SiriusClient,
 } from '@sirius/contracts';
-import { applyClaude, applyCodex, mergeClaudeSettings, mergeCodexConfig } from './hooks.ts';
-import { fromClaudeHook, fromCodexJson, projectFromHook, readStdin } from './notify.ts';
+import {
+  applyClaude,
+  applyCodex,
+  applyCodexHooks,
+  mergeClaudeSettings,
+  mergeCodexConfig,
+  mergeCodexHooks,
+} from './hooks.ts';
+import {
+  fromClaudeHook,
+  fromCodexHook,
+  fromCodexJson,
+  projectFromHook,
+  readStdin,
+} from './notify.ts';
 
 const HOOK_TIMEOUT_MS = 1000;
 
@@ -55,14 +68,15 @@ async function notify(args: string[]): Promise<void> {
         project: { type: 'string' },
         message: { type: 'string' },
         'from-codex-json': { type: 'boolean' },
+        'from-codex-hook': { type: 'boolean' },
         resolve: { type: 'boolean' },
       },
     });
     if (values.resolve) {
       // The agent went on, so a permission it asked for has been answered: clear the alert.
       const source = AgentId.parse(values.source);
-      const project =
-        values.project ?? (source === 'claude' ? projectFromHook(await readStdin()) : undefined);
+      // Both agents' hooks send the session's cwd as JSON on stdin.
+      const project = values.project ?? projectFromHook(await readStdin());
       await client(HOOK_TIMEOUT_MS).call('resolve_agent_events', {
         source,
         ...(project ? { project } : {}),
@@ -70,7 +84,9 @@ async function notify(args: string[]): Promise<void> {
       return;
     }
     let input: OpInput<'post_agent_event'> | null;
-    if (values['from-codex-json']) {
+    if (values['from-codex-hook']) {
+      input = fromCodexHook(await readStdin());
+    } else if (values['from-codex-json']) {
       input = fromCodexJson(positionals[0] ?? '{}');
     } else {
       const kind = AgentEventKind.parse(values.kind ?? 'needs_input');
@@ -98,12 +114,14 @@ function setupHooks(args: string[]): void {
   const bin = join(homedir(), '.local/bin/sirius');
   const claudePath = join(homedir(), '.claude/settings.json');
   const codexPath = join(homedir(), '.codex/config.toml');
+  const codexHooksPath = join(homedir(), '.codex/hooks.json');
   const withStop = values['with-stop'] ?? false;
 
   if (values.apply) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     console.log(applyClaude(claudePath, bin, withStop, stamp));
     console.log(applyCodex(codexPath, bin, stamp));
+    console.log(applyCodexHooks(codexHooksPath, bin, stamp));
     return;
   }
   console.log('Nothing was changed. Run with --apply to merge these, with backups first.\n');
@@ -111,6 +129,8 @@ function setupHooks(args: string[]): void {
   console.log(JSON.stringify(mergeClaudeSettings({}, bin, { withStop }), null, 2));
   console.log(`\nIn ${codexPath}:`);
   console.log(mergeCodexConfig('', bin).text);
+  console.log(`\nIn ${codexHooksPath}:`);
+  console.log(JSON.stringify(mergeCodexHooks({}, bin), null, 2));
 }
 
 function commandWorks(bin: string, args: string[]): boolean {

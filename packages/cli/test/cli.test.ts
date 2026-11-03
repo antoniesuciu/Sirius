@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { mergeClaudeSettings, mergeCodexConfig } from '../src/hooks.ts';
-import { fromClaudeHook, fromCodexJson, projectFromHook } from '../src/notify.ts';
+import { mergeClaudeSettings, mergeCodexConfig, mergeCodexHooks } from '../src/hooks.ts';
+import { fromClaudeHook, fromCodexHook, fromCodexJson, projectFromHook } from '../src/notify.ts';
 
 const BIN = '/home/x/.local/bin/sirius';
 
@@ -133,6 +133,40 @@ describe('mergeCodexConfig', () => {
       text: existing,
       changed: false,
       conflict: true,
+    });
+  });
+});
+
+describe('Codex hooks', () => {
+  test('an approval request alerts, and carrying on clears it, without ever deciding', () => {
+    const hooks = mergeCodexHooks({}, BIN).hooks;
+    expect(hooks?.PermissionRequest?.[0]).toEqual({
+      matcher: '*',
+      hooks: [
+        {
+          type: 'command',
+          command: `${BIN} notify --source codex --from-codex-hook`,
+          async: true,
+          timeout: 5,
+        },
+      ],
+    });
+    expect(hooks?.PostToolUse?.[0]?.hooks[0]?.command).toBe(
+      `${BIN} notify --source codex --resolve`,
+    );
+    expect(hooks?.UserPromptSubmit?.[0]?.hooks[0]?.command).toBe(
+      `${BIN} notify --source codex --resolve`,
+    );
+    expect(mergeCodexHooks(mergeCodexHooks({}, BIN), BIN)).toEqual(mergeCodexHooks({}, BIN));
+  });
+
+  test('the hook input names the folder, and reads as an approval', () => {
+    const raw = JSON.stringify({ hook_event_name: 'PermissionRequest', cwd: '/home/x/teatru' });
+    expect(fromCodexHook(raw)).toEqual({
+      source: 'codex',
+      kind: 'needs_input',
+      project: 'teatru',
+      message: 'Codex needs your approval',
     });
   });
 });

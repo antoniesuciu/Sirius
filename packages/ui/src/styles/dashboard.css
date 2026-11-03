@@ -1151,32 +1151,40 @@ ul {
 }
 
 /* Toast ------------------------------------------------------------------- */
+/* Drops in at the top centre, where GNOME shows its own banners (owner, 2026-11-03). */
 .toast {
   position: fixed;
-  left: 56px;
-  bottom: 28px;
-  z-index: 4;
-  max-width: 380px;
+  top: 14px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  z-index: 5;
+  width: fit-content;
+  max-width: min(760px, calc(100vw - 32px));
   background: var(--ink);
   color: var(--on-ink);
   border-radius: 16px;
-  padding: 16px 20px;
+  padding: 12px 14px 12px 20px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  font-size: 17px;
-  line-height: 1.4;
+  align-items: center;
+  gap: 16px;
+  font-size: 16px;
+  line-height: 1.35;
+  box-shadow: 0 10px 30px rgba(26, 24, 20, 0.22);
 }
 .toast-actions {
   display: flex;
   gap: 10px;
 }
+.toast-actions {
+  flex: none;
+}
 .toast .pill {
   border-color: var(--on-ink);
   background: var(--on-ink);
   color: var(--ink);
-  min-height: 44px;
-  padding: 0 18px;
+  min-height: 38px;
+  padding: 0 16px;
 }
 .toast .pill-ghost {
   border-color: var(--on-ink-soft);
@@ -1214,10 +1222,13 @@ ul {
     padding: 22px 20px;
   }
   .toast {
-    left: 16px;
-    right: 16px;
-    bottom: 16px;
+    top: 10px;
+    width: auto;
+    margin: 0 12px;
     max-width: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
   }
 }
 
@@ -1468,6 +1479,12 @@ fieldset.agent-switch {
   }
   .app:not(.app-tabbed) .header-left {
     flex: 1 1 0;
+  }
+  /* The whole greeting on one line where the window allows it. */
+  .app:not(.app-tabbed) .greeting {
+    max-width: none;
+    min-height: 0;
+    font-size: 42px;
   }
   .app:not(.app-tabbed) .header-actions {
     flex: none;

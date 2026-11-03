@@ -32,6 +32,17 @@ export function projectFromHook(raw: string): string | undefined {
   }
 }
 
+/** A Codex PermissionRequest hook: Codex is about to ask for an approval in this folder. */
+export function fromCodexHook(raw: string): AgentEventInput {
+  const project = projectFromHook(raw);
+  return {
+    source: 'codex',
+    kind: 'needs_input',
+    ...(project ? { project } : {}),
+    message: 'Codex needs your approval',
+  };
+}
+
 /** Codex passes one JSON argument. `agent-turn-complete` is the only documented type. */
 export function fromCodexJson(raw: string): AgentEventInput {
   const data = JSON.parse(raw) as { type?: string; cwd?: string };

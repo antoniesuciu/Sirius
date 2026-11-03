@@ -400,6 +400,11 @@ test('the agent toast offers Got it and Later', async ({ page }) => {
   await open(page, '?fixtures&toastMs=50');
   const toast = page.getByRole('status').filter({ hasText: 'quant-lab' });
   await expect(toast).toHaveText(/Claude Code is waiting for an approval in the quant-lab folder/);
+  // It drops in at the top centre, like a GNOME banner.
+  const box = await toast.boundingBox();
+  const width = page.viewportSize()?.width ?? 0;
+  expect(box?.y).toBeLessThan(30);
+  expect(Math.abs((box?.x ?? 0) + (box?.width ?? 0) / 2 - width / 2)).toBeLessThan(4);
   await expect(page.getByText('Claude · waiting for you')).toBeVisible();
   await toast.getByRole('button', { name: 'Later' }).click();
   await expect(toast).toHaveCount(0);

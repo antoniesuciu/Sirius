@@ -156,3 +156,7 @@
   phone (RFC 8291, checked against the RFC's test vector) and signed with a VAPID key kept in the
   data folder. A tap opens the matching tab. No new dependency: WebCrypto only.
 - Sirius is a circle where the wolf was: still when idle, rippling rings while listening, a halo that follows the voice while speaking, a slow breath while thinking.
+- Codex approvals alert too: `setup-hooks` adds a `PermissionRequest` hook in `~/.codex/hooks.json`
+  (Codex's `notify` only reports finished turns), plus the same hooks that clear the alert.
+- The in-app alert drops in at the top centre, like a GNOME banner, instead of the bottom left.
+- The desktop window opens maximised, and the greeting has room for one line.

@@ -104,6 +104,11 @@ sirius setup-hooks --apply      # agent alerts; your settings are backed up firs
 sirius doctor                   # checks every part
 ```
 
+`setup-hooks` makes Claude Code and Codex tell Sirius when they need you: a permission prompt,
+a question or an approval. You then get a banner at the top of the screen and on the phone
+instead of checking the terminal, and it clears itself once you answer. Codex asks you to trust
+new hooks once: open `/hooks` in Codex and approve the Sirius ones.
+
 `deploy.sh` reads `deployment.env`, builds everything, and installs the core and voice as
 systemd user services. With `--with-mcp` it also registers `sirius-mcp` with Claude Code and
 Codex. The voice step downloads about 3 GB of models once.

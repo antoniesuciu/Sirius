@@ -7,6 +7,8 @@ const NOTIFICATION_MATCHER = 'permission_prompt|elicitation_dialog';
 interface CommandHook {
   type: 'command';
   command: string;
+  async?: boolean;
+  timeout?: number;
 }
 interface HookGroup {
   matcher?: string;
@@ -86,6 +88,52 @@ export function mergeCodexConfig(existing: string, bin: string): CodexMerge {
   }
   if (NOTIFY_LINE.test(existing)) return { text: existing, changed: false, conflict: true };
   return { text: `${line}\n${existing}`, changed: true, conflict: false };
+}
+
+/**
+ * Codex hooks (~/.codex/hooks.json, same shape as Claude's). `notify` in config.toml only ever
+ * reports a finished turn, so approvals need PermissionRequest, which runs just before Codex asks.
+ * Async, so a slow core never delays Codex; these hooks only report, they never decide.
+ */
+export function mergeCodexHooks(existing: ClaudeSettings, bin: string): ClaudeSettings {
+  const settings = structuredClone(existing);
+  const hook = (command: string) => ({
+    type: 'command' as const,
+    command,
+    async: true,
+    timeout: 5,
+  });
+  addHook(
+    settings,
+    'PermissionRequest',
+    { matcher: '*', hooks: [hook(`${bin} notify --source codex --from-codex-hook`)] },
+    'notify --source codex --from-codex-hook',
+  );
+  const resolve = `${bin} notify --source codex --resolve`;
+  addHook(
+    settings,
+    'PostToolUse',
+    { matcher: '*', hooks: [hook(resolve)] },
+    'notify --source codex --resolve',
+  );
+  addHook(
+    settings,
+    'UserPromptSubmit',
+    { hooks: [hook(resolve)] },
+    'notify --source codex --resolve',
+  );
+  return settings;
+}
+
+export function applyCodexHooks(path: string, bin: string, stamp: string): string {
+  const current = existsSync(path)
+    ? (JSON.parse(readFileSync(path, 'utf8')) as ClaudeSettings)
+    : {};
+  const merged = mergeCodexHooks(current, bin);
+  if (JSON.stringify(merged) === JSON.stringify(current)) return `${path}: already set up`;
+  const backup = backupFile(path, stamp);
+  writeFileSync(path, `${JSON.stringify(merged, null, 2)}\n`);
+  return `${path}: updated${backup ? ` (backup at ${backup})` : ''}. Trust the new hooks once with /hooks in Codex.`;
 }
 
 /** Copies a file aside before it is touched, so an apply can always be reversed by hand. */
