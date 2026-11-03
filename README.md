@@ -155,6 +155,7 @@ Everything is in `deployment.env`, a tracked file you edit by hand. After changi
 | `SIRIUS_MEMORY_FILE` | inside the Obsidian vault | The Markdown file Sirius remembers in. You can read and edit it. |
 | `SIRIUS_VOICE_EN` / `SIRIUS_VOICE_RO` | `en_US-lessac-medium` / `ro_RO-mihai-medium` | Any [Piper voice](https://rhasspy.github.io/piper-samples/) name, or a direct link to a voice's `.onnx` file. |
 | `SIRIUS_VOICE_PACE` | `1.0` | Above 1 speaks more slowly. |
+| `SIRIUS_NTFY_URL` | empty | An [ntfy](https://ntfy.sh) topic, for agent alerts and reminders on the phone. The public server sees the text, so use a long random topic, or host ntfy yourself. |
 
 Secrets never go in `deployment.env`. The remote setup keeps them in the git-ignored `infra/.env`.
 
@@ -220,8 +221,9 @@ phone. Known limits:
 
 - **Memory:** the desktop app uses about 294 MB against a 200 MB target, because of WebKitGTK.
   ADR 0004 explains why Tauri stays.
-- **Phone gaps:** phone notifications and phone push-to-talk are not wired up yet. Reminders
-  cannot reach the phone while the laptop is off.
+- **Phone gaps:** phone push-to-talk is not wired up yet. Notifications reach the phone only
+  through ntfy, set up by you, and only while the laptop is on; schedule alarms come from the
+  phone's own calendar instead.
 - **Remote mode** (Docker, Cloudflare, ntfy) is built and tested locally, but has never been
   deployed. The container also has no agent CLIs.
 - **Wake word:** "Hey Sirius" is planned for M9.

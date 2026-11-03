@@ -61,6 +61,10 @@ echo "SIRIUS_UI_DIR=$UI" >> "$env_file"
 if [ -n "${SIRIUS_MEMORY_FILE:-}" ]; then
   echo "SIRIUS_MEMORY_FILE=$SIRIUS_MEMORY_FILE" >> "$env_file"
 fi
+# Phone notifications through the ntfy app, local or remote alike.
+if [ -n "${SIRIUS_NTFY_URL:-}" ]; then
+  echo "SIRIUS_NTFY_URL=$SIRIUS_NTFY_URL" >> "$env_file"
+fi
 echo "PATH=$path" >> "$env_file"
 mv "$env_file" "$CONFIG/env"
 

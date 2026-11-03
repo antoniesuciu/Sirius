@@ -126,3 +126,5 @@
   reminder 10 minutes before. Agents add and change it. `sirius calendar` gives an iCalendar feed
   that ICSx⁵ puts into Android's calendar and widgets. Real Claude filled it in correctly from one
   sentence and created no tasks.
+- `SIRIUS_NTFY_URL` in `deployment.env` now also works on the laptop, for phone notifications
+  through the ntfy app. It is off until a topic is chosen.
