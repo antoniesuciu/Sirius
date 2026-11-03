@@ -497,6 +497,16 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
   }, options.toastAfterMs);
 
   return {
+    push: {
+      async key() {
+        // A valid P-256 point, so a browser accepts it; nothing is ever sent with it.
+        return 'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8';
+      },
+      async subscribe(subscription) {
+        (globalThis as { pushSubscriptions?: unknown[] }).pushSubscriptions ??= [];
+        (globalThis as { pushSubscriptions?: unknown[] }).pushSubscriptions?.push(subscription);
+      },
+    },
     /** Every recording is heard as the same command, done at once like the voice fast path. */
     async speak(audio) {
       if (audio.size === 0) return { transcript: '', lang: 'en', reply: null };

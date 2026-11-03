@@ -42,11 +42,22 @@ export interface SpokenTurn {
   reply: string | null;
 }
 
+/** What a browser's PushSubscription.toJSON() gives, which the core stores (F39). */
+export interface PushSubscriptionData {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
 export interface SiriusClient {
   /** Hands a file to the core, which reads it and keeps the text for an hour. */
   attach(file: Blob, name: string): Promise<AttachedFile>;
   /** Sends a recording to be transcribed and acted on, as push-to-talk does on the laptop. */
   speak(audio: Blob): Promise<SpokenTurn>;
+  /** Browser push (F39): the laptop's public key, and where to send this phone's notifications. */
+  push: {
+    key(): Promise<string>;
+    subscribe(subscription: PushSubscriptionData): Promise<void>;
+  };
   call<N extends OpName>(name: N, input: OpInput<N>, options?: CallOptions): Promise<OpOutput<N>>;
   /** Streams events, reconnecting on failure. Returns an unsubscribe function. */
   subscribe(handlers: EventHandlers): () => void;
@@ -156,6 +167,25 @@ export function createHttpClient(options: HttpClientOptions): SiriusClient {
       });
       if (!res.ok) throw await toApiError(res);
       return res.json();
+    },
+    push: {
+      async key() {
+        const res = await fetchFn(`${options.baseUrl}/v1/push/key`, {
+          headers,
+          ...(options.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs) } : {}),
+        });
+        if (!res.ok) throw await toApiError(res);
+        return ((await res.json()) as { key: string }).key;
+      },
+      async subscribe(subscription) {
+        const res = await fetchFn(`${options.baseUrl}/v1/push/subscription`, {
+          method: 'POST',
+          headers: { ...headers, 'content-type': 'application/json' },
+          body: JSON.stringify(subscription),
+          ...(options.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs) } : {}),
+        });
+        if (!res.ok) throw await toApiError(res);
+      },
     },
     subscribe(handlers) {
       const controller = new AbortController();

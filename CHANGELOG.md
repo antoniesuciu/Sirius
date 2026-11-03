@@ -151,3 +151,7 @@
 - The phone opens on Today, which comes first in the bar. The mic still opens Sirius.
 - The wolf avatar is hidden on the desktop and the phone for now. Its files stay in `packages/ui`, and its states still show in the status line.
 - Desktop: the two header buttons sit beside the greeting, and the answer line under it takes room only when there is an answer.
+- Phone notifications by browser push (F39): "Turn on" on Today, then reminders, schedule and
+  agent alerts arrive as Android notifications with no extra app. Encrypted on the laptop for the
+  phone (RFC 8291, checked against the RFC's test vector) and signed with a VAPID key kept in the
+  data folder. A tap opens the matching tab. No new dependency: WebCrypto only.

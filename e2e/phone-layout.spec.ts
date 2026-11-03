@@ -224,3 +224,56 @@ test('screenshots for review', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${dir}/narrow-codex.png` });
 });
+
+/** A browser that can be asked for notifications, with a push manager that just records. */
+async function fakePush(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    let permission = 'default';
+    class FakeNotification {
+      static get permission() {
+        return permission;
+      }
+      static async requestPermission() {
+        permission = 'granted';
+        return permission;
+      }
+    }
+    Object.defineProperty(window, 'Notification', { value: FakeNotification });
+    Object.defineProperty(window, 'PushManager', { value: class {} });
+    const pushManager = {
+      getSubscription: async () => null,
+      subscribe: async (options: { applicationServerKey: Uint8Array }) => ({
+        options: { applicationServerKey: options.applicationServerKey.buffer },
+        unsubscribe: async () => true,
+        toJSON: () => ({
+          endpoint: 'https://push.example/phone',
+          keys: { p256dh: 'p', auth: 'a' },
+        }),
+      }),
+    };
+    Object.defineProperty(navigator.serviceWorker, 'ready', {
+      value: Promise.resolve({ pushManager }),
+    });
+  });
+}
+
+test('notifications are offered on Today and, once allowed, the phone is registered', async ({
+  page,
+}) => {
+  await fakePush(page);
+  await openPhone(page);
+  const offer = page.locator('.push-offer');
+  await expect(offer).toContainText('Reminders and alerts can come to this phone.');
+  await offer.getByRole('button', { name: 'Turn on' }).click();
+  await expect(offer).toHaveCount(0);
+  const registered = await page.evaluate(
+    () => (globalThis as { pushSubscriptions?: Array<{ endpoint: string }> }).pushSubscriptions,
+  );
+  expect(registered?.[0]?.endpoint).toBe('https://push.example/phone');
+});
+
+test('a tapped notification opens the tab it is about', async ({ page }) => {
+  await page.goto('/?fixtures&phone&toastMs=600000&tab=list');
+  await expect(tab(page, 'List')).toHaveAttribute('aria-current', 'page');
+  expect(new URL(page.url()).searchParams.has('tab')).toBe(false);
+});

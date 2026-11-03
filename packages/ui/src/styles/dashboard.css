@@ -1477,3 +1477,20 @@ fieldset.agent-switch {
     display: none;
   }
 }
+/* F39: offered once on the phone, until notifications are on or refused. */
+.push-offer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel);
+  font-size: 16px;
+  color: var(--ink-2);
+}
+.push-offer .pill {
+  flex: none;
+  min-height: 38px;
+}

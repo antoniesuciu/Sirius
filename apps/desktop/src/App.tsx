@@ -35,9 +35,10 @@ import {
   WindowControls,
 } from '@sirius/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConnectionLine } from './ConnectionLine.tsx';
 import { browserVoiceSupported, usePhoneVoice } from './data/browserVoice.ts';
+import { useOpenTabRequests, usePhonePush } from './data/phonePush.ts';
 import {
   useAddTask,
   useAddToList,
@@ -70,6 +71,20 @@ const WELCOME = 'Ask me anything, or tell me what to add.';
 const HEARD_KEPT = 6;
 /** Below this width a phone gets tabs; a laptop browser in development keeps the columns. */
 const PHONE_QUERY = '(max-width: 900px)';
+
+const TABS: readonly PhoneTab[] = ['today', 'sirius', 'plan', 'list'];
+const isTab = (value: unknown): value is PhoneTab => TABS.includes(value as PhoneTab);
+
+/** A tapped notification opens the app at ?tab=…, once; the address is then cleaned up. */
+function startingTab(): PhoneTab {
+  const params = new URLSearchParams(window.location.search);
+  const asked = params.get('tab');
+  if (!isTab(asked)) return 'today';
+  params.delete('tab');
+  const rest = params.toString();
+  window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
+  return asked;
+}
 
 function useNarrow(enabled: boolean): boolean {
   const query = typeof window.matchMedia === 'function' ? window.matchMedia(PHONE_QUERY) : null;
@@ -104,7 +119,7 @@ export function App({ phone = false }: { phone?: boolean }) {
   const hidden = usePageHidden();
   const resting = useResting(REST_AFTER_MS);
   const tabbed = useNarrow(phone);
-  const [tab, setTab] = useState<PhoneTab>('today');
+  const [tab, setTab] = useState<PhoneTab>(startingTab);
   const [fresh, setFresh] = useState<ReadonlySet<PhoneTab>>(new Set());
   const [heard, setHeard] = useState<Array<{ at: number; line: ChatLine }>>([]);
   const shownTab = useRef(tab);
@@ -138,8 +153,9 @@ export function App({ phone = false }: { phone?: boolean }) {
     },
   });
   const phoneMic = phone && browserVoiceSupported();
+  const push = usePhonePush(client, phone);
 
-  const openTab = (next: PhoneTab) => {
+  const openTab = useCallback((next: PhoneTab) => {
     setTab(next);
     setFresh((now) => {
       if (!now.has(next)) return now;
@@ -147,7 +163,15 @@ export function App({ phone = false }: { phone?: boolean }) {
       rest.delete(next);
       return rest;
     });
-  };
+  }, []);
+  useOpenTabRequests(
+    useCallback(
+      (asked: string) => {
+        if (isTab(asked)) openTab(asked);
+      },
+      [openTab],
+    ),
+  );
 
   const listen = (event: SiriusEvent) => {
     phoneVoice.onEvent(event);
@@ -479,6 +503,14 @@ export function App({ phone = false }: { phone?: boolean }) {
               {siriusPanel}
             </div>
             <div className="phone-section" hidden={tab !== 'today'}>
+              {push.state === 'off' && (
+                <div className="push-offer">
+                  <span>{push.error ?? 'Reminders and alerts can come to this phone.'}</span>
+                  <button type="button" className="pill" onClick={() => void push.turnOn()}>
+                    Turn on
+                  </button>
+                </div>
+              )}
               {todayPanel}
               {schedulePanel}
               {wellbeingPanel}

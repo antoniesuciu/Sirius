@@ -10,8 +10,9 @@ import { Dispatcher, type SystemHandlers } from './dispatcher.ts';
 import { DomainError } from './errors.ts';
 import { Phones } from './http/phones.ts';
 import type { Notifier } from './notifier.ts';
-import { RateLimitedNotifier } from './notifier.ts';
+import { FanOutNotifier, RateLimitedNotifier } from './notifier.ts';
 import type { OpHooks } from './ops/context.ts';
+import { Push, throwawayVapidKey, type VapidKey, WebPushNotifier } from './push.ts';
 import { openSqlite, type SqliteHandle } from './runtime/sqlite.ts';
 import { Scheduler } from './scheduler.ts';
 import { Agents } from './services/agents.ts';
@@ -33,6 +34,10 @@ export interface CoreOptions {
   /** The Markdown file Sirius remembers in. Without one, nothing is kept. */
   memoryFile?: string;
   clock?: () => number;
+  /** The laptop's browser-push key (F39). Without one, a throwaway key is made for the run. */
+  vapid?: VapidKey;
+  /** Sends browser pushes. Tests replace it; it defaults to fetch. */
+  pushFetch?: typeof fetch;
 }
 
 export interface Core {
@@ -45,6 +50,7 @@ export interface Core {
   chat: Chat;
   voice: VoiceState;
   phones: Phones;
+  push: Push;
   attachments: Attachments;
   timeZone: string;
   close(): void;
@@ -58,7 +64,12 @@ export function createCore(options: CoreOptions): Core {
 
   const bus = new EventBus();
   const store = new Store(sqlite.db, bus, clock);
-  const notifier = new RateLimitedNotifier(options.notifier, clock);
+  const push = new Push(sqlite, options.vapid ?? throwawayVapidKey(), options.pushFetch, clock);
+  // Every notification also goes to the phones that turned notifications on.
+  const notifier = new RateLimitedNotifier(
+    new FanOutNotifier([options.notifier, new WebPushNotifier(push)]),
+    clock,
+  );
   const settings = new Settings(store);
   const attention = new Attention(store, bus, notifier, timeZone);
   const hooks: OpHooks = { quietEnded: (since) => attention.releaseSince(since) };
@@ -101,7 +112,10 @@ export function createCore(options: CoreOptions): Core {
       return chat.send(input, documents);
     },
     start_phone_pairing: () => phones.startPairing(),
-    forget_phones: () => phones.forgetAll(),
+    forget_phones: () => {
+      push.forgetAll();
+      return phones.forgetAll();
+    },
     remember: ({ fact }) => memory.remember(fact, logicalDate(store.now(), timeZone)),
     cancel_chat: ({ turn_id }) => {
       chat.cancel(turn_id);
@@ -149,6 +163,7 @@ export function createCore(options: CoreOptions): Core {
     chat,
     voice,
     phones,
+    push,
     attachments,
     timeZone,
     close() {

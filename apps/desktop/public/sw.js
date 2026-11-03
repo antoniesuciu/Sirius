@@ -50,3 +50,40 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request).then((hit) => hit ?? caches.match(fallback))),
   );
 });
+
+// Browser push (F39). The laptop encrypts each notification for this phone; the browser
+// decrypts it before this runs.
+self.addEventListener('push', (event) => {
+  let message = { title: 'Sirius', body: '', tag: 'sirius', tab: 'today' };
+  try {
+    message = { ...message, ...event.data.json() };
+  } catch {
+    // An empty or unreadable push still says something arrived.
+  }
+  event.waitUntil(
+    self.registration.showNotification(message.title, {
+      body: message.body,
+      tag: message.tag,
+      renotify: true,
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      data: { tab: message.tab },
+    }),
+  );
+});
+
+// A tap opens Sirius on the tab the notification is about, reusing an open window.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const tab = event.notification.data?.tab ?? 'today';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const open = windows[0];
+      if (open) {
+        open.postMessage({ type: 'open-tab', tab });
+        return open.focus();
+      }
+      return self.clients.openWindow(`./?tab=${encodeURIComponent(tab)}`);
+    }),
+  );
+});

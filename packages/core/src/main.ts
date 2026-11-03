@@ -12,6 +12,7 @@ import { DesktopLink } from './desktopLink.ts';
 import { createAccessVerifier } from './http/access.ts';
 import { createApp } from './http/app.ts';
 import { FanOutNotifier, LibnotifyNotifier, type Notifier, NtfyNotifier } from './notifier.ts';
+import { loadOrCreateVapidKey } from './push.ts';
 import { serve } from './runtime/serve.ts';
 import { seedDemo } from './seed.ts';
 
@@ -60,6 +61,7 @@ const core = createCore({
   timeZone: config.timeZone,
   memoryFile: config.memoryFile,
   notifier: buildNotifier(),
+  vapid: loadOrCreateVapidKey(join(config.dataDir, 'push-vapid.json')),
   adapters: {
     claude: createClaudeAdapter({ ...adapterBase, bin: process.env.SIRIUS_CLAUDE_BIN ?? 'claude' }),
     codex: createCodexAdapter({ ...adapterBase, bin: process.env.SIRIUS_CODEX_BIN ?? 'codex' }),

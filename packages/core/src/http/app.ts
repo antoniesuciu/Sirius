@@ -17,6 +17,7 @@ import type { Core } from '../core.ts';
 import type { DesktopLink } from '../desktopLink.ts';
 import type { Caller } from '../dispatcher.ts';
 import { DomainError } from '../errors.ts';
+import type { PushSubscriptionInput } from '../push.ts';
 import { Replays } from './replays.ts';
 import { serveUi } from './static.ts';
 
@@ -213,6 +214,22 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
     const name = decodeURIComponent(c.req.header('x-filename') ?? 'file');
     const bytes = new Uint8Array(await c.req.arrayBuffer());
     return c.json(await core.attachments.put(name, bytes));
+  });
+
+  // F39: browser push. The phone asks for the laptop's public key, then hands over where to
+  // send and how to encrypt. Behind the same login as everything else.
+  app.get('/v1/push/key', (c) => c.json({ key: core.push.publicKey() }));
+  app.post('/v1/push/subscription', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as PushSubscriptionInput | null;
+    if (!body || !core.push.subscribe(body)) {
+      throw new DomainError(400, 'invalid_subscription', 'That push subscription is not valid.');
+    }
+    return c.body(null, 204);
+  });
+  app.delete('/v1/push/subscription', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { endpoint?: string } | null;
+    if (body?.endpoint) core.push.unsubscribe(body.endpoint);
+    return c.body(null, 204);
   });
 
   // Phone push-to-talk (ADR-10): the browser records, the voice service transcribes.

@@ -124,6 +124,11 @@ version 0.1.0, and apt would otherwise skip it. If Sirius is open, restart it wi
 The code works once, for five minutes. `sirius forget-phones` signs out every paired phone.
 The phone picks up new versions by itself after each install.
 
+For notifications on the phone, tap **Turn on** at the top of Today and allow them. Reminders,
+schedule alerts and agent alerts then arrive as ordinary Android notifications, through Chrome,
+with no extra app. Each one is encrypted on the laptop for that phone, so the push service in
+between cannot read it. They come from the laptop, so it has to be awake.
+
 For the schedule in your phone's own calendar, with its widget and alarms that ring with the
 laptop off, run `sirius calendar` and subscribe to the address it prints with
 [ICSx⁵](https://icsx5.bitfire.at/), a free, open-source Android app.
