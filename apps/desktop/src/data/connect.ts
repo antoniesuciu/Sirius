@@ -51,7 +51,8 @@ export async function connect(): Promise<Boot> {
   const params = new URLSearchParams(window.location.search);
   if (params.has('fixtures')) {
     const client = createFixtureClient({ toastAfterMs: Number(params.get('toastMs') ?? 14_000) });
-    return { kind: 'ready', client, phone: false, reachable: true };
+    // ?fixtures&phone shows the phone layout with the same fake data.
+    return { kind: 'ready', client, phone: params.has('phone'), reachable: true };
   }
   if ('__TAURI_INTERNALS__' in window) {
     const { url, token, headers } = await invoke<CoreConnection>('core_connection');

@@ -28,9 +28,25 @@ export interface AttachedFile {
   pages: number | null;
 }
 
+/** What the core made of a recording from the phone (ADR 0010). */
+export interface SpokenTurn {
+  /** Empty when nothing was heard; nothing else happened then. */
+  transcript: string;
+  /** What Whisper heard, such as "en" or "ro". */
+  lang: string;
+  /** A command was done at once, or an agent turn started and streams as usual. */
+  route?: 'fast_path' | 'agent';
+  turn_id?: string;
+  intent?: string | null;
+  /** The answer to a command, to be said aloud. Null for an agent turn. */
+  reply: string | null;
+}
+
 export interface SiriusClient {
   /** Hands a file to the core, which reads it and keeps the text for an hour. */
   attach(file: Blob, name: string): Promise<AttachedFile>;
+  /** Sends a recording to be transcribed and acted on, as push-to-talk does on the laptop. */
+  speak(audio: Blob): Promise<SpokenTurn>;
   call<N extends OpName>(name: N, input: OpInput<N>, options?: CallOptions): Promise<OpOutput<N>>;
   /** Streams events, reconnecting on failure. Returns an unsubscribe function. */
   subscribe(handlers: EventHandlers): () => void;
@@ -126,6 +142,17 @@ export function createHttpClient(options: HttpClientOptions): SiriusClient {
         body: file,
         // A 20 MB file over a phone network takes longer than an ordinary call.
         ...(options.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs * 8) } : {}),
+      });
+      if (!res.ok) throw await toApiError(res);
+      return res.json();
+    },
+    async speak(audio) {
+      const res = await fetchFn(`${options.baseUrl}/v1/voice/audio`, {
+        method: 'POST',
+        headers,
+        body: audio,
+        // Transcribing on the laptop takes a few seconds on top of the upload.
+        ...(options.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs * 4) } : {}),
       });
       if (!res.ok) throw await toApiError(res);
       return res.json();

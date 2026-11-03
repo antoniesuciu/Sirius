@@ -19,9 +19,14 @@ export interface LiveState {
   clearUndo(): void;
 }
 
-/** Owns the SSE subscription: cache invalidation plus the state only events carry. */
-export function useLive(): LiveState {
+/**
+ * Owns the SSE subscription: cache invalidation plus the state only events carry. `listen` also
+ * sees every event, for the phone's voice and tab dots; it may change on every render.
+ */
+export function useLive(listen?: (event: SiriusEvent) => void): LiveState {
   const client = useClient();
+  const listener = useRef(listen);
+  listener.current = listen;
   const qc = useQueryClient();
   const [streaming, setStreaming] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
@@ -77,6 +82,7 @@ export function useLive(): LiveState {
         void qc.invalidateQueries({ queryKey: [key] });
       }
       if (event.type === 'chat') onChat(event);
+      listener.current?.(event);
       if (event.type === 'voice') qc.setQueryData(['get_voice_state'], event.state);
       if (event.type === 'ui_action' && event.action === 'start_breathing') {
         setBreathingSignal((n) => n + 1);

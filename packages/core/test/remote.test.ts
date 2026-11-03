@@ -203,8 +203,39 @@ describe('phone audio', () => {
       route: 'fast_path',
       reply: 'Added Buy rice to today.',
       transcript: 'add buy rice to today',
+      // The phone says the reply itself, so it needs to know in which language (F38).
+      lang: 'en',
     });
     expect(h.run('get_today', {}).tasks[0]?.title).toBe('Buy rice');
+  });
+
+  test('a paired phone may send audio', async () => {
+    const h = harness();
+    globalThis.fetch = (async () => Response.json({ text: 'ce oră e', lang: 'ro' })) as never;
+    const app = createApp(h.core, {
+      token: 't',
+      mode: 'local',
+      version: 'x',
+      voiceUrl: 'http://voice',
+    });
+    const pairing = await app.request('/v1/phones/pairing', {
+      method: 'POST',
+      headers: { authorization: 'Bearer t' },
+    });
+    const { code } = (await pairing.json()) as { code: string };
+    const paired = await app.request('/v1/pair', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code, name: 'Phone' }),
+    });
+    const { token } = (await paired.json()) as { token: string };
+    const res = await app.request('/v1/voice/audio', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: 'audio-bytes',
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ route: 'fast_path', lang: 'ro' });
   });
 
   test('no voice service says so', async () => {

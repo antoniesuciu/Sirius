@@ -128,3 +128,9 @@
   sentence and created no tasks.
 - `SIRIUS_NTFY_URL` in `deployment.env` now also works on the laptop, for phone notifications
   through the ntfy app. It is off until a topic is chosen.
+- The phone has its own layout (F38): Sirius, Today, Plan and List one at a time above a bottom
+  bar with the mic in the middle, instead of one long scroll. A dot marks a section that changed,
+  and a reply links to what it changed. The desktop is unchanged.
+- Fixed: talking to the phone never worked once pairing existed, because the recording was sent
+  without the phone's token. The phone now also says the answer with Android's own voice.
+- Fixed: semicolons in schedule titles were not escaped in the calendar feed.

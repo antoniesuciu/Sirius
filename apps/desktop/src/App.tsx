@@ -7,6 +7,7 @@ import {
   logicalDate,
   type Proposal,
   type ReminderView,
+  type SiriusEvent,
 } from '@sirius/contracts';
 import {
   AgentToast,
@@ -20,18 +21,23 @@ import {
   nextStep,
   type PendingFile,
   PersonalPanel,
+  type PhoneTab,
+  receiptForIntent,
+  receiptsFor,
   SchedulePanel,
   SiriusPanel,
+  TabBar,
   TodayPanel,
+  tabForEntity,
   usePageHidden,
   useResting,
   WellbeingPanel,
   WindowControls,
 } from '@sirius/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ConnectionLine } from './ConnectionLine.tsx';
-import { browserVoiceSupported, useBrowserVoice } from './data/browserVoice.ts';
+import { browserVoiceSupported, usePhoneVoice } from './data/browserVoice.ts';
 import {
   useAddTask,
   useAddToList,
@@ -60,6 +66,23 @@ const OWNER = 'Antonie';
 const SNOOZE_MS = 60 * 60 * 1000;
 const REST_AFTER_MS = 30_000;
 const WELCOME = 'Ask me anything, or tell me what to add.';
+/** Spoken commands shown on the phone, which are not part of the thread. */
+const HEARD_KEPT = 6;
+/** Below this width a phone gets tabs; a laptop browser in development keeps the columns. */
+const PHONE_QUERY = '(max-width: 900px)';
+
+function useNarrow(enabled: boolean): boolean {
+  const query = typeof window.matchMedia === 'function' ? window.matchMedia(PHONE_QUERY) : null;
+  const [narrow, setNarrow] = useState(() => enabled && (query?.matches ?? false));
+  useEffect(() => {
+    if (!enabled || !query) return;
+    const update = () => setNarrow(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, [enabled, query]);
+  return narrow;
+}
 
 /** fetch rejects with a TypeError when nothing answered, which WebKit words as "Load failed". */
 function failureText(error: unknown): string {
@@ -80,7 +103,67 @@ export function App({ phone = false }: { phone?: boolean }) {
   const client = useClient();
   const hidden = usePageHidden();
   const resting = useResting(REST_AFTER_MS);
-  const live = useLive();
+  const tabbed = useNarrow(phone);
+  const [tab, setTab] = useState<PhoneTab>('sirius');
+  const [fresh, setFresh] = useState<ReadonlySet<PhoneTab>>(new Set());
+  const [heard, setHeard] = useState<Array<{ at: number; line: ChatLine }>>([]);
+  const shownTab = useRef(tab);
+  shownTab.current = tab;
+
+  const [sendError, setSendError] = useState<string | null>(null);
+  const phoneVoice = usePhoneVoice(client, {
+    onError: setSendError,
+    onHeard: ({ transcript, reply, intent }) => {
+      const receipt = receiptForIntent(intent);
+      const at = Date.now();
+      setHeard((now) =>
+        [
+          ...now,
+          { at, line: { id: `heard-${at}`, mine: true, text: transcript } },
+          ...(reply
+            ? [
+                {
+                  at,
+                  line: {
+                    id: `said-${at}`,
+                    mine: false,
+                    text: reply,
+                    ...(receipt ? { receipts: [receipt] } : {}),
+                  },
+                },
+              ]
+            : []),
+        ].slice(-HEARD_KEPT),
+      );
+    },
+  });
+  const phoneMic = phone && browserVoiceSupported();
+
+  const openTab = (next: PhoneTab) => {
+    setTab(next);
+    setFresh((now) => {
+      if (!now.has(next)) return now;
+      const rest = new Set(now);
+      rest.delete(next);
+      return rest;
+    });
+  };
+
+  const listen = (event: SiriusEvent) => {
+    phoneVoice.onEvent(event);
+    if (!tabbed || event.type !== 'change') return;
+    const where = tabForEntity(event.entity);
+    if (where && where !== shownTab.current) {
+      setFresh((now) => (now.has(where) ? now : new Set(now).add(where)));
+    }
+  };
+  const live = useLive(listen);
+
+  // "Start breathing" said to the phone should show the breathing, which lives under Today.
+  const breathing = live.breathingSignal;
+  useEffect(() => {
+    if (tabbed && breathing > 0) setTab('today');
+  }, [tabbed, breathing]);
 
   const today = useToday().data;
   const goals = useGoals().data ?? [];
@@ -120,10 +203,8 @@ export function App({ phone = false }: { phone?: boolean }) {
   const ackEvent = useOp('ack_agent_event', ['list_agent_events', 'get_agents']);
 
   const [dismissedToasts, setDismissedToasts] = useState<ReadonlySet<string>>(new Set());
-  const [sendError, setSendError] = useState<string | null>(null);
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [pendingText, setPendingText] = useState<string | null>(null);
-  const browserVoice = useBrowserVoice(setSendError);
 
   const quiet = today?.quiet_mode ?? false;
   const tasks = today?.tasks;
@@ -146,7 +227,13 @@ export function App({ phone = false }: { phone?: boolean }) {
     };
   }, [roadmaps, tasks, quiet, hour]);
 
-  const voiceState = voice?.state ?? 'idle';
+  const voiceState = phoneVoice.recording
+    ? 'listening'
+    : phoneVoice.speaking
+      ? 'speaking'
+      : phoneVoice.sending
+        ? 'thinking'
+        : (voice?.state ?? 'idle');
   const avatar: AvatarState =
     voiceState === 'listening'
       ? 'listening'
@@ -167,17 +254,27 @@ export function App({ phone = false }: { phone?: boolean }) {
     asleep: 'quiet until tomorrow',
   }[avatar];
 
-  const messages: ChatLine[] = (conversation?.messages ?? [])
+  const thread = (conversation?.messages ?? [])
     .filter((m) => m.role !== 'tool')
     .map((m) => {
       const files = (m.meta?.attachments as Array<{ name: string }> | undefined) ?? [];
+      const receipts = receiptsFor((m.meta?.tools as string[] | undefined) ?? []);
       return {
         id: m.id,
         mine: m.role === 'user',
         text: m.text,
         ...(files.length > 0 ? { attachments: files.map((f) => f.name) } : {}),
+        ...(receipts.length > 0 ? { receipts } : {}),
       };
     });
+  // Spoken commands slot in by time, so a later typed message still comes after them.
+  const stamps = new Map((conversation?.messages ?? []).map((m) => [m.id, m.created_at]));
+  const messages: ChatLine[] = [
+    ...thread.map((line) => ({ at: stamps.get(line.id) ?? 0, line })),
+    ...heard,
+  ]
+    .sort((a, b) => a.at - b.at)
+    .map((entry) => entry.line);
   const lines: ChatLine[] = [
     ...(messages.length === 0 && pendingText === null
       ? [{ id: 'welcome', mine: false, text: WELCOME }]
@@ -233,8 +330,130 @@ export function App({ phone = false }: { phone?: boolean }) {
     reason: null,
   }));
 
+  const onMic = () => {
+    setSendError(null);
+    if (phoneMic) {
+      if (tabbed) openTab('sirius');
+      return phoneVoice.toggle();
+    }
+    client.call('voice_ptt', {}).catch((error) => setSendError(failureText(error)));
+  };
+
+  const siriusPanel = (
+    <SiriusPanel
+      avatar={avatar}
+      level={voice?.level ?? 0}
+      still={resting}
+      status={status}
+      selected={agents?.selected ?? 'claude'}
+      agents={agents?.agents ?? fallbackAgents}
+      onSelectAgent={(agent) => selectAgent.mutate({ agent }, showFailure)}
+      onSelectModel={(model) =>
+        selectAgent.mutate({ agent: agents?.selected ?? 'claude', model }, showFailure)
+      }
+      messages={lines}
+      streaming={live.streaming}
+      thinking={live.thinking}
+      busy={live.turnId !== null}
+      proposals={proposals}
+      onConfirm={(p: Proposal) => confirmProposal.mutate({ id: p.id })}
+      onReject={(p: Proposal) => rejectProposal.mutate({ id: p.id })}
+      undoLabel={
+        live.undoable ? `${agentCatalog[live.undoable.actor as AgentId].label} changed that.` : null
+      }
+      onUndo={() => {
+        if (live.undoable) undo.mutate({ change_id: live.undoable.change_id });
+        live.clearUndo();
+      }}
+      onSend={send}
+      files={files}
+      onAttach={attach}
+      onRemoveFile={(id) => setFiles((now) => now.filter((f) => f.id !== id))}
+      onCancel={() => {
+        if (live.turnId) void client.call('cancel_chat', { turn_id: live.turnId });
+      }}
+      onNewConversation={() => {
+        setPendingText(null);
+        setSendError(null);
+        setHeard([]);
+        newConversation.mutate({});
+      }}
+      voice={{
+        micOpen: (voice?.mic_open ?? false) || phoneVoice.recording,
+        transcript: voice?.transcript ?? null,
+        onMic,
+        onStop: () => {
+          phoneVoice.stopSpeaking();
+          void client.call('voice_stop', {}).catch(() => {});
+        },
+      }}
+      {...(tabbed ? { onOpenTab: openTab } : {})}
+    />
+  );
+  const wellbeingPanel = (
+    <WellbeingPanel
+      nudge={nextOfKind(reminders, 'wellbeing')}
+      onSnoozeNudge={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
+      startSignal={live.breathingSignal}
+    />
+  );
+  const todayPanel = (
+    <TodayPanel
+      tasks={today?.tasks ?? []}
+      restingTomorrow={today?.resting_tomorrow ?? 0}
+      dimmed={quiet}
+      onToggle={(task) => toggleTask.mutate(task)}
+      onAdd={(title) => addTask.mutate(title)}
+      onDrop={(task) => dropTask.mutate(task)}
+    />
+  );
+  const schedulePanel = (
+    <SchedulePanel
+      events={schedule}
+      today={
+        today?.date ?? logicalDate(Date.now(), Intl.DateTimeFormat().resolvedOptions().timeZone)
+      }
+      onAdd={(event) => addScheduleEvent.mutate(event)}
+      onRename={(id, title) => updateScheduleEvent.mutate({ id, title })}
+      onDelete={(id) => deleteScheduleEvent.mutate({ id })}
+    />
+  );
+  const goalsPanel = (
+    <GoalsPanel
+      goals={goals}
+      dimmed={quiet}
+      onRename={(id, title) => renameGoal.mutate({ id, title })}
+      onDelete={(id) => deleteGoal.mutate({ id })}
+      onAdd={(title) => addGoal.mutate({ title })}
+    />
+  );
+  const learningPanel = (
+    <LearningPanel
+      roadmaps={roadmaps}
+      onStepToToday={(id) => stepToToday.mutate({ id })}
+      onRename={(id, title) => renameRoadmap.mutate({ id, title })}
+      onDelete={(id) => deleteRoadmap.mutate({ id })}
+    />
+  );
+  const personalPanel = (
+    <PersonalPanel
+      reminders={reminders.filter((r) => r.kind !== 'wellbeing')}
+      onToggle={(r) => setReminderEnabled.mutate({ id: r.id, enabled: !r.enabled })}
+      onSnooze={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
+    />
+  );
+  const listPanel = (
+    <ListPanel
+      items={listItems ?? []}
+      onAdd={(text) => addToList.mutate(text)}
+      onTick={(item) => tickListItem.mutate(item)}
+    />
+  );
+
   return (
-    <div className={`app ${hidden ? 'paused' : ''} ${resting ? 'resting' : ''}`}>
+    <div
+      className={`app ${tabbed ? 'app-tabbed' : ''} ${hidden ? 'paused' : ''} ${resting ? 'resting' : ''}`}
+    >
       {'__TAURI_INTERNALS__' in window && (
         <WindowControls
           onMinimize={() => void getCurrentWindow().minimize()}
@@ -251,115 +470,55 @@ export function App({ phone = false }: { phone?: boolean }) {
       />
       {phone && <ConnectionLine />}
       {quiet && <div className="quiet-line msg">Quiet mode until tomorrow. Reminders are off.</div>}
-      <main className="columns">
-        {/* Sirius first, so the first thing on the screen is someone to talk to. */}
-        <div className="col col-3">
-          <SiriusPanel
-            avatar={avatar}
-            level={voice?.level ?? 0}
-            still={resting}
-            status={status}
-            selected={agents?.selected ?? 'claude'}
-            agents={agents?.agents ?? fallbackAgents}
-            onSelectAgent={(agent) => selectAgent.mutate({ agent }, showFailure)}
-            onSelectModel={(model) =>
-              selectAgent.mutate({ agent: agents?.selected ?? 'claude', model }, showFailure)
-            }
-            messages={lines}
-            streaming={live.streaming}
-            thinking={live.thinking}
-            busy={live.turnId !== null}
-            proposals={proposals}
-            onConfirm={(p: Proposal) => confirmProposal.mutate({ id: p.id })}
-            onReject={(p: Proposal) => rejectProposal.mutate({ id: p.id })}
-            undoLabel={
-              live.undoable
-                ? `${agentCatalog[live.undoable.actor as AgentId].label} changed that.`
-                : null
-            }
-            onUndo={() => {
-              if (live.undoable) undo.mutate({ change_id: live.undoable.change_id });
-              live.clearUndo();
-            }}
-            onSend={send}
-            files={files}
-            onAttach={attach}
-            onRemoveFile={(id) => setFiles((now) => now.filter((f) => f.id !== id))}
-            onCancel={() => {
-              if (live.turnId) void client.call('cancel_chat', { turn_id: live.turnId });
-            }}
-            onNewConversation={() => {
-              setPendingText(null);
-              setSendError(null);
-              newConversation.mutate({});
-            }}
-            voice={{
-              micOpen: (voice?.mic_open ?? false) || browserVoice.recording,
-              transcript: voice?.transcript ?? null,
-              onMic: () => {
-                setSendError(null);
-                if (browserVoiceSupported()) return browserVoice.toggle();
-                client.call('voice_ptt', {}).catch((error) => setSendError(failureText(error)));
-              },
-              onStop: () => {
-                void client.call('voice_stop', {}).catch(() => {});
-              },
-            }}
+      {tabbed ? (
+        <>
+          {/* Every section stays mounted, so a draft or a breathing round survives a switch. */}
+          <main className="phone-body">
+            <div className="phone-section phone-sirius" hidden={tab !== 'sirius'}>
+              {siriusPanel}
+            </div>
+            <div className="phone-section" hidden={tab !== 'today'}>
+              {todayPanel}
+              {schedulePanel}
+              {wellbeingPanel}
+            </div>
+            <div className="phone-section" hidden={tab !== 'plan'}>
+              {goalsPanel}
+              {learningPanel}
+            </div>
+            <div className="phone-section" hidden={tab !== 'list'}>
+              {listPanel}
+              {personalPanel}
+            </div>
+          </main>
+          <TabBar
+            active={tab}
+            fresh={fresh}
+            onSelect={openTab}
+            micOpen={phoneVoice.recording}
+            micBusy={phoneVoice.sending || phoneVoice.speaking}
+            onMic={onMic}
           />
-          <WellbeingPanel
-            nudge={nextOfKind(reminders, 'wellbeing')}
-            onSnoozeNudge={(r) =>
-              snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })
-            }
-            startSignal={live.breathingSignal}
-          />
-        </div>
-        <div className="col col-1">
-          <TodayPanel
-            tasks={today?.tasks ?? []}
-            restingTomorrow={today?.resting_tomorrow ?? 0}
-            dimmed={quiet}
-            onToggle={(task) => toggleTask.mutate(task)}
-            onAdd={(title) => addTask.mutate(title)}
-            onDrop={(task) => dropTask.mutate(task)}
-          />
-          <SchedulePanel
-            events={schedule}
-            today={
-              today?.date ??
-              logicalDate(Date.now(), Intl.DateTimeFormat().resolvedOptions().timeZone)
-            }
-            onAdd={(event) => addScheduleEvent.mutate(event)}
-            onRename={(id, title) => updateScheduleEvent.mutate({ id, title })}
-            onDelete={(id) => deleteScheduleEvent.mutate({ id })}
-          />
-          <GoalsPanel
-            goals={goals}
-            dimmed={quiet}
-            onRename={(id, title) => renameGoal.mutate({ id, title })}
-            onDelete={(id) => deleteGoal.mutate({ id })}
-            onAdd={(title) => addGoal.mutate({ title })}
-          />
-        </div>
-        <div className="col col-2">
-          <LearningPanel
-            roadmaps={roadmaps}
-            onStepToToday={(id) => stepToToday.mutate({ id })}
-            onRename={(id, title) => renameRoadmap.mutate({ id, title })}
-            onDelete={(id) => deleteRoadmap.mutate({ id })}
-          />
-          <PersonalPanel
-            reminders={reminders.filter((r) => r.kind !== 'wellbeing')}
-            onToggle={(r) => setReminderEnabled.mutate({ id: r.id, enabled: !r.enabled })}
-            onSnooze={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
-          />
-          <ListPanel
-            items={listItems ?? []}
-            onAdd={(text) => addToList.mutate(text)}
-            onTick={(item) => tickListItem.mutate(item)}
-          />
-        </div>
-      </main>
+        </>
+      ) : (
+        <main className="columns">
+          {/* Sirius first, so the first thing on the screen is someone to talk to. */}
+          <div className="col col-3">
+            {siriusPanel}
+            {wellbeingPanel}
+          </div>
+          <div className="col col-1">
+            {todayPanel}
+            {schedulePanel}
+            {goalsPanel}
+          </div>
+          <div className="col col-2">
+            {learningPanel}
+            {personalPanel}
+            {listPanel}
+          </div>
+        </main>
+      )}
       {toastEvent && (
         <AgentToast
           text={describeAgentEvent(toastEvent)}

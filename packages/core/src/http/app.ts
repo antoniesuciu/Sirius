@@ -233,13 +233,13 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
       throw new DomainError(503, 'voice_unavailable', "Voice isn't running right now.");
     }
     const { text, lang } = (await response.json()) as { text: string; lang: string };
-    if (!text) return c.json({ transcript: '', reply: null });
+    if (!text) return c.json({ transcript: '', lang, reply: null });
     const result = core.dispatcher.run(
       'voice_utterance',
       { transcript: text, lang },
       { actor: 'user', via: 'voice' },
     );
-    return c.json({ ...result, transcript: text });
+    return c.json({ ...result, transcript: text, lang });
   });
 
   app.doc31('/v1/openapi.json', {

@@ -7,6 +7,11 @@ const REMOTE_DIR = '.cache/e2e-remote';
 export const PHONE_PORT = 7349;
 export const PHONE_DIR = '.cache/e2e-phone';
 
+/** A fake microphone that is always allowed, for phone push-to-talk. */
+const fakeMic = {
+  chromiumSandbox: false,
+  args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+};
 const previewEnv = { SIRIUS_PORT: String(LIVE_PORT), SIRIUS_DATA_DIR: `../../${LIVE_DATA_DIR}` };
 
 /**
@@ -33,7 +38,7 @@ export default defineConfig({
     {
       name: 'phone',
       testIgnore: /(live|remote|phone)\.spec/,
-      use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } },
+      use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 }, launchOptions: fakeMic },
     },
     {
       // A core started the way the container starts it, serving the UI itself.
@@ -50,7 +55,11 @@ export default defineConfig({
       name: 'phone-live',
       testMatch: /phone\.spec/,
       fullyParallel: false,
-      use: { ...devices['Pixel 7'], baseURL: `http://127.0.0.1:${PHONE_PORT}` },
+      use: {
+        ...devices['Pixel 7'],
+        baseURL: `http://127.0.0.1:${PHONE_PORT}`,
+        launchOptions: fakeMic,
+      },
     },
     {
       name: 'live',

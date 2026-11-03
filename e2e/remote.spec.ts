@@ -2,16 +2,20 @@ import { expect, test } from '@playwright/test';
 
 test('the core serves the whole app at phone size', async ({ page }) => {
   await page.goto('/');
+  await page.locator('.tab-bar .tab', { hasText: 'Today' }).click();
   await expect(page.locator('.task', { hasText: 'Ten pages of Abbott' })).toBeVisible();
+  await page.locator('.tab-bar .tab', { hasText: 'Plan' }).click();
   await expect(page.locator('.goal-title').first()).toBeVisible();
   await expect(page.locator('.node-title').first()).toHaveText('Real analysis');
 });
 
 test('changes made on the phone reach the core', async ({ page }) => {
   await page.goto('/');
+  await page.locator('.tab-bar .tab', { hasText: 'Today' }).click();
   await page.getByLabel('Add a task', { exact: true }).fill('From the phone');
   await page.getByRole('button', { name: 'Add task' }).click();
   await page.reload();
+  await page.locator('.tab-bar .tab', { hasText: 'Today' }).click();
   await expect(page.locator('.smalls')).toContainText('From the phone');
 });
 

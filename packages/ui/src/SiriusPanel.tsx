@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useSmoothedText } from './hooks.ts';
 import { MicIcon, PaperclipIcon, SendIcon } from './Icons.tsx';
 import { ModelPicker } from './ModelPicker.tsx';
+import type { PhoneTab, Receipt } from './PhoneTabs.tsx';
 import { type AvatarState, SiriusAvatar } from './SiriusAvatar.tsx';
 
 export interface ChatLine {
@@ -12,6 +13,8 @@ export interface ChatLine {
   text: string;
   /** Names of files sent with the message (F36). */
   attachments?: string[];
+  /** What this reply changed, shown as links on the phone (F38). */
+  receipts?: Receipt[];
 }
 
 /** A file waiting to go with the next message. */
@@ -57,6 +60,8 @@ export interface SiriusPanelProps {
   onCancel(): void;
   onNewConversation(): void;
   voice: VoiceProps;
+  /** On the phone: opens the tab a receipt points to. Without it, receipts are not shown. */
+  onOpenTab?(tab: PhoneTab): void;
 }
 
 const STATUS_TEXT: Record<AgentStatusValue, string> = {
@@ -191,14 +196,35 @@ export function SiriusPanel(props: SiriusPanelProps) {
           </div>
         )}
         {props.streaming !== null && <StreamingBubble text={props.streaming} />}
-        {[...props.messages].reverse().map((m) => (
-          <div key={m.id} className={m.mine ? 'bubble bubble-me msg' : 'bubble'}>
-            {m.text}
-            {m.attachments && m.attachments.length > 0 && (
-              <span className="bubble-files">{m.attachments.join(' · ')}</span>
-            )}
-          </div>
-        ))}
+        {[...props.messages].reverse().map((m) => {
+          const open = props.onOpenTab;
+          const bubble = (
+            <div key={m.id} className={m.mine ? 'bubble bubble-me msg' : 'bubble'}>
+              {m.text}
+              {m.attachments && m.attachments.length > 0 && (
+                <span className="bubble-files">{m.attachments.join(' · ')}</span>
+              )}
+            </div>
+          );
+          if (!open || !m.receipts?.length) return bubble;
+          return (
+            <div key={m.id} className="reply-with-receipts">
+              {bubble}
+              <div className="receipts">
+                {m.receipts.map((r) => (
+                  <button
+                    key={r.label}
+                    type="button"
+                    className="receipt"
+                    onClick={() => open(r.tab)}
+                  >
+                    Changed {r.label} <span aria-hidden="true">→</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {voice.transcript && <div className="transcript">{voice.transcript}</div>}

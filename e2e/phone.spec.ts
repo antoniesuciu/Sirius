@@ -36,7 +36,11 @@ async function laptopTasks(title: string): Promise<number> {
   return today.tasks.filter((t) => t.title === title).length;
 }
 
-const ready = (page: Page) => expect(page.locator('.task').first()).toBeVisible();
+/** The phone opens on Sirius (F38), so the tasks are one tap away. */
+async function ready(page: Page): Promise<void> {
+  await page.locator('.tab-bar .tab', { hasText: 'Today' }).click();
+  await expect(page.locator('.task').first()).toBeVisible();
+}
 const offlineLine = (page: Page) => page.locator('.connection-line');
 
 async function openAndKeep(page: Page): Promise<void> {
@@ -107,6 +111,7 @@ test('with the laptop away, the phone shows its copy and keeps changes for later
   // Closing the app does not lose it.
   await page.waitForTimeout(1500);
   await page.reload();
+  await ready(page);
   await expect(page.locator('.smalls')).toContainText('Written offline');
   await expect(offlineLine(page)).toContainText('1 change will go through');
   expect(await laptopTasks('Written offline')).toBe(0);
@@ -115,6 +120,7 @@ test('with the laptop away, the phone shows its copy and keeps changes for later
   await expect(offlineLine(page)).toHaveCount(0, { timeout: 15_000 });
   await expect.poll(() => laptopTasks('Written offline'), { timeout: 15_000 }).toBe(1);
   await page.reload();
+  await ready(page);
   await expect(page.locator('.smalls')).toContainText('Written offline');
   expect(await laptopTasks('Written offline')).toBe(1);
 });
@@ -144,6 +150,22 @@ test('a phone the laptop forgot is asked to pair again', async ({ page, context 
   await fetch(`${core}/phones/forget`, { method: 'POST', headers: laptop() });
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Pair this phone' })).toBeVisible();
+});
+
+test("a recording reaches the laptop with the phone's login", async ({ page, context }) => {
+  await pairedPhone(context);
+  await page.goto('/');
+  await ready(page);
+  const upload = page.waitForRequest('**/v1/voice/audio');
+  await page.getByRole('button', { name: 'Talk to Sirius' }).click();
+  await expect(page.getByRole('button', { name: 'Stop listening' })).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.getByRole('button', { name: 'Stop listening' }).click();
+  const sent = await upload;
+  expect(sent.headers().authorization).toMatch(/^Bearer /);
+  // This core runs without the voice service, so getting past the login is all it can show.
+  await expect(page.locator('.chat-log')).toContainText("Voice isn't running right now.");
+  await expect(page.locator('.chat-log')).not.toContainText('token');
 });
 
 test('the first visit keeps everything needed to open with no network', async ({

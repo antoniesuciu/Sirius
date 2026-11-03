@@ -196,12 +196,12 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
   const attachedNames = new Map<string, string>();
 
   /** Streams a scripted reply through the same events a real turn produces. */
-  const replyWith = (turnId: string, text: string, after?: () => void) => {
+  const replyWith = (turnId: string, text: string, after?: () => void, tools: string[] = []) => {
     emit({ type: 'chat', kind: 'start', turn_id: turnId, agent: state.selected });
     setTimeout(() => {
       emit({ type: 'chat', kind: 'text', turn_id: turnId, delta: text });
       setTimeout(() => {
-        pushMessage('assistant', text);
+        pushMessage('assistant', text, { tools });
         after?.();
         emit({ type: 'chat', kind: 'done', turn_id: turnId });
       }, 200);
@@ -235,14 +235,19 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       const title = goalMatch[1].trim();
       state.goals.push({ ...goal(title, 'No deadline yet', 0), milestones: [] });
       changed('goals');
-      return replyWith(turnId, `Added the goal “${title}”, with no deadline.`);
+      return replyWith(turnId, `Added the goal “${title}”, with no deadline.`, undefined, [
+        'list_goals',
+        'add_goal',
+      ]);
     }
     const learnMatch = text.match(/^learn[:\s]+(.+)/i);
     if (learnMatch?.[1]) {
       const title = learnMatch[1].trim();
       state.roadmaps.push(roadmap(title, 'Added just now', 'later', []));
       changed('roadmaps');
-      return replyWith(turnId, `Added ${title} to Learning, at the end of the path.`);
+      return replyWith(turnId, `Added ${title} to Learning, at the end of the path.`, undefined, [
+        'add_roadmap',
+      ]);
     }
     if (/(overwhelm|tired|lighter|too much|tomorrow)/.test(lower)) {
       const open = state.tasks.filter((t) => t.scheduled_for === today && t.status === 'open');
@@ -492,6 +497,21 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
   }, options.toastAfterMs);
 
   return {
+    /** Every recording is heard as the same command, done at once like the voice fast path. */
+    async speak(audio) {
+      if (audio.size === 0) return { transcript: '', lang: 'en', reply: null };
+      const title = 'Water the basil';
+      state.tasks.push(task(title, 'small', today, state.tasks.length));
+      changed('tasks');
+      return {
+        transcript: 'add water the basil to today',
+        lang: 'en',
+        route: 'fast_path',
+        turn_id: newId(),
+        intent: 'add_task',
+        reply: `Added ${title.toLowerCase()} to today.`,
+      };
+    },
     async attach(file, name) {
       const text = name.toLowerCase().endsWith('.pdf') ? 'x'.repeat(4200) : await file.text();
       const id = `file-${Date.now()}`;
