@@ -181,7 +181,17 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
   // The mic takes you to the conversation, where the answer appears.
   await expect(tab(page, 'Sirius')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.sirius-status')).toHaveText('listening');
-  await page.waitForTimeout(500);
+  // The wave opens while listening and moves.
+  const wave = page.locator('.voice-wave');
+  await expect(wave).toHaveAttribute('data-state', 'listening');
+  await expect.poll(async () => (await wave.boundingBox())?.height).toBeGreaterThan(40);
+  const shape = () => page.locator('.wave-ink').getAttribute('d');
+  const first = await shape();
+  await page.waitForTimeout(150);
+  expect(await shape()).not.toBe(first);
+  if (process.env.SIRIUS_SHOTS)
+    await page.screenshot({ path: `${process.env.SIRIUS_SHOTS}/listening.png` });
+  await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Stop listening' }).click();
 
   const log = page.locator('.chat-log');
@@ -192,6 +202,8 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
     .toEqual([{ text: 'Added water the basil to today.', lang: 'en-US' }]);
 
   await expect(tab(page, 'Today').locator('.tab-dot')).toBeVisible();
+  // Back to idle, the wave folds away.
+  await expect(wave).toHaveAttribute('data-state', 'idle');
   await page.getByRole('button', { name: /Changed Today/ }).click();
   await expect(page.locator('.task', { hasText: 'Water the basil' })).toBeVisible();
 });

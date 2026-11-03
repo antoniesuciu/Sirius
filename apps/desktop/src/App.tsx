@@ -412,6 +412,7 @@ export function App({ phone = false }: { phone?: boolean }) {
         },
       }}
       {...(tabbed ? { onOpenTab: openTab, compact: true } : {})}
+      {...(phoneVoice.recording ? { readLevel: phoneVoice.readLevel } : {})}
     />
   );
   const wellbeingPanel = (

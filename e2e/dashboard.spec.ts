@@ -328,6 +328,12 @@ test.describe('sirius', () => {
     await expect(page.locator('.task')).toHaveCount(6);
   });
 
+  test('the voice wave takes no room while Sirius is idle', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('.voice-wave')).toHaveAttribute('data-state', 'idle');
+    expect((await page.locator('.voice-wave').boundingBox())?.height ?? 0).toBe(0);
+  });
+
   test('the mic says so when voice is not running', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'Talk to Sirius' }).click();

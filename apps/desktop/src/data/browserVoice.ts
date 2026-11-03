@@ -4,7 +4,7 @@
  * microphone there.
  */
 import { ApiError, isUnreachable, type SiriusClient, type SiriusEvent } from '@sirius/contracts';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { createSpeaker } from './speech.ts';
 
 const MAX_RECORDING_MS = 20_000; // F28
@@ -50,6 +50,21 @@ export function usePhoneVoice(client: SiriusClient, handlers: Handlers) {
   const sendingNow = useRef(false);
   const latest = useRef(handlers);
   latest.current = handlers;
+  /** Reads the microphone's loudness for the voice wave while recording. */
+  const meter = useRef<{
+    analyser: AnalyserNode;
+    samples: Float32Array<ArrayBuffer>;
+    close(): void;
+  } | null>(null);
+  const readLevel = useCallback(() => {
+    const m = meter.current;
+    if (!m) return 0;
+    m.analyser.getFloatTimeDomainData(m.samples);
+    let sum = 0;
+    for (const sample of m.samples) sum += sample * sample;
+    // Speech RMS sits around 0.02–0.2; scaled so a normal voice fills most of the swing.
+    return Math.min(1, Math.sqrt(sum / m.samples.length) * 6);
+  }, []);
 
   const sayReply = (event: Extract<SiriusEvent, { type: 'voice_reply' }>) => {
     speaker.stream(event.text, event.lang, event.final);
@@ -88,9 +103,24 @@ export function usePhoneVoice(client: SiriusClient, handlers: Handlers) {
   const start = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const media = new MediaRecorder(stream);
+    try {
+      const context = new AudioContext();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      context.createMediaStreamSource(stream).connect(analyser);
+      meter.current = {
+        analyser,
+        samples: new Float32Array(analyser.fftSize),
+        close: () => void context.close(),
+      };
+    } catch {
+      // The wave then just breathes; recording does not depend on it.
+    }
     const chunks: Blob[] = [];
     media.ondataavailable = (event) => chunks.push(event.data);
     media.onstop = () => {
+      meter.current?.close();
+      meter.current = null;
       for (const track of stream.getTracks()) track.stop();
       setRecording(false);
       recorder.current = null;
@@ -113,6 +143,7 @@ export function usePhoneVoice(client: SiriusClient, handlers: Handlers) {
     recording,
     sending,
     speaking,
+    readLevel,
     /** Tap: start, or stop recording, or cut the answer short. Never two at once. */
     toggle() {
       if (recorder.current) recorder.current.stop();

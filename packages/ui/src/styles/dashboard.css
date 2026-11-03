@@ -1494,3 +1494,44 @@ fieldset.agent-switch {
   flex: none;
   min-height: 38px;
 }
+/* The voice wave: no room while idle, a band above the message box while Sirius listens,
+   thinks or speaks. */
+.voice-wave {
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    height 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 0.35s ease;
+}
+.voice-wave[data-state="listening"],
+.voice-wave[data-state="thinking"],
+.voice-wave[data-state="speaking"] {
+  height: 44px;
+  opacity: 1;
+}
+.voice-wave svg {
+  display: block;
+  width: 100%;
+  height: 44px;
+}
+.wave-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.wave-ink {
+  stroke: var(--ink);
+  stroke-width: 1.6;
+}
+.wave-accent {
+  stroke: var(--accent);
+  stroke-width: 1.4;
+  opacity: 0.85;
+}
+.wave-soft {
+  stroke: var(--muted);
+  stroke-width: 1.1;
+  opacity: 0.55;
+}

@@ -8,6 +8,7 @@ import type { PhoneTab, Receipt } from './PhoneTabs.tsx';
 // The wolf is kept in SiriusAvatar.tsx but not shown for now (owner, 2026-11-03). Its states
 // still show as the status line.
 import type { AvatarState } from './SiriusAvatar.tsx';
+import { VoiceWave } from './VoiceWave.tsx';
 
 export interface ChatLine {
   id: string;
@@ -66,6 +67,8 @@ export interface SiriusPanelProps {
   onOpenTab?(tab: PhoneTab): void;
   /** On the phone: one short header, so the chat gets the height. */
   compact?: boolean;
+  /** A live loudness 0–1, such as the phone's microphone, read every frame by the wave. */
+  readLevel?(): number;
 }
 
 const STATUS_TEXT: Record<AgentStatusValue, string> = {
@@ -289,6 +292,12 @@ export function SiriusPanel(props: SiriusPanelProps) {
           ))}
         </ul>
       )}
+
+      <VoiceWave
+        state={props.avatar}
+        level={props.level}
+        {...(props.readLevel ? { readLevel: props.readLevel } : {})}
+      />
 
       <form className="chat-form" onSubmit={submit}>
         <input
