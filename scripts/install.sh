@@ -82,12 +82,20 @@ if $with_voice; then
   UV_PROJECT_ENVIRONMENT="$VENV" uv sync --project services/voice --no-dev --no-editable "${groups[@]}"
 
   mkdir -p "$DATA/voices"
-  "$VENV/bin/python" -m piper.download_voices en_US-lessac-medium ro_RO-mihai-medium \
+  voice_en="${SIRIUS_VOICE_EN:-en_US-lessac-medium}"
+  voice_ro="${SIRIUS_VOICE_RO:-ro_RO-mihai-medium}"
+  # Importing piper loads onnxruntime, which reports to Microsoft unless told not to first.
+  export ORT_DISABLE_TELEMETRY=1
+  "$VENV/bin/python" -m piper.download_voices "$voice_en" "$voice_ro" \
     --download-dir "$DATA/voices"
   HF_HOME="$DATA/models" "$VENV/bin/python" -c \
     "from faster_whisper.utils import download_model; download_model('small')"
 
-  : > "$CONFIG/voice-env"
+  {
+    echo "SIRIUS_VOICE_EN=$voice_en"
+    echo "SIRIUS_VOICE_RO=$voice_ro"
+    echo "SIRIUS_VOICE_PACE=${SIRIUS_VOICE_PACE:-1.0}"
+  } > "$CONFIG/voice-env"
   site="$("$VENV/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
   if [ -d "$site/nvidia/cublas/lib" ]; then
     echo "LD_LIBRARY_PATH=$site/nvidia/cublas/lib:$site/nvidia/cudnn/lib" >> "$CONFIG/voice-env"

@@ -213,7 +213,9 @@ class WhisperStt:
 
 
 class PiperTts:
-    def __init__(self, voices_dir: Path, voice_en: str, voice_ro: str) -> None:
+    def __init__(self, voices_dir: Path, voice_en: str, voice_ro: str, pace: float = 1.0) -> None:
+        #: Above 1 speaks more slowly, on top of the pace each voice was trained with.
+        self.pace = pace
         self.paths = {
             "en": voices_dir / f"{voice_en}.onnx",
             "ro": voices_dir / f"{voice_ro}.onnx",
@@ -238,9 +240,12 @@ class PiperTts:
         threading.Thread(target=load, daemon=True).start()
 
     def synthesize(self, text: str, lang: str) -> tuple[Iterable[np.ndarray], int]:
+        from piper import SynthesisConfig
+
         voice = self._voice(lang)
         rate = voice.config.sample_rate
-        return (chunk.audio_float_array for chunk in voice.synthesize(text)), rate
+        config = SynthesisConfig(length_scale=voice.config.length_scale * self.pace)
+        return (chunk.audio_float_array for chunk in voice.synthesize(text, config)), rate
 
 
 def earcon(speaker: PipeWireSpeaker) -> None:

@@ -291,3 +291,23 @@ def test_no_audio_reaches_disk(tmp_path, monkeypatch):
     session, _ = build()
     drive(session, session.ptt)
     assert list(tmp_path.iterdir()) == []
+
+
+def test_pace_stretches_the_voice_it_is_applied_to(tmp_path):
+    from types import SimpleNamespace
+
+    from sirius_voice.engines import PiperTts
+
+    class Voice:
+        config = SimpleNamespace(sample_rate=22_050, length_scale=1.2)
+
+        def synthesize(self, text, syn_config):
+            self.used = syn_config
+            return []
+
+    tts = PiperTts(tmp_path, "en", "ro", pace=1.5)
+    tts._voices["en"] = voice = Voice()
+    chunks, rate = tts.synthesize("hello", "en")
+    list(chunks)
+    assert rate == 22_050
+    assert voice.used.length_scale == pytest.approx(1.8)

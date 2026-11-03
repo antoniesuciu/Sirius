@@ -49,6 +49,7 @@ def main() -> None:
         base / "voices",
         os.environ.get("SIRIUS_VOICE_EN", "en_US-lessac-medium"),
         os.environ.get("SIRIUS_VOICE_RO", "ro_RO-mihai-medium"),
+        float(os.environ.get("SIRIUS_VOICE_PACE", 1.0)),
     )
     session = VoiceSession(
         mic=PipeWireMic(),
