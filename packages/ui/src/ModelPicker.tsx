@@ -73,7 +73,7 @@ export function ModelPicker({ models, value, onChange }: ModelPickerProps) {
           }
         }}
       >
-        {chosen?.label ?? '—'}
+        <span className="model-label">{chosen?.label ?? '—'}</span>
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
           <path d="M2 3.5l3 3 3-3" />
         </svg>

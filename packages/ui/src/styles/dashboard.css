@@ -1319,17 +1319,36 @@ fieldset.agent-switch {
 }
 .sirius-head-compact .agent-switch button {
   min-height: 34px;
+  /* Newsreader's capitals carry extra room on the left, which reads as off centre. */
+  padding: 0 13px 0 11px;
 }
 .sirius-meta-line {
+  align-self: stretch;
+  min-width: 0;
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 2px 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 10px;
   font-size: 15px;
   color: var(--ink-2);
 }
+.sirius-meta-line .model-picker {
+  min-width: 0;
+}
 .sirius-meta-line .model-button {
   min-height: 34px;
+  max-width: 100%;
+}
+/* A long model name gives way, so the status stays on the same line. */
+.sirius-meta-line .model-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sirius-meta-line .sirius-status {
+  flex: none;
+  white-space: nowrap;
 }
 .sirius-controls-top {
   align-self: stretch;
@@ -1425,4 +1444,17 @@ fieldset.agent-switch {
 /* The bar's mic is the one to use on the phone; a second one in the chat would be noise. */
 .app-tabbed .chat-form .mic {
   display: none;
+}
+/* Showing a hidden section restarts its animations, so the entrance fade would replay, with
+   its delay, on every tab switch. A tab should simply be there. */
+.phone-section .rise {
+  animation: none;
+}
+/* A 360 px phone, like the owner's: keep each header button on one line. */
+@media (max-width: 380px) {
+  .app-tabbed .pill-lg {
+    padding: 0 11px;
+    font-size: 15px;
+    white-space: nowrap;
+  }
 }

@@ -96,6 +96,49 @@ test('a new chat is started from the top of the card, not a row of its own', asy
   await expect(page.locator('.chat-log')).not.toContainText('Added the goal');
 });
 
+test('on a 360 px phone the card header stays two lines, even with a long model name', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 760 });
+  await openPhone(page);
+  await page.getByRole('button', { name: 'Codex', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Model:/ })).toHaveAttribute(
+    'aria-label',
+    'Model: Codex 6.1 Sol Light',
+  );
+  const box = async (selector: string) => {
+    const found = await page.locator(selector).first().boundingBox();
+    if (!found) throw new Error(`${selector} is not on screen`);
+    return found;
+  };
+  const middle = (b: { y: number; height: number }) => b.y + b.height / 2;
+  const model = await box('.sirius-meta-line .model-button');
+  const status = await box('.sirius-meta-line .sirius-status');
+  const agents = await box('.sirius-head-compact .agent-switch');
+  const newChat = await box('.new-chat');
+  expect(Math.abs(middle(status) - middle(model))).toBeLessThan(6);
+  expect(Math.abs(middle(newChat) - middle(agents))).toBeLessThan(6);
+  const card = await box('.panel-sirius');
+  expect(newChat.x + newChat.width).toBeLessThanOrEqual(card.x + card.width);
+  expect(status.x + status.width).toBeLessThanOrEqual(card.x + card.width);
+  // The header buttons stay one line each and inside the screen.
+  for (const name of ['What should I do now?', "I'm done for today"]) {
+    const button = await page.getByRole('button', { name }).boundingBox();
+    expect(button?.height).toBeLessThan(48);
+    expect((button?.x ?? 0) + (button?.width ?? 0)).toBeLessThanOrEqual(360);
+  }
+});
+
+test('a section is there at once when its tab is opened', async ({ page }) => {
+  await openPhone(page);
+  await tab(page, 'Plan').click();
+  await tab(page, 'Sirius').click();
+  const opacity = await page
+    .locator('.panel-sirius')
+    .evaluate((panel) => Number(getComputedStyle(panel).opacity));
+  expect(opacity).toBe(1);
+});
+
 test('a draft survives switching sections', async ({ page }) => {
   await openPhone(page);
   await page.getByLabel('Message Sirius').fill('half a thought');
@@ -168,4 +211,9 @@ test('screenshots for review', async ({ page }) => {
   await tab(page, 'Plan').click();
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${dir}/plan.png` });
+  await page.setViewportSize({ width: 360, height: 760 });
+  await tab(page, 'Sirius').click();
+  await page.getByRole('button', { name: 'Codex', exact: true }).click();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${dir}/narrow-codex.png` });
 });

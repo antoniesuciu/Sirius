@@ -172,7 +172,12 @@ export function SiriusPanel(props: SiriusPanelProps) {
               )}
             </div>
             <div className="sirius-meta-line">
-              {modelSelect}
+              {/* No "via" here: on a 360 px phone it is what pushed the status onto a new line. */}
+              <ModelPicker
+                models={active?.models ?? []}
+                value={active?.model ?? ''}
+                onChange={props.onSelectModel}
+              />
               <span className="sirius-status">{props.status}</span>
             </div>
           </div>
