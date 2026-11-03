@@ -924,7 +924,7 @@ ul {
   background: var(--input);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(26, 24, 20, 0.12);
+  box-shadow: 0 8px 24px var(--shadow);
   outline: none;
 }
 .model-list li {
@@ -1170,7 +1170,7 @@ ul {
   gap: 16px;
   font-size: 16px;
   line-height: 1.35;
-  box-shadow: 0 10px 30px rgba(26, 24, 20, 0.22);
+  box-shadow: 0 10px 30px var(--shadow);
 }
 .toast-actions {
   display: flex;
@@ -1422,7 +1422,7 @@ fieldset.agent-switch {
   border-radius: 50%;
   border: 1.5px solid var(--ink);
   background: var(--panel);
-  box-shadow: 0 2px 10px rgba(26, 24, 20, 0.12);
+  box-shadow: 0 2px 10px var(--shadow);
 }
 .tab-mic-live {
   background: var(--ink);
@@ -1461,12 +1461,14 @@ fieldset.agent-switch {
 .phone-section .rise {
   animation: none;
 }
-/* A 360 px phone, like the owner's: keep each header button on one line. */
-@media (max-width: 380px) {
+/* Keep each header button on one line on a phone, in the wider sans themes too. */
+.app-tabbed .pill-lg {
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
   .app-tabbed .pill-lg {
     padding: 0 11px;
     font-size: 15px;
-    white-space: nowrap;
   }
 }
 /* Wide windows: the two header buttons sit beside the greeting, top right, instead of taking a
@@ -1512,85 +1514,52 @@ fieldset.agent-switch {
   flex: none;
   min-height: 38px;
 }
-/* Sirius as a circle (where the wolf was). --swell is 0–1, set per frame from the voice. */
+/* The voice orb (F40): a canvas, drawn in the theme's --orb colours. */
 .voice-orb {
-  position: relative;
+  display: block;
   flex: none;
-  width: 44px;
-  height: 44px;
+}
+.voice-orb[data-state="asleep"] {
+  opacity: 0.4;
+}
+/* The chat log and, over it while a voice is on, the large orb. */
+.chat-area {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.voice-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
-}
-.orb-core {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--accent);
-  transform: scale(calc(1 + var(--swell) * 0.32));
-  transition:
-    background-color 0.4s ease,
-    opacity 0.4s ease;
-}
-.orb-ring {
-  position: absolute;
-  inset: 7px;
-  border-radius: 50%;
-  border: 1.5px solid var(--accent);
-  opacity: 0;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(6px);
+  border-radius: 14px;
+  animation: stage-in 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
   pointer-events: none;
 }
-.voice-orb[data-state="asleep"] .orb-core {
-  opacity: 0.35;
-}
-.voice-orb[data-state="thinking"] .orb-core {
-  animation: orb-breathe 1.6s ease-in-out infinite;
-}
-.voice-orb[data-state="listening"] .orb-ring {
-  animation: orb-ripple 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
-}
-.voice-orb[data-state="listening"] .orb-ring-late {
-  animation-delay: 0.9s;
-}
-.voice-orb[data-state="speaking"] .orb-core {
-  background: var(--ink);
-}
-.voice-orb[data-state="speaking"] .orb-ring {
-  border-color: var(--ink);
-  opacity: calc(0.15 + var(--swell) * 0.5);
-  transform: scale(calc(1.05 + var(--swell) * 0.45));
-}
-.voice-orb[data-state="speaking"] .orb-ring-late {
-  opacity: calc(var(--swell) * 0.25);
-  transform: scale(calc(1.2 + var(--swell) * 0.7));
-}
-@keyframes orb-ripple {
+@keyframes stage-in {
   from {
-    opacity: 0.7;
-    transform: scale(1);
+    opacity: 0;
+    transform: scale(0.94);
   }
   to {
-    opacity: 0;
-    transform: scale(2.1);
-  }
-}
-@keyframes orb-breathe {
-  0%,
-  100% {
-    transform: scale(0.92);
-    opacity: 0.75;
-  }
-  50% {
-    transform: scale(1.06);
     opacity: 1;
+    transform: none;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .voice-orb .orb-core,
-  .voice-orb .orb-ring {
-    animation: none !important;
-  }
-  .voice-orb[data-state="listening"] .orb-ring {
-    opacity: 0.5;
-    transform: scale(1.3);
-  }
+.phone-sirius .chat-area {
+  flex: 1;
+}
+
+/* The Orb theme's gradient, from the owner's reference. */
+:root[data-theme="orb"] .pill-solid,
+:root[data-theme="orb"] .tab-mic-live,
+:root[data-theme="orb"] .mic[aria-pressed="true"] {
+  background: linear-gradient(100deg, var(--orb-1), var(--orb-2) 45%, var(--orb-4));
+  border-color: transparent;
+  color: #000;
 }

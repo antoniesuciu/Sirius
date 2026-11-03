@@ -1,3 +1,4 @@
+export * from './appearance.ts';
 export * from './attention.ts';
 export * from './client.ts';
 export * from './events.ts';

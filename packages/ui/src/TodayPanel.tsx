@@ -36,7 +36,9 @@ function TaskRow({
         onClick={() => onToggle(task)}
       >
         <span className="task-check">
-          {done && <CheckIcon size={small ? 11 : 13} stroke={small ? '#5F5849' : '#1A1814'} />}
+          {done && (
+            <CheckIcon size={small ? 11 : 13} stroke={small ? 'var(--muted)' : 'var(--ink)'} />
+          )}
         </span>
         <span className="task-text">{task.title}</span>
       </button>

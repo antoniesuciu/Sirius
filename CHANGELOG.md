@@ -160,3 +160,7 @@
   (Codex's `notify` only reports finished turns), plus the same hooks that clear the alert.
 - The in-app alert drops in at the top centre, like a GNOME banner, instead of the bottom left.
 - The desktop window opens maximised, and the greeting has room for one line.
+- Themes and voice animations, chosen by asking Sirius (F40): Paper, Midnight Blue, Night Owl
+  (Ubuntu font), Graphite, Sage, Ember and Orb (black with a blue-to-orange gradient, from the
+  owner's reference); a dot-matrix sphere, a ring with arcs running round it, or a dot. A large
+  orb comes up over the chat while a voice is on. Icons, leaves and shadows follow the theme.

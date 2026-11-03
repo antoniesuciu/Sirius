@@ -181,14 +181,11 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
   // The mic takes you to the conversation, where the answer appears.
   await expect(tab(page, 'Sirius')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.sirius-status')).toHaveText('listening');
-  // The circle ripples while listening.
-  const orb = page.locator('.panel-sirius .voice-orb');
+  // The orb animates while listening, and a large one comes up over the chat.
+  const orb = page.locator('.sirius-head .voice-orb');
   await expect(orb).toHaveAttribute('data-state', 'listening');
-  const ripples = () =>
-    orb.evaluate((el) =>
-      el.getAnimations({ subtree: true }).map((a) => (a as CSSAnimation).animationName),
-    );
-  expect(await ripples()).toContain('orb-ripple');
+  await expect(orb).toHaveAttribute('data-running', 'true');
+  await expect(page.locator('.voice-stage .voice-orb')).toBeVisible();
   if (process.env.SIRIUS_SHOTS)
     await page.screenshot({ path: `${process.env.SIRIUS_SHOTS}/listening.png` });
   await page.waitForTimeout(300);
@@ -202,9 +199,10 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
     .toEqual([{ text: 'Added water the basil to today.', lang: 'en-US' }]);
 
   await expect(tab(page, 'Today').locator('.tab-dot')).toBeVisible();
-  // Back to idle, it is a still circle again.
+  // Back to idle: one still frame, and the large orb is gone.
   await expect(orb).toHaveAttribute('data-state', 'idle');
-  expect(await ripples()).toEqual([]);
+  await expect(orb).toHaveAttribute('data-running', 'false');
+  await expect(page.locator('.voice-stage')).toHaveCount(0);
   await page.getByRole('button', { name: /Changed Today/ }).click();
   await expect(page.locator('.task', { hasText: 'Water the basil' })).toBeVisible();
 });
@@ -289,4 +287,30 @@ test('a tapped notification opens the tab it is about', async ({ page }) => {
   await page.goto('/?fixtures&phone&toastMs=600000&tab=list');
   await expect(tab(page, 'List')).toHaveAttribute('aria-current', 'page');
   expect(new URL(page.url()).searchParams.has('tab')).toBe(false);
+});
+
+test('screenshots of every theme and animation', async ({ page }) => {
+  test.skip(!process.env.SIRIUS_SHOTS, 'only when asked for');
+  test.setTimeout(120_000);
+  const dir = process.env.SIRIUS_SHOTS ?? '';
+  await captureSpeech(page);
+  await openChat(page);
+  const say = async (text: string) => {
+    await page.getByLabel('Message Sirius').fill(text);
+    await page.getByLabel('Message Sirius').press('Enter');
+    await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
+    await page.waitForTimeout(900);
+  };
+  for (const orb of ['sphere', 'ring', 'dot']) {
+    await say(`orb ${orb}`);
+    for (const theme of ['paper', 'midnight', 'night-owl', 'graphite', 'sage', 'ember', 'orb']) {
+      if (orb !== 'sphere' && !['paper', 'orb'].includes(theme)) continue;
+      await say(`theme ${theme}`);
+      await page.getByRole('button', { name: 'Talk to Sirius' }).click();
+      await page.waitForTimeout(900);
+      await page.screenshot({ path: `${dir}/look-${orb}-${theme}.png` });
+      await page.getByRole('button', { name: 'Stop listening' }).click();
+      await page.waitForTimeout(600);
+    }
+  }
 });

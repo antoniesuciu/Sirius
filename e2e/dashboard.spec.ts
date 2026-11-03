@@ -328,13 +328,30 @@ test.describe('sirius', () => {
     await expect(page.locator('.task')).toHaveCount(6);
   });
 
-  test('Sirius is a still circle while idle', async ({ page }) => {
+  test('Sirius is a still orb while idle', async ({ page }) => {
     await open(page);
     const orb = page.locator('.panel-sirius .voice-orb');
     await expect(orb).toHaveAttribute('data-state', 'idle');
     await expect(orb).toBeVisible();
-    const moving = await orb.evaluate((el) => el.getAnimations({ subtree: true }).length);
-    expect(moving).toBe(0);
+    await expect(orb).toHaveAttribute('data-running', 'false');
+  });
+
+  test('asking Sirius changes the theme and the animation (F40)', async ({ page }) => {
+    await open(page);
+    const ask = async (text: string) => {
+      await page.getByLabel('Message Sirius').fill(text);
+      await page.getByLabel('Message Sirius').press('Enter');
+      await expect(page.locator('.chat-log')).toContainText(`Switched the`);
+      await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
+    };
+    await ask('theme midnight');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'midnight');
+    const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(background).toBe('rgb(7, 13, 28)');
+    await ask('orb ring');
+    await expect(page.locator('.panel-sirius .voice-orb')).toHaveAttribute('data-orb', 'ring');
+    await ask('theme paper');
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);
   });
 
   test('the mic says so when voice is not running', async ({ page }) => {

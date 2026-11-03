@@ -14,7 +14,8 @@ function Stroke({ size, stroke, width, d }: StrokeProps) {
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      stroke={stroke}
+      // A style, not the attribute: CSS variables work there, so icons follow the theme.
+      style={{ stroke }}
       strokeWidth={width}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -31,16 +32,16 @@ export const CheckIcon = ({ size, stroke }: { size: number; stroke: string }) =>
 export const PaperclipIcon = () => (
   <Stroke
     size={18}
-    stroke="#1A1814"
+    stroke="var(--ink)"
     width={1.8}
     d="M20 11.5 L12.5 19 a4.5 4.5 0 0 1 -6.4 -6.4 L13.6 5.1 a3 3 0 0 1 4.3 4.3 L10.4 16.9 a1.5 1.5 0 0 1 -2.1 -2.1 L15 8"
   />
 );
 export const PlusIcon = () => (
-  <Stroke size={18} stroke="#EBE3D1" width={2} d="M12 5 V19 M5 12 H19" />
+  <Stroke size={18} stroke="var(--on-ink)" width={2} d="M12 5 V19 M5 12 H19" />
 );
 export const SendIcon = () => (
-  <Stroke size={18} stroke="#EBE3D1" width={2} d="M12 19 V5 M6 11 L12 5 L18 11" />
+  <Stroke size={18} stroke="var(--on-ink)" width={2} d="M12 19 V5 M6 11 L12 5 L18 11" />
 );
 export const MicIcon = ({ stroke }: { stroke: string }) => (
   <Stroke
@@ -58,7 +59,7 @@ export function SproutIcon() {
       height="24"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#5F6B3A"
+      style={{ stroke: 'var(--accent)' }}
       strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"

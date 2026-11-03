@@ -1,4 +1,4 @@
-/* Design tokens: spec section 11. */
+/* Design tokens: spec section 11. One block per theme (F40); Sirius sets data-theme on <html>. */
 :root {
   --bg: #ebe3d1;
   --panel: #f4eee1;
@@ -15,7 +15,200 @@
   --input: #fbf8f0;
   --on-ink: #f4eee1;
   --on-ink-soft: rgba(244, 238, 225, 0.6);
+  --shadow: rgba(26, 24, 20, 0.16);
+
+  /* Falling leaves. */
+  --leaf-1: #8c9159;
+  --leaf-2: #b49560;
+  --leaf-3: #a8714a;
+  --leaf-4: #7d8560;
+
+  /* The voice animation, top to bottom of the sphere. `--orb-glow` 1 adds light (dark themes),
+     0 lays ink on paper (light themes). */
+  --orb-1: #5f6b3a;
+  --orb-2: #8c9159;
+  --orb-3: #b49560;
+  --orb-4: #a8714a;
+  --orb-glow: 0;
 
   --radius-panel: 20px;
   --font: "Newsreader Variable", Georgia, "Times New Roman", serif;
+  color-scheme: light;
+}
+
+:root[data-theme="midnight"] {
+  --bg: #070d1c;
+  --panel: #0e1730;
+  --panel-border: rgba(150, 175, 240, 0.14);
+  --line-soft: rgba(200, 212, 245, 0.32);
+  --line-mid: rgba(200, 212, 245, 0.26);
+  --rail: rgba(200, 212, 245, 0.16);
+  --ink: #e6ecfa;
+  --ink-2: #c3cde6;
+  --muted: #8b97b8;
+  --placeholder: #6f7b9c;
+  --accent: #5b8cff;
+  --bubble-sirius: #16213f;
+  --input: #0a1226;
+  --on-ink: #070d1c;
+  --on-ink-soft: rgba(7, 13, 28, 0.6);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --leaf-1: #3b5cad;
+  --leaf-2: #5b8cff;
+  --leaf-3: #8a6fe0;
+  --leaf-4: #2e4a8c;
+  --orb-1: #6fa0ff;
+  --orb-2: #8a7dff;
+  --orb-3: #d36bc6;
+  --orb-4: #ff8a6a;
+  --orb-glow: 1;
+  color-scheme: dark;
+}
+
+/* VS Code's Night Owl (Sarah Drasner), in Ubuntu like the rest of the desktop. */
+:root[data-theme="night-owl"] {
+  --bg: #011627;
+  --panel: #0b2942;
+  --panel-border: rgba(127, 219, 202, 0.12);
+  --line-soft: rgba(214, 222, 235, 0.3);
+  --line-mid: rgba(214, 222, 235, 0.24);
+  --rail: rgba(214, 222, 235, 0.14);
+  --ink: #d6deeb;
+  --ink-2: #b8c4d6;
+  --muted: #7e97ac;
+  --placeholder: #5f7e97;
+  --accent: #82aaff;
+  --bubble-sirius: #13344f;
+  --input: #01111d;
+  --on-ink: #011627;
+  --on-ink-soft: rgba(1, 22, 39, 0.6);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --leaf-1: #7fdbca;
+  --leaf-2: #82aaff;
+  --leaf-3: #c792ea;
+  --leaf-4: #addb67;
+  --orb-1: #82aaff;
+  --orb-2: #7fdbca;
+  --orb-3: #c792ea;
+  --orb-4: #f78c6c;
+  --orb-glow: 1;
+  --font: Ubuntu, "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+:root[data-theme="graphite"] {
+  --bg: #16171a;
+  --panel: #1f2125;
+  --panel-border: rgba(255, 255, 255, 0.09);
+  --line-soft: rgba(232, 230, 225, 0.3);
+  --line-mid: rgba(232, 230, 225, 0.24);
+  --rail: rgba(232, 230, 225, 0.14);
+  --ink: #e8e6e1;
+  --ink-2: #c9c6bf;
+  --muted: #95918a;
+  --placeholder: #77736c;
+  --accent: #c8a96a;
+  --bubble-sirius: #2a2c31;
+  --input: #121316;
+  --on-ink: #16171a;
+  --on-ink-soft: rgba(22, 23, 26, 0.6);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --leaf-1: #c8a96a;
+  --leaf-2: #8f8a7e;
+  --leaf-3: #b07a4f;
+  --leaf-4: #6f7a66;
+  --orb-1: #e8d3a2;
+  --orb-2: #c8a96a;
+  --orb-3: #c27d52;
+  --orb-4: #8f5a3c;
+  --orb-glow: 1;
+  color-scheme: dark;
+}
+
+:root[data-theme="sage"] {
+  --bg: #e1e7da;
+  --panel: #edf1e7;
+  --panel-border: rgba(28, 34, 27, 0.12);
+  --line-soft: rgba(28, 34, 27, 0.32);
+  --line-mid: rgba(28, 34, 27, 0.26);
+  --rail: rgba(28, 34, 27, 0.14);
+  --ink: #1c221b;
+  --ink-2: #364033;
+  --muted: #5a6656;
+  --placeholder: #6b7766;
+  --accent: #4e6b4a;
+  --bubble-sirius: #dde5d4;
+  --input: #f6f8f2;
+  --on-ink: #edf1e7;
+  --on-ink-soft: rgba(237, 241, 231, 0.6);
+  --shadow: rgba(28, 34, 27, 0.15);
+  --leaf-1: #7d9a6a;
+  --leaf-2: #a8b86a;
+  --leaf-3: #c19a5b;
+  --leaf-4: #5f7d58;
+  --orb-1: #2f4a3a;
+  --orb-2: #4e6b4a;
+  --orb-3: #7d9a6a;
+  --orb-4: #c19a5b;
+  --orb-glow: 0;
+}
+
+:root[data-theme="ember"] {
+  --bg: #140e0b;
+  --panel: #1e1510;
+  --panel-border: rgba(255, 170, 110, 0.12);
+  --line-soft: rgba(240, 222, 205, 0.3);
+  --line-mid: rgba(240, 222, 205, 0.24);
+  --rail: rgba(240, 222, 205, 0.14);
+  --ink: #f0ded0;
+  --ink-2: #d4bfae;
+  --muted: #a08b7b;
+  --placeholder: #7f6b5c;
+  --accent: #ff8a3d;
+  --bubble-sirius: #2a1d16;
+  --input: #0f0a08;
+  --on-ink: #140e0b;
+  --on-ink-soft: rgba(20, 14, 11, 0.6);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --leaf-1: #ff8a3d;
+  --leaf-2: #d9572b;
+  --leaf-3: #f2b25c;
+  --leaf-4: #8c4a2f;
+  --orb-1: #ffd08a;
+  --orb-2: #ff9a4d;
+  --orb-3: #f0603a;
+  --orb-4: #b8324a;
+  --orb-glow: 1;
+  color-scheme: dark;
+}
+
+/* From the owner's reference (docs/design/references/orb-theme-mock.png). */
+:root[data-theme="orb"] {
+  --bg: #000000;
+  --panel: #0a0a0c;
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --line-soft: rgba(255, 255, 255, 0.26);
+  --line-mid: rgba(255, 255, 255, 0.2);
+  --rail: rgba(255, 255, 255, 0.12);
+  --ink: #f2f2f5;
+  --ink-2: #c9c9d1;
+  --muted: #8d8d99;
+  --placeholder: #6c6c78;
+  --accent: #9b8cff;
+  --bubble-sirius: #141418;
+  --input: #050506;
+  --on-ink: #000000;
+  --on-ink-soft: rgba(0, 0, 0, 0.6);
+  --shadow: rgba(0, 0, 0, 0.6);
+  --leaf-1: #6f9dff;
+  --leaf-2: #9b8cff;
+  --leaf-3: #e06aa6;
+  --leaf-4: #ff8a5b;
+  --orb-1: #6f9dff;
+  --orb-2: #9b7dff;
+  --orb-3: #e45c8c;
+  --orb-4: #ff8a5b;
+  --orb-glow: 1;
+  --font: Inter, Ubuntu, "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
 }

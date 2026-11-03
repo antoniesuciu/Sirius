@@ -5,9 +5,11 @@ import {
   describeAgentEvent,
   greeting,
   logicalDate,
+  orbFrom,
   type Proposal,
   type ReminderView,
   type SiriusEvent,
+  themeFrom,
 } from '@sirius/contracts';
 import {
   AgentToast,
@@ -35,7 +37,7 @@ import {
   WindowControls,
 } from '@sirius/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ConnectionLine } from './ConnectionLine.tsx';
 import { browserVoiceSupported, usePhoneVoice } from './data/browserVoice.ts';
 import { useOpenTabRequests, usePhonePush } from './data/phonePush.ts';
@@ -230,6 +232,17 @@ export function App({ phone = false }: { phone?: boolean }) {
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [pendingText, setPendingText] = useState<string | null>(null);
 
+  const theme = themeFrom(settings);
+  const orb = orbFrom(settings);
+  // A layout effect, so the orb's own effect reads the new theme's colours, not the old ones.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'paper') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+    const bar = document.querySelector('meta[name="theme-color"]');
+    bar?.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim());
+  }, [theme]);
+
   const quiet = today?.quiet_mode ?? false;
   const tasks = today?.tasks;
   const hour = new Date().getHours();
@@ -411,6 +424,8 @@ export function App({ phone = false }: { phone?: boolean }) {
           void client.call('voice_stop', {}).catch(() => {});
         },
       }}
+      orb={orb}
+      theme={theme}
       {...(tabbed ? { onOpenTab: openTab, compact: true } : {})}
       {...(phoneVoice.recording ? { readLevel: phoneVoice.readLevel } : {})}
     />

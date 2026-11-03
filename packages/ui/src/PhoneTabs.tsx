@@ -109,7 +109,7 @@ export function TabBar({ active, fresh, onSelect, micOpen, micBusy, onMic }: Tab
         aria-pressed={micOpen}
         onClick={onMic}
       >
-        <MicIcon stroke={micOpen ? '#F4EEE1' : '#1A1814'} />
+        <MicIcon stroke={micOpen ? 'var(--on-ink)' : 'var(--ink)'} />
       </button>
       <div className="tab-group">{PHONE_TABS.slice(2).map(tab)}</div>
     </nav>

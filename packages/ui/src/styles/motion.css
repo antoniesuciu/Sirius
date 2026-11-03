@@ -24,7 +24,7 @@
   animation-delay: -4s;
 }
 .lc:nth-child(1) .leaf {
-  background: #8c9159;
+  background: var(--leaf-1);
   animation-duration: 7s;
   animation-delay: -1s;
 }
@@ -36,7 +36,7 @@
 .lc:nth-child(2) .leaf {
   width: 12px;
   height: 7px;
-  background: #b49560;
+  background: var(--leaf-2);
   animation-duration: 6s;
   animation-delay: -3s;
 }
@@ -46,7 +46,7 @@
   animation-delay: -11s;
 }
 .lc:nth-child(3) .leaf {
-  background: #a8714a;
+  background: var(--leaf-3);
   animation-duration: 8s;
   animation-delay: -5s;
 }
@@ -58,7 +58,7 @@
 .lc:nth-child(4) .leaf {
   width: 20px;
   height: 11px;
-  background: #7d8560;
+  background: var(--leaf-4);
   animation-duration: 9s;
   animation-delay: -2s;
 }
@@ -70,7 +70,7 @@
 .lc:nth-child(5) .leaf {
   width: 13px;
   height: 7px;
-  background: #b49560;
+  background: var(--leaf-2);
   animation-duration: 6.5s;
   animation-delay: -4s;
 }
@@ -80,7 +80,7 @@
   animation-delay: -22s;
 }
 .lc:nth-child(6) .leaf {
-  background: #8c9159;
+  background: var(--leaf-1);
   animation-duration: 7.5s;
   animation-delay: -6s;
 }
@@ -92,7 +92,7 @@
 .lc:nth-child(7) .leaf {
   width: 18px;
   height: 10px;
-  background: #a8714a;
+  background: var(--leaf-3);
   animation-duration: 8.5s;
   animation-delay: -1s;
 }
@@ -104,7 +104,7 @@
 .lc:nth-child(8) .leaf {
   width: 12px;
   height: 7px;
-  background: #7d8560;
+  background: var(--leaf-4);
   animation-duration: 6s;
   animation-delay: -2s;
 }
@@ -114,7 +114,7 @@
   animation-delay: -13s;
 }
 .lc:nth-child(9) .leaf {
-  background: #b49560;
+  background: var(--leaf-2);
   animation-duration: 9s;
   animation-delay: -5s;
 }

@@ -1,4 +1,4 @@
-import type { AgentId, AgentInfo, AgentStatusValue, Proposal } from '@sirius/contracts';
+import type { AgentId, AgentInfo, AgentStatusValue, OrbStyle, Proposal } from '@sirius/contracts';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { useRef, useState } from 'react';
 import { useSmoothedText } from './hooks.ts';
@@ -67,8 +67,11 @@ export interface SiriusPanelProps {
   onOpenTab?(tab: PhoneTab): void;
   /** On the phone: one short header, so the chat gets the height. */
   compact?: boolean;
-  /** A live loudness 0–1, such as the phone's microphone, read every frame by the wave. */
+  /** A live loudness 0–1, such as the phone's microphone, read every frame by the orb. */
   readLevel?(): number;
+  /** The voice animation and the theme it takes its colours from (F40). */
+  orb?: OrbStyle;
+  theme?: string;
 }
 
 const STATUS_TEXT: Record<AgentStatusValue, string> = {
@@ -132,6 +135,17 @@ export function SiriusPanel(props: SiriusPanelProps) {
     else if (props.busy) props.onCancel();
   };
 
+  const orbProps = {
+    state: props.avatar,
+    level: props.level,
+    ...(props.orb ? { orb: props.orb } : {}),
+    ...(props.theme ? { theme: props.theme } : {}),
+    ...(props.readLevel ? { readLevel: props.readLevel } : {}),
+  };
+  const headOrb = <VoiceOrb {...orbProps} size={44} />;
+  // Large, over the chat, while a voice is on: the person talking or Sirius answering aloud.
+  const stage = props.avatar === 'listening' || props.avatar === 'speaking';
+
   const agentSwitch = (
     <fieldset className="agent-switch" aria-label="Agent">
       {props.agents.map((agent) => (
@@ -161,11 +175,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
     <section className="panel panel-sirius rise d3" onKeyDown={onKey}>
       {props.compact ? (
         <div className="sirius-head sirius-head-compact">
-          <VoiceOrb
-            state={props.avatar}
-            level={props.level}
-            {...(props.readLevel ? { readLevel: props.readLevel } : {})}
-          />
+          {headOrb}
           <div className="sirius-controls">
             <div className="sirius-controls-top">
               {agentSwitch}
@@ -195,11 +205,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
         <>
           <div className="sirius-head">
             <div className="sirius-identity" data-state={props.avatar}>
-              <VoiceOrb
-                state={props.avatar}
-                level={props.level}
-                {...(props.readLevel ? { readLevel: props.readLevel } : {})}
-              />
+              {headOrb}
               <div className="sirius-name">
                 <span className="sirius-title">Sirius</span>
                 <span className="sirius-status">{props.status}</span>
@@ -224,61 +230,72 @@ export function SiriusPanel(props: SiriusPanelProps) {
         </>
       )}
 
-      <div className="chat-log" aria-live="polite">
-        {/* column-reverse: newest first in the DOM, so the log pins to the bottom. */}
-        {props.undoLabel && (
-          <div className="undo-offer msg">
-            <span>{props.undoLabel}</span>
-            <button type="button" className="text-button" onClick={props.onUndo}>
-              Undo
-            </button>
+      <div className="chat-area">
+        {stage && (
+          <div className="voice-stage" aria-hidden="true">
+            <VoiceOrb {...orbProps} size={props.compact ? 200 : 180} />
           </div>
         )}
-        {props.proposals.map((p) => (
-          <ProposalCard
-            key={p.id}
-            proposal={p}
-            onConfirm={props.onConfirm}
-            onReject={props.onReject}
-          />
-        ))}
-        {props.thinking && (
-          <div className="bubble bubble-thinking msg" role="status" aria-label="Sirius is thinking">
-            <span className="dot" />
-            <span className="dot" />
-            <span className="dot" />
-          </div>
-        )}
-        {props.streaming !== null && <StreamingBubble text={props.streaming} />}
-        {[...props.messages].reverse().map((m) => {
-          const open = props.onOpenTab;
-          const bubble = (
-            <div key={m.id} className={m.mine ? 'bubble bubble-me msg' : 'bubble'}>
-              {m.text}
-              {m.attachments && m.attachments.length > 0 && (
-                <span className="bubble-files">{m.attachments.join(' · ')}</span>
-              )}
+        <div className="chat-log" aria-live="polite">
+          {/* column-reverse: newest first in the DOM, so the log pins to the bottom. */}
+          {props.undoLabel && (
+            <div className="undo-offer msg">
+              <span>{props.undoLabel}</span>
+              <button type="button" className="text-button" onClick={props.onUndo}>
+                Undo
+              </button>
             </div>
-          );
-          if (!open || !m.receipts?.length) return bubble;
-          return (
-            <div key={m.id} className="reply-with-receipts">
-              {bubble}
-              <div className="receipts">
-                {m.receipts.map((r) => (
-                  <button
-                    key={r.label}
-                    type="button"
-                    className="receipt"
-                    onClick={() => open(r.tab)}
-                  >
-                    Changed {r.label} <span aria-hidden="true">→</span>
-                  </button>
-                ))}
+          )}
+          {props.proposals.map((p) => (
+            <ProposalCard
+              key={p.id}
+              proposal={p}
+              onConfirm={props.onConfirm}
+              onReject={props.onReject}
+            />
+          ))}
+          {props.thinking && (
+            <div
+              className="bubble bubble-thinking msg"
+              role="status"
+              aria-label="Sirius is thinking"
+            >
+              <span className="dot" />
+              <span className="dot" />
+              <span className="dot" />
+            </div>
+          )}
+          {props.streaming !== null && <StreamingBubble text={props.streaming} />}
+          {[...props.messages].reverse().map((m) => {
+            const open = props.onOpenTab;
+            const bubble = (
+              <div key={m.id} className={m.mine ? 'bubble bubble-me msg' : 'bubble'}>
+                {m.text}
+                {m.attachments && m.attachments.length > 0 && (
+                  <span className="bubble-files">{m.attachments.join(' · ')}</span>
+                )}
               </div>
-            </div>
-          );
-        })}
+            );
+            if (!open || !m.receipts?.length) return bubble;
+            return (
+              <div key={m.id} className="reply-with-receipts">
+                {bubble}
+                <div className="receipts">
+                  {m.receipts.map((r) => (
+                    <button
+                      key={r.label}
+                      type="button"
+                      className="receipt"
+                      onClick={() => open(r.tab)}
+                    >
+                      Changed {r.label} <span aria-hidden="true">→</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {voice.transcript && <div className="transcript">{voice.transcript}</div>}
@@ -338,7 +355,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
           aria-pressed={voice.micOpen}
           onClick={voice.onMic}
         >
-          <MicIcon stroke={voice.micOpen ? '#F4EEE1' : '#1A1814'} />
+          <MicIcon stroke={voice.micOpen ? 'var(--on-ink)' : 'var(--ink)'} />
         </button>
         <button type="submit" className="round round-lg" aria-label="Send" disabled={props.busy}>
           <SendIcon />

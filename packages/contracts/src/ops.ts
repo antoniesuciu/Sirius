@@ -14,7 +14,9 @@
  *
  * `userOnly` marks operations an agent must never reach, even over REST.
  */
+
 import { z } from 'zod';
+import { OrbStyle, ThemeId } from './appearance.ts';
 import {
   AddTaskInput,
   AgentEvent,
@@ -522,6 +524,16 @@ export const ops = {
     http: { method: 'post', path: '/phones/forget' },
     input: NoInput,
     output: z.object({ forgotten: z.number() }),
+  }),
+  set_appearance: op({
+    class: 'system',
+    agentTool: true,
+    summary:
+      'Change how Sirius looks: the colour theme, the voice animation, or both. Themes: paper, midnight (Midnight Blue), night-owl (Night Owl, Ubuntu font), graphite, sage, ember, orb (black with a blue-to-orange gradient). Animations: sphere, ring, dot.',
+    http: { method: 'post', path: '/appearance' },
+    // Neither given just reports the current choice.
+    input: z.object({ theme: ThemeId.optional(), orb: OrbStyle.optional() }),
+    output: z.object({ theme: ThemeId, orb: OrbStyle }),
   }),
   remember: op({
     class: 'system',
