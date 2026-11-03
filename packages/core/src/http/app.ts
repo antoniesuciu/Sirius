@@ -16,6 +16,7 @@ import type { Core } from '../core.ts';
 import type { DesktopLink } from '../desktopLink.ts';
 import type { Caller } from '../dispatcher.ts';
 import { DomainError } from '../errors.ts';
+import { Replays } from './replays.ts';
 import { serveUi } from './static.ts';
 
 export interface AppOptions {
@@ -34,6 +35,7 @@ const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 const TRANSCRIBE_TIMEOUT_MS = 30_000;
 
 const HEARTBEAT_MS = 25_000;
+const LAPTOP_ONLY = new Set(['/v1/phones/pairing', '/v1/phones/forget']);
 const UI_ORIGINS = ['tauri://localhost', 'http://tauri.localhost', 'http://localhost:5173'];
 
 function tokensMatch(given: string, expected: string): boolean {
@@ -126,13 +128,55 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
 
   app.get('/v1/health', (c) => c.json({ ok: true, version: options.version, mode: options.mode }));
 
+  // The one route a phone can call before it has a token (ADR 0010).
+  app.post('/v1/pair', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { code?: unknown; name?: unknown };
+    const name = typeof body.name === 'string' ? body.name : 'Phone';
+    const token = typeof body.code === 'string' ? core.phones.pair(body.code, name) : null;
+    if (!token) {
+      return c.json(
+        {
+          code: 'pairing_failed',
+          message: 'That code did not work. Ask the laptop for a new one.',
+        },
+        403,
+      );
+    }
+    return c.json({ token });
+  });
+
   app.use('/v1/*', async (c, next) => {
+    if (c.req.path === '/v1/pair') return next();
     const header = c.req.header('authorization') ?? '';
     const given = header.startsWith('Bearer ') ? header.slice(7) : '';
     if (tokensMatch(given, options.token)) return next();
+    if (core.phones.verify(given)) {
+      // A phone uses Sirius but does not hand out access. That stays with the laptop.
+      if (LAPTOP_ONLY.has(c.req.path)) {
+        return c.json({ code: 'forbidden', message: 'Do that from the laptop.' }, 403);
+      }
+      return next();
+    }
     const jwt = c.req.header('cf-access-jwt-assertion');
     if (jwt && (await options.verifyAccess?.(jwt))) return next();
     return c.json({ code: 'unauthorized', message: 'Missing or invalid token' }, 401);
+  });
+
+  // After the login check, so an earlier answer is only ever given to someone allowed it.
+  const replays = new Replays(core.sqlite, () => core.store.now());
+  app.use('/v1/*', async (c, next) => {
+    const key = c.req.header('idempotency-key');
+    if (!key || c.req.method === 'GET' || key.length > 100) return next();
+    const seen = replays.find(key);
+    if (seen) {
+      return new Response(seen.body, {
+        status: seen.status,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    await next();
+    // A failure inside the core may succeed on the next try, so only answers are kept.
+    if (c.res.status < 500) replays.remember(key, c.res.status, await c.res.clone().text());
   });
 
   app.get('/v1/events', (c) => {

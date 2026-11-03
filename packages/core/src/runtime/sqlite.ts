@@ -12,7 +12,8 @@ export type Db = BaseSQLiteDatabase<'sync', unknown, typeof schema>;
 export interface SqliteHandle {
   db: Db;
   exec(sql: string): void;
-  all<T>(sql: string): T[];
+  all<T>(sql: string, ...params: Array<string | number | null>): T[];
+  run(sql: string, ...params: Array<string | number | null>): void;
   /** Atomic snapshot to `path`. Must run outside a transaction. */
   vacuumInto(path: string): void;
   close(): void;
@@ -28,7 +29,11 @@ export function openSqlite(path: string): SqliteHandle {
   return {
     db: drizzle(raw) as unknown as Db,
     exec: (sql) => raw.exec(sql),
-    all: <T>(sql: string) => raw.query(sql).all() as T[],
+    all: <T>(sql: string, ...params: Array<string | number | null>) =>
+      raw.query(sql).all(...params) as T[],
+    run: (sql, ...params) => {
+      raw.query(sql).run(...params);
+    },
     vacuumInto: (target) => raw.query('VACUUM INTO ?').run(target),
     close: () => raw.close(),
   };

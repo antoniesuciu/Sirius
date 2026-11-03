@@ -142,6 +142,57 @@ async function setVoice(enabled: boolean): Promise<void> {
   console.log(`Voice is ${enabled ? 'on' : 'off'}.`);
 }
 
+/** This laptop's Tailscale name, such as aparate.tail1234.ts.net, or null without Tailscale. */
+function tailscaleHost(): string | null {
+  try {
+    const status = JSON.parse(
+      execFileSync('tailscale', ['status', '--json'], { encoding: 'utf8' }),
+    );
+    const name = String(status?.Self?.DNSName ?? '').replace(/\.$/, '');
+    return status?.BackendState === 'Running' && name ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Puts the core on the tailnet over HTTPS. The core itself keeps listening only on 127.0.0.1. */
+function ensureServed(): void {
+  const target = `http://127.0.0.1:${process.env.SIRIUS_PORT ?? 7337}`;
+  const current = execFileSync('tailscale', ['serve', 'status', '--json'], { encoding: 'utf8' });
+  if (current.includes(target.replace('http://', ''))) return;
+  console.log(`Sharing Sirius with your own Tailscale devices: tailscale serve --bg ${target}`);
+  execFileSync('tailscale', ['serve', '--bg', target], { stdio: 'inherit' });
+}
+
+/** ADR 0010: a one-time code, shown as a link and, when qrencode is installed, a QR code. */
+async function pairPhone(): Promise<void> {
+  const host = tailscaleHost();
+  if (!host) {
+    console.log('Tailscale is not running on this laptop. Install it and run: sudo tailscale up');
+    process.exitCode = 1;
+    return;
+  }
+  try {
+    ensureServed();
+  } catch {
+    console.log(
+      'Tailscale would not share Sirius. Turn on HTTPS Certificates in the admin page, under DNS,',
+    );
+    console.log('and let this user manage Tailscale: sudo tailscale set --operator=$USER');
+    process.exitCode = 1;
+    return;
+  }
+  const { code, expires_at } = await client().call('start_phone_pairing', {});
+  const url = `https://${host}/#pair=${code}`;
+  console.log(`\nOn your phone, with Tailscale on, open:\n\n  ${url}\n`);
+  if (commandWorks('qrencode', ['--version'])) {
+    execFileSync('qrencode', ['-t', 'ansiutf8', url], { stdio: 'inherit' });
+  }
+  const minutes = Math.round((expires_at - Date.now()) / 60_000);
+  console.log(`Or type the code ${code} there. It works once, for ${minutes} minutes.`);
+  console.log("Then choose Install app in Chrome's menu to keep Sirius on your home screen.");
+}
+
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
   switch (command) {
@@ -151,6 +202,13 @@ async function main(): Promise<void> {
       return setupHooks(rest);
     case 'doctor':
       return doctor();
+    case 'pair':
+      return pairPhone();
+    case 'forget-phones': {
+      const { forgotten } = await client().call('forget_phones', {});
+      console.log(`Signed out ${forgotten} phone${forgotten === 1 ? '' : 's'}.`);
+      return;
+    }
     case 'backup': {
       const { path } = await client().call('create_backup', {});
       console.log(path);
@@ -165,7 +223,7 @@ async function main(): Promise<void> {
       break;
   }
   console.log(
-    'Usage: sirius notify | setup-hooks [--apply] [--with-stop] | doctor | backup | voice ptt|on|off',
+    'Usage: sirius notify | setup-hooks [--apply] [--with-stop] | doctor | backup | voice ptt|on|off | pair | forget-phones',
   );
   process.exitCode = command ? 1 : 0;
 }

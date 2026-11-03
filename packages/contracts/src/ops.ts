@@ -434,6 +434,22 @@ export const ops = {
     input: SendChatInput,
     output: SendChatResult,
   }),
+  start_phone_pairing: op({
+    class: 'system',
+    userOnly: true,
+    summary: 'Show a one-time code that lets a phone pair with this laptop.',
+    http: { method: 'post', path: '/phones/pairing' },
+    input: NoInput,
+    output: z.object({ code: z.string(), expires_at: z.number() }),
+  }),
+  forget_phones: op({
+    class: 'system',
+    userOnly: true,
+    summary: 'Sign out every paired phone.',
+    http: { method: 'post', path: '/phones/forget' },
+    input: NoInput,
+    output: z.object({ forgotten: z.number() }),
+  }),
   remember: op({
     class: 'system',
     agentTool: true,

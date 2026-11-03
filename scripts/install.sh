@@ -29,9 +29,17 @@ bun install --frozen-lockfile
 bun run build:core
 bun run build:mcp
 bun run build:cli
+(cd apps/desktop && bunx vite build)
 
 mkdir -p "$BIN" "$CONFIG" "$UNITS"
 install -m 755 dist/sirius-core dist/sirius-mcp dist/sirius "$BIN/"
+
+# The core serves this to a paired phone (ADR 0010), so each install also updates the phone.
+UI="$HOME/.local/share/sirius/ui"
+rm -rf "$UI.new"
+cp -r apps/desktop/dist "$UI.new"
+rm -rf "$UI"
+mv "$UI.new" "$UI"
 
 # systemd starts services with a minimal PATH, so record where the CLIs really live.
 path="$BIN:/usr/local/bin:/usr/bin:/bin"
@@ -49,6 +57,7 @@ for tool in claude codex node; do
   fi
 done
 echo "SIRIUS_MCP_COMMAND=$BIN/sirius-mcp" >> "$env_file"
+echo "SIRIUS_UI_DIR=$UI" >> "$env_file"
 if [ -n "${SIRIUS_MEMORY_FILE:-}" ]; then
   echo "SIRIUS_MEMORY_FILE=$SIRIUS_MEMORY_FILE" >> "$env_file"
 fi

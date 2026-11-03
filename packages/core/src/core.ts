@@ -7,6 +7,7 @@ import { EventBus } from './bus.ts';
 import { migrate } from './db/migrate.ts';
 import { Dispatcher, type SystemHandlers } from './dispatcher.ts';
 import { DomainError } from './errors.ts';
+import { Phones } from './http/phones.ts';
 import type { Notifier } from './notifier.ts';
 import { RateLimitedNotifier } from './notifier.ts';
 import type { OpHooks } from './ops/context.ts';
@@ -42,6 +43,7 @@ export interface Core {
   attention: Attention;
   chat: Chat;
   voice: VoiceState;
+  phones: Phones;
   close(): void;
 }
 
@@ -75,6 +77,7 @@ export function createCore(options: CoreOptions): Core {
   const decisions = new Decisions(store, timeZone, hooks);
 
   const backups = options.backupDir ? new Backups(sqlite, options.backupDir) : null;
+  const phones = new Phones(sqlite, clock);
 
   const system: SystemHandlers = {
     confirm_proposal: ({ id }, caller) => decisions.confirm(id, caller.via),
@@ -85,6 +88,8 @@ export function createCore(options: CoreOptions): Core {
     get_conversation: () => chat.view(),
     new_conversation: () => chat.reset(),
     send_chat: (input) => chat.send(input),
+    start_phone_pairing: () => phones.startPairing(),
+    forget_phones: () => phones.forgetAll(),
     remember: ({ fact }) => memory.remember(fact, logicalDate(store.now(), timeZone)),
     cancel_chat: ({ turn_id }) => {
       chat.cancel(turn_id);
@@ -130,6 +135,7 @@ export function createCore(options: CoreOptions): Core {
     attention,
     chat,
     voice,
+    phones,
     close() {
       scheduler.stop();
       sqlite.close();
