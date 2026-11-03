@@ -114,3 +114,5 @@
 - Claude alerts only when it is blocked on you (a permission prompt or a question), not when a
   session is merely idle. `sirius notify` ignores idle notices, and `setup-hooks` now updates an
   existing Sirius hook instead of skipping it.
+- The agent is told what you changed on the dashboard since its last reply, such as a proposal you
+  confirmed or a goal you deleted, so it no longer reports a confirmed card as still waiting.

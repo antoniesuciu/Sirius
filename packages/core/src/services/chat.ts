@@ -18,6 +18,7 @@ import { conflict } from '../errors.ts';
 import type { Row, Store } from '../store.ts';
 import { uuidv7 } from '../uuid.ts';
 import type { Memory } from './memory.ts';
+import { screenChangesSince } from './screenChanges.ts';
 import type { Settings } from './settings.ts';
 
 export const SELECTED_AGENT = 'agent.selected';
@@ -169,6 +170,10 @@ export class Chat {
     const conversation = this.conversationFor(agent, this.modelFor(agent));
     // Read before this message lands, or it would appear twice.
     const background = conversation.cli_session_id ? null : this.background(conversation);
+    const lastReply = this.recentMessages(conversation.id, 50).findLast(
+      (m) => m.role === 'assistant',
+    );
+    const changed = lastReply ? screenChangesSince(this.store, lastReply.created_at) : [];
     this.store.write('user', (tx) => {
       tx.insert('messages', { conversation_id: conversation.id, role: 'user', text });
       if (!conversation.title)
@@ -178,7 +183,16 @@ export class Chat {
     const turn: ActiveTurn = { id: uuidv7(), agent, controller: new AbortController() };
     this.active = turn;
     const asked = via === 'voice' ? `${text}${SPOKEN_SUFFIX}` : text;
-    const prompt = background ? `${background}\n\nTheir message now:\n\n${asked}` : asked;
+    const sections = [
+      ...(background ? [background] : []),
+      ...(changed.length > 0
+        ? [
+            `Since your last reply, they did this on the dashboard themselves:\n${changed.map((c) => `- ${c}`).join('\n')}`,
+          ]
+        : []),
+    ];
+    const prompt =
+      sections.length > 0 ? `${sections.join('\n\n')}\n\nTheir message now:\n\n${asked}` : asked;
     void this.runTurn(turn, conversation, prompt);
     return { turn_id: turn.id, conversation_id: conversation.id };
   }

@@ -298,3 +298,67 @@ describe('when things go wrong (F22)', () => {
     expect(h.run('add_task', { title: 'still works' }).title).toBe('still works');
   });
 });
+
+describe('what changed on the screen between turns', () => {
+  test('the next turn hears about a proposal confirmed on the screen', async () => {
+    const { h, claude, turn } = setup(
+      [
+        { type: 'text', delta: 'I have proposed it.' },
+        { type: 'done', sessionId: 's1' },
+      ],
+      [{ type: 'done', sessionId: 's1' }],
+    );
+    const roadmap = h.run('add_roadmap', { title: 'Linear algebra' });
+    await turn('delete linear algebra');
+    h.advance(1000);
+    const proposal = h.run(
+      'propose_changes',
+      {
+        summary: 'Delete the Linear algebra roadmap',
+        ops: [{ op: 'delete_roadmap', input: { id: roadmap.id } }],
+      },
+      CLAUDE,
+    );
+    h.advance(1000);
+    h.run('confirm_proposal', { id: proposal.id });
+    await turn('is it gone?');
+    const prompt = claude.prompts[1]?.prompt ?? '';
+    expect(prompt).toContain('Since your last reply, they did this on the dashboard themselves');
+    expect(prompt).toContain('confirmed your proposal “Delete the Linear algebra roadmap”');
+    // The delete itself carries out the agent's own proposal, so it is not repeated as a hand edit.
+    expect(prompt).not.toContain('deleted the roadmap');
+    expect(prompt).toContain('is it gone?');
+  });
+
+  test('hand edits are reported, the agent’s own changes are not', async () => {
+    const { h, claude, turn } = setup(
+      [
+        { type: 'text', delta: 'Done.' },
+        { type: 'done', sessionId: 's1' },
+      ],
+      [{ type: 'done', sessionId: 's1' }],
+    );
+    await turn('hi');
+    h.advance(1000);
+    h.run('add_to_list', { text: 'Milk' });
+    h.run('add_goal', { title: 'Run' }, CLAUDE);
+    await turn('anything new?');
+    const prompt = claude.prompts[1]?.prompt ?? '';
+    expect(prompt).toContain('added the item on the list “Milk”');
+    expect(prompt).not.toContain('Run');
+  });
+
+  test('with nothing changed, the message goes as it is', async () => {
+    const { h, claude, turn } = setup(
+      [
+        { type: 'text', delta: 'Hello.' },
+        { type: 'done', sessionId: 's1' },
+      ],
+      [{ type: 'done', sessionId: 's1' }],
+    );
+    await turn('hi');
+    h.advance(1000);
+    await turn('again');
+    expect(claude.prompts[1]?.prompt).toBe('again');
+  });
+});
