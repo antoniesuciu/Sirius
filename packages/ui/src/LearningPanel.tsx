@@ -56,7 +56,6 @@ export function LearningPanel({ roadmaps, onStepToToday, onRename, onDelete }: L
     <section className="panel rise d2">
       <div className="panel-head">
         <h2>Learning</h2>
-        <span className="label">Only when there's a gap</span>
       </div>
       <div className="path" ref={path}>
         <div className="rail" aria-hidden="true" style={vine}>

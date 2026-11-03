@@ -81,14 +81,14 @@ export function TodayPanel({
     timer.current = setTimeout(() => setPlantedAt(null), PLANTED_MS);
   };
 
-  const meta =
-    restingTomorrow > 0 ? `${restingTomorrow} resting until tomorrow` : 'Two or three is plenty';
+  // Only something worth knowing goes here. The old slogans read as filler.
+  const meta = restingTomorrow > 0 ? `${restingTomorrow} resting until tomorrow` : null;
 
   return (
     <section className={`panel panel-dimmable rise d1 ${dimmed ? 'panel-dim' : ''}`}>
       <div className="panel-head">
         <h2>Today</h2>
-        <span className="label">{meta}</span>
+        {meta && <span className="label">{meta}</span>}
       </div>
       <ul className="tasks">
         {priorities.map((t) => (

@@ -42,7 +42,6 @@ export function GoalsPanel({ goals, dimmed, onRename, onDelete }: GoalsPanelProp
     <section className={`panel panel-goals panel-dimmable rise d2 ${dimmed ? 'panel-dim' : ''}`}>
       <div className="panel-head">
         <h2>Goals</h2>
-        <span className="label">A few, with room</span>
       </div>
       {goals.map((goal) => (
         <div className="goal msg" key={goal.id}>

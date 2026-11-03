@@ -32,7 +32,6 @@ export function WellbeingPanel({ nudge, onSnoozeNudge, startSignal }: WellbeingP
     <section className="panel panel-wellbeing rise d5">
       <div className="panel-head">
         <h2>Well-being</h2>
-        <span className="label">Quiet by default</span>
       </div>
       <div className="breath">
         <div className="breath-ring" aria-hidden="true">
