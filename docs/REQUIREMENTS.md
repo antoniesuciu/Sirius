@@ -42,7 +42,7 @@ Sirius is a small, calm, single-screen desktop dashboard for Ubuntu. It opens au
 
 **v1 (milestones M0–M6):** the desktop app on Ubuntu, local core service, MCP server, Sirius chat via Claude/Codex CLIs, agent-attention notifications, local push-to-talk voice.
 
-**Later:** M9, Special additions, including the "Hey Sirius" wake word. M7 and M8 (core on a homelab, phone client) are built and tested locally but not deployed, because there is no homelab yet. Everything runs on the laptop, and `deployment.env` is the switch.
+**Later:** M9, Special additions, including the "Hey Sirius" wake word. M7 (core on a homelab) is built and tested locally but not deployed, because there is no homelab yet. The phone works without one: it uses the laptop's own core over Tailscale and keeps an offline copy (ADR 0010). `deployment.env` is the switch between local and deployed.
 
 **Non-goals:** multi-user, accounts, sharing, calendar sync, analytics, streaks, scores, gamification, a plugin system, Windows/macOS packaging (it shouldn't be prevented, just not done).
 
