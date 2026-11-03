@@ -23,6 +23,15 @@ export function fromClaudeHook(raw: string, kind: AgentEventKind): AgentEventInp
   };
 }
 
+/** The folder a Claude hook ran in, for clearing that folder's alert. Never throws. */
+export function projectFromHook(raw: string): string | undefined {
+  try {
+    return projectOf((JSON.parse(raw) as { cwd?: unknown }).cwd);
+  } catch {
+    return undefined;
+  }
+}
+
 /** Codex passes one JSON argument. `agent-turn-complete` is the only documented type. */
 export function fromCodexJson(raw: string): AgentEventInput {
   const data = JSON.parse(raw) as { type?: string; cwd?: string };

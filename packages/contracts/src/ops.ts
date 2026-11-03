@@ -553,6 +553,17 @@ export const ops = {
     }),
     output: AgentEvent,
   }),
+  resolve_agent_events: op({
+    class: 'system',
+    summary:
+      'An agent elsewhere is no longer waiting, for example because a permission was answered.',
+    http: { method: 'post', path: '/agent-events/resolve' },
+    input: z.object({
+      source: AgentId,
+      project: z.string().trim().max(200).optional(),
+    }),
+    output: z.object({ resolved: z.number().int() }),
+  }),
   list_agent_events: op({
     class: 'system',
     summary: 'Agent events that have not been acknowledged.',

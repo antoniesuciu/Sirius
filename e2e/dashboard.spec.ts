@@ -375,7 +375,7 @@ test.describe('sirius', () => {
 test('the agent toast offers Got it and Later', async ({ page }) => {
   await open(page, '?fixtures&toastMs=50');
   const toast = page.getByRole('status').filter({ hasText: 'quant-lab' });
-  await expect(toast).toHaveText(/Claude is waiting for an approval in quant-lab/);
+  await expect(toast).toHaveText(/Claude Code is waiting for an approval in the quant-lab folder/);
   await expect(page.getByText('Claude · waiting for you')).toBeVisible();
   await toast.getByRole('button', { name: 'Later' }).click();
   await expect(toast).toHaveCount(0);

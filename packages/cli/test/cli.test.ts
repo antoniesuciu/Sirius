@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { mergeClaudeSettings, mergeCodexConfig } from '../src/hooks.ts';
-import { fromClaudeHook, fromCodexJson } from '../src/notify.ts';
+import { fromClaudeHook, fromCodexJson, projectFromHook } from '../src/notify.ts';
 
 const BIN = '/home/x/.local/bin/sirius';
 
@@ -24,6 +24,13 @@ describe('hook input', () => {
     expect(fromClaudeHook(JSON.stringify(idle), 'needs_input')).toBeNull();
     const typed = { cwd: '/x', message: 'x', notification_type: 'idle_prompt' };
     expect(fromClaudeHook(JSON.stringify(typed), 'needs_input')).toBeNull();
+  });
+
+  test('Claude: the folder to clear comes from the same cwd, and bad input is no folder', () => {
+    const raw = JSON.stringify({ hook_event_name: 'PostToolUse', cwd: '/home/x/code/sirius' });
+    expect(projectFromHook(raw)).toBe('sirius');
+    expect(projectFromHook('')).toBeUndefined();
+    expect(projectFromHook('{"cwd": 3}')).toBeUndefined();
   });
 
   test('Codex: the documented payload is a finished turn', () => {
@@ -56,6 +63,15 @@ describe('mergeClaudeSettings', () => {
     expect(group?.matcher).toContain('permission_prompt');
     expect(group?.matcher).not.toContain('idle_prompt');
     expect(group?.hooks[0]?.command).toBe(`${BIN} notify --source claude --kind needs_input`);
+  });
+
+  test('an answered permission clears its alert: after any tool, or on the next prompt', () => {
+    const hooks = mergeClaudeSettings({}, BIN).hooks;
+    const resolve = `${BIN} notify --source claude --resolve`;
+    expect(hooks?.PostToolUse).toEqual([
+      { matcher: '*', hooks: [{ type: 'command', command: resolve }] },
+    ]);
+    expect(hooks?.UserPromptSubmit).toEqual([{ hooks: [{ type: 'command', command: resolve }] }]);
   });
 
   test('the Stop hook is off unless asked for', () => {

@@ -193,7 +193,23 @@ describe('agent attention (F23, F25)', () => {
   test('reads as one calm sentence', () => {
     const h = harness();
     h.run('post_agent_event', { ...event, message: 'Claude needs your permission to use Bash' });
-    expect(h.notified[0]?.body).toBe('Claude is waiting for an approval in quant-lab.');
+    expect(h.notified[0]?.body).toBe(
+      'Claude Code is waiting for an approval in the quant-lab folder.',
+    );
+  });
+
+  test('an answered permission clears the alert for that folder only', () => {
+    const h = harness();
+    h.run('post_agent_event', event);
+    h.run('post_agent_event', { ...event, project: 'other' });
+    expect(h.run('resolve_agent_events', { source: 'claude', project: 'quant-lab' })).toEqual({
+      resolved: 1,
+    });
+    expect(h.run('list_agent_events', {}).map((e) => e.project)).toEqual(['other']);
+    // Nothing waiting is fine: the hook runs after every tool call.
+    expect(h.run('resolve_agent_events', { source: 'claude', project: 'quant-lab' })).toEqual({
+      resolved: 0,
+    });
   });
 
   test('duplicates coalesce into one event and one notification', () => {
@@ -230,7 +246,7 @@ describe('turn_complete (Codex only ever sends this)', () => {
   test('notifies, but leaves no toast or waiting status behind', () => {
     const h = harness();
     h.run('post_agent_event', finished);
-    expect(h.notified.map((n) => n.body)).toEqual(['Codex finished in lab.']);
+    expect(h.notified.map((n) => n.body)).toEqual(['Codex finished in the lab folder.']);
     expect(h.run('list_agent_events', {})).toEqual([]);
     expect(h.events.some((e) => e.type === 'agent')).toBe(false);
   });

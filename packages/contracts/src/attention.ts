@@ -5,8 +5,10 @@ import type { AgentEvent } from './schemas.ts';
 export function describeAgentEvent(
   event: Pick<AgentEvent, 'source' | 'kind' | 'project' | 'message'>,
 ): string {
-  const name = agentCatalog[event.source].label;
-  const where = event.project ? ` in ${event.project}` : '';
+  // These come from sessions in a terminal or editor, not from Sirius's own chat. A folder
+  // called "sirius" otherwise reads as if the dashboard itself were waiting.
+  const name = event.source === 'claude' ? 'Claude Code' : agentCatalog[event.source].label;
+  const where = event.project ? ` in the ${event.project} folder` : '';
   switch (event.kind) {
     case 'needs_input': {
       const what = /permission|approv/i.test(event.message ?? '') ? 'an approval' : 'you';

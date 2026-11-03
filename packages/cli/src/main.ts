@@ -12,7 +12,7 @@ import {
   type SiriusClient,
 } from '@sirius/contracts';
 import { applyClaude, applyCodex, mergeClaudeSettings, mergeCodexConfig } from './hooks.ts';
-import { fromClaudeHook, fromCodexJson, readStdin } from './notify.ts';
+import { fromClaudeHook, fromCodexJson, projectFromHook, readStdin } from './notify.ts';
 
 const HOOK_TIMEOUT_MS = 1000;
 
@@ -55,8 +55,20 @@ async function notify(args: string[]): Promise<void> {
         project: { type: 'string' },
         message: { type: 'string' },
         'from-codex-json': { type: 'boolean' },
+        resolve: { type: 'boolean' },
       },
     });
+    if (values.resolve) {
+      // The agent went on, so a permission it asked for has been answered: clear the alert.
+      const source = AgentId.parse(values.source);
+      const project =
+        values.project ?? (source === 'claude' ? projectFromHook(await readStdin()) : undefined);
+      await client(HOOK_TIMEOUT_MS).call('resolve_agent_events', {
+        source,
+        ...(project ? { project } : {}),
+      });
+      return;
+    }
     let input: OpInput<'post_agent_event'> | null;
     if (values['from-codex-json']) {
       input = fromCodexJson(positionals[0] ?? '{}');

@@ -24,8 +24,15 @@ export class Attention {
     return tx.peek('day_state', logicalDate(tx.now, this.timeZone))?.quiet_mode ?? false;
   }
 
+  /** The agent carried on, so whatever it was waiting for has been answered. */
+  resolve(input: OpInput<'resolve_agent_events'>): { resolved: number } {
+    return this.store.write('system', (tx) => ({
+      resolved: this.clearWaiting(tx, input.source, input.project ?? null),
+    }));
+  }
+
   /** Marks earlier "needs you" events for this agent and project as no longer true. */
-  private clearWaiting(tx: Tx, source: AgentId, project: string | null): void {
+  private clearWaiting(tx: Tx, source: AgentId, project: string | null): number {
     const waiting = tx.db
       .select()
       .from(agent_events)
@@ -41,6 +48,7 @@ export class Attention {
     for (const event of waiting) {
       tx.update('agent_events', event.id, { acknowledged_at: tx.now });
     }
+    return waiting.length;
   }
 
   post(input: OpInput<'post_agent_event'>): AgentEvent {

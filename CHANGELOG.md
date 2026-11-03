@@ -140,3 +140,11 @@
   directly, checked with real WebM/Opus through Whisper, and the core logs why an upload failed.
 - The phone's Sirius card is compact: agent and model beside the avatar, "New chat" at the top, and
   only the chat scrolls.
+- Fixed: the voice service on the laptop was never updated after its first install, because uv
+  rebuilds a local project only when `pyproject.toml` changes. The installer now forces a rebuild,
+  which also brings the Whisper accuracy fix, the Romanian hints and the voice pace into effect.
+- Agent alerts name the source plainly ("Claude Code is waiting for an approval in the sirius
+  folder.") and clear themselves once the session carries on. This needs `sirius setup-hooks
+  --apply` again, which adds `PostToolUse` and `UserPromptSubmit` hooks.
+- Phone: switching tabs no longer replays the panels' fade-in, a long model name no longer pushes
+  the status onto a new line, and a 360 px screen keeps the header buttons on one line.

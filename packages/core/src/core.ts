@@ -108,6 +108,7 @@ export function createCore(options: CoreOptions): Core {
       return { ok: true };
     },
     post_agent_event: (input) => attention.post(input),
+    resolve_agent_events: (input) => attention.resolve(input),
     list_agent_events: () => attention.pending(),
     ack_agent_event: ({ id }) => attention.ack(id),
     voice_utterance: (input) => router.utterance(input),

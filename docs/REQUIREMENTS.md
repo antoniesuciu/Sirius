@@ -97,7 +97,7 @@ Sirius is a small, single-screen desktop dashboard and personal assistant for Ub
 - **F22** If the CLI is missing, not logged in, or out of quota, Sirius says so in one plain sentence and suggests the fix (`claude login`, etc.). The rest of the dashboard is unaffected.
 
 ### 3.7 Agent attention and notifications
-- **F23** Claude Code hooks and Codex `notify` (section 9) post events to the core. The UI shows a toast ("Claude is waiting for an approval in quant-lab. No rush, it will keep.") with **Got it / Later**, and the agent status line updates.
+- **F23** Claude Code hooks and Codex `notify` (section 9) post events to the core. The UI shows a toast ("Claude Code is waiting for an approval in the quant-lab folder.") with **Got it / Later**, and the agent status line updates. The toast clears itself once the session carries on: a `PostToolUse` or `UserPromptSubmit` hook means the prompt was answered.
 - **F24** The core sends native desktop notifications (libnotify) for reminders and agent attention, so they work when the window is closed to the tray, but not after a real Quit, which stops the core too (ADR 0009). Quiet mode suppresses them; agent events queue and appear on "Welcome back".
 - **F25** Rate limits: at most one notification per source per 2 minutes, and duplicate events are coalesced.
 

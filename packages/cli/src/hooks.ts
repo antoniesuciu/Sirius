@@ -42,6 +42,20 @@ export function mergeClaudeSettings(
     },
     'notify --source claude --kind needs_input',
   );
+  // Either one means a permission prompt was answered, so its alert can go (2026-11-03).
+  const resolve = `${bin} notify --source claude --resolve`;
+  addHook(
+    settings,
+    'PostToolUse',
+    { matcher: '*', hooks: [{ type: 'command', command: resolve }] },
+    'notify --source claude --resolve',
+  );
+  addHook(
+    settings,
+    'UserPromptSubmit',
+    { hooks: [{ type: 'command', command: resolve }] },
+    'notify --source claude --resolve',
+  );
   if (options.withStop) {
     addHook(
       settings,
