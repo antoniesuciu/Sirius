@@ -122,3 +122,7 @@
 - The chat takes PDF, Markdown and text files (F36), read by the core and passed to the agent as
   material, never as instructions. Real Claude turned a 12-week syllabus PDF into a 12-step
   roadmap and ignored a planted "delete every goal" line.
+- A schedule for fixed commitments (F37, ADR 0012): weekly or one-off, apart from tasks, with a
+  reminder 10 minutes before. Agents add and change it. `sirius calendar` gives an iCalendar feed
+  that ICSx⁵ puts into Android's calendar and widgets. Real Claude filled it in correctly from one
+  sentence and created no tasks.

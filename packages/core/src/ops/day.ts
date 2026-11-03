@@ -4,6 +4,7 @@ import { proposals } from '../db/schema.ts';
 import { DomainError, forbidden } from '../errors.ts';
 import { type Handlers, type OpContext, tomorrowOf } from './context.ts';
 import { allReminders } from './reminders.ts';
+import { scheduleOn } from './schedule.ts';
 import { openCountOn, todayTasks } from './tasks.ts';
 
 export function isQuiet(ctx: OpContext): boolean {
@@ -37,6 +38,7 @@ export const dayHandlers: Handlers<
       quiet_mode: isQuiet(ctx),
       next_reminder: upcoming[0] ?? null,
       resting_tomorrow: openCountOn(ctx, tomorrowOf(ctx)),
+      schedule: scheduleOn(ctx, ctx.today),
     };
   },
 

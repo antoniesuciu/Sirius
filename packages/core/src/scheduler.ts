@@ -3,11 +3,19 @@
  * It wakes on the minute with a self-rescheduling timeout, and every step in `tick` is
  * idempotent and works from the wall clock, so a late wake after suspend simply catches up.
  */
-import { formatDate, localParts, logicalDate, weekdayOf, zonedInstant } from '@sirius/contracts';
+import {
+  formatDate,
+  localParts,
+  logicalDate,
+  occurrencesOn,
+  weekdayOf,
+  zonedInstant,
+} from '@sirius/contracts';
 import { and, eq, isNull, lt, lte } from 'drizzle-orm';
 import type { Backups } from './backups.ts';
 import type { EventBus } from './bus.ts';
-import { proposals, reminders, tasks } from './db/schema.ts';
+import { REMIND_BEFORE_MIN } from './calendar.ts';
+import { proposals, reminders, schedule_events, tasks } from './db/schema.ts';
 import type { Notifier } from './notifier.ts';
 import { makeContext, type OpHooks } from './ops/context.ts';
 import { nextTaskPosition } from './ops/tasks.ts';
@@ -58,6 +66,7 @@ export class Scheduler {
     this.rollover(today);
     this.expireProposals(now);
     this.fireReminders(now);
+    this.remindSchedule(now);
     if (this.lastDate !== null && this.lastDate !== today) {
       this.releaseQuiet(this.lastDate);
       // An open window has no other way to learn this when no task had to move.
@@ -101,6 +110,37 @@ export class Scheduler {
         tx.update('proposals', p.id, { status: 'expired', decided_at: tx.now });
       }
     });
+  }
+
+  /** Notified this process, so each event reminds once a day (F37). */
+  private readonly reminded = new Set<string>();
+
+  /** F37: a notification REMIND_BEFORE_MIN before each event today, unless quiet. */
+  private remindSchedule(now: number): void {
+    const date = this.calendarDate(now);
+    const quiet = this.store.write(
+      'system',
+      (tx) => tx.peek('day_state', logicalDate(now, this.timeZone))?.quiet_mode ?? false,
+    );
+    if (quiet) return;
+    const events = this.store.db
+      .select()
+      .from(schedule_events)
+      .where(isNull(schedule_events.deleted_at))
+      .all();
+    for (const occurrence of occurrencesOn(events, date)) {
+      const key = `${occurrence.event_id}:${date}`;
+      if (this.reminded.has(key)) continue;
+      const startsAt = zonedInstant(date, occurrence.start_local, this.timeZone);
+      if (now < startsAt - REMIND_BEFORE_MIN * 60_000 || now >= startsAt) continue;
+      this.reminded.add(key);
+      const where = occurrence.location ? `, ${occurrence.location}` : '';
+      this.notifier.notify({
+        key: `schedule:${occurrence.event_id}`,
+        title: 'Sirius',
+        body: `${occurrence.title} at ${occurrence.start_local}${where}`,
+      });
+    }
   }
 
   private calendarDate(now: number): string {

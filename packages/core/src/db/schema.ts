@@ -85,6 +85,18 @@ export const reminders = sqliteTable('reminders', {
   last_fired_on: text('last_fired_on'),
 });
 
+export const schedule_events = sqliteTable('schedule_events', {
+  ...common(),
+  title: text('title').notNull(),
+  location: text('location'),
+  weekdays: integer('weekdays').notNull(),
+  date: text('date'),
+  start_local: text('start_local').notNull(),
+  end_local: text('end_local'),
+  starts_on: text('starts_on'),
+  ends_on: text('ends_on'),
+});
+
 export const list_items = sqliteTable('list_items', {
   ...common(),
   text: text('text').notNull(),

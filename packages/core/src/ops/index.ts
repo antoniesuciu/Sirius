@@ -5,6 +5,7 @@ import { goalHandlers } from './goals.ts';
 import { learningHandlers } from './learning.ts';
 import { listHandlers } from './list.ts';
 import { reminderHandlers } from './reminders.ts';
+import { scheduleHandlers } from './schedule.ts';
 import { taskHandlers } from './tasks.ts';
 
 /** Handlers that run inside the caller's transaction. Everything else is a service. */
@@ -14,6 +15,7 @@ export const domainHandlers = {
   ...learningHandlers,
   ...reminderHandlers,
   ...listHandlers,
+  ...scheduleHandlers,
   ...dayHandlers,
 } satisfies Partial<Handlers<OpName>>;
 

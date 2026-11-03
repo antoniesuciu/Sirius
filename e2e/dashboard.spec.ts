@@ -170,6 +170,57 @@ test('breathing starts and stops, with a live label', async ({ page }) => {
   await expect(page.locator('.breath-label')).toHaveText('Take a minute');
 });
 
+test.describe('schedule (F37)', () => {
+  const FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const todayName = () => FULL[(new Date().getDay() + 6) % 7] as string;
+
+  test('a weekly event added by hand shows today, apart from the tasks', async ({ page }) => {
+    await open(page);
+    const panel = page.locator('section.panel-schedule');
+    await panel.getByRole('button', { name: 'Add to schedule' }).click();
+    await panel.getByLabel('What').fill('Probability lecture');
+    await panel.getByRole('button', { name: todayName(), exact: true }).click();
+    await panel.getByLabel('Starts').fill('23:30');
+    await panel.getByLabel('Ends').fill('23:50');
+    await panel.getByLabel('Where').fill('Room 0.10');
+    await panel.getByRole('button', { name: 'Save' }).click();
+    await expect(panel.locator('.sched-title', { hasText: 'Probability lecture' })).toBeVisible();
+    await expect(panel.locator('.sched-place', { hasText: 'Room 0.10' })).toBeVisible();
+    await expect(page.locator('.task', { hasText: 'Probability lecture' })).toHaveCount(0);
+  });
+
+  test('the week view shows the coming days', async ({ page }) => {
+    await open(page);
+    const panel = page.locator('section.panel-schedule');
+    await panel.getByRole('button', { name: 'Week' }).click();
+    await expect(panel.locator('.sched-title', { hasText: 'Gym' }).first()).toBeVisible();
+    await expect(
+      panel.locator('.sched-title', { hasText: 'Real analysis lecture' }).first(),
+    ).toBeVisible();
+  });
+
+  test('deleting an event asks once more', async ({ page }) => {
+    await open(page);
+    const panel = page.locator('section.panel-schedule');
+    await panel.getByRole('button', { name: 'Week' }).click();
+    await panel.getByRole('button', { name: 'Edit schedule item: Gym' }).first().click();
+    await panel.getByRole('button', { name: 'Delete', exact: true }).click();
+    await panel.getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(panel.locator('.sched-title', { hasText: 'Gym' })).toHaveCount(0);
+  });
+
+  test('Save waits for a day or a date, and a start time', async ({ page }) => {
+    await open(page);
+    const panel = page.locator('section.panel-schedule');
+    await panel.getByRole('button', { name: 'Add to schedule' }).click();
+    await panel.getByLabel('What').fill('Something');
+    await expect(panel.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await panel.getByLabel('Once on').fill('2026-12-01');
+    await panel.getByLabel('Starts').fill('09:00');
+    await expect(panel.getByRole('button', { name: 'Save' })).toBeEnabled();
+  });
+});
+
 test.describe('attaching files (F36)', () => {
   test('a Markdown file goes with the message and shows on it', async ({ page }) => {
     await open(page);

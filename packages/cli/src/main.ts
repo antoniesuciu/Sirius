@@ -193,6 +193,42 @@ async function pairPhone(): Promise<void> {
   console.log("Then choose Install app in Chrome's menu to keep Sirius on your home screen.");
 }
 
+/** F37: the schedule's calendar feed, for ICSx⁵ or any app that subscribes to iCalendar. */
+function calendarFeed(): void {
+  const host = tailscaleHost();
+  let token: string;
+  try {
+    token = readFileSync(join(dataDir, 'calendar-token'), 'utf8').trim();
+  } catch {
+    console.log('The core has not made a calendar address yet. Start it and try again.');
+    process.exitCode = 1;
+    return;
+  }
+  if (!host) {
+    console.log('Tailscale is not running here, so only this laptop can reach the feed:');
+    console.log(`\n  ${coreUrl}/calendar/${token}.ics\n`);
+    return;
+  }
+  try {
+    ensureServed();
+  } catch {
+    console.log(
+      'Tailscale would not share Sirius. Turn on HTTPS Certificates and set the operator.',
+    );
+    process.exitCode = 1;
+    return;
+  }
+  const url = `https://${host}/calendar/${token}.ics`;
+  console.log(`\nYour schedule as a calendar:\n\n  ${url}\n`);
+  if (commandWorks('qrencode', ['--version'])) {
+    execFileSync('qrencode', ['-t', 'ansiutf8', url], { stdio: 'inherit' });
+  }
+  console.log('On Android: install ICSx⁵, add a subscription with this address, and pick');
+  console.log('"Synchronize every 15 minutes". The events then appear in your calendar app and');
+  console.log('its widget, with a reminder 10 minutes before each, even with the laptop off.');
+  console.log('Anyone with this address can read your schedule, so keep it to yourself.');
+}
+
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
   switch (command) {
@@ -204,6 +240,8 @@ async function main(): Promise<void> {
       return doctor();
     case 'pair':
       return pairPhone();
+    case 'calendar':
+      return calendarFeed();
     case 'forget-phones': {
       const { forgotten } = await client().call('forget_phones', {});
       console.log(`Signed out ${forgotten} phone${forgotten === 1 ? '' : 's'}.`);
@@ -223,7 +261,7 @@ async function main(): Promise<void> {
       break;
   }
   console.log(
-    'Usage: sirius notify | setup-hooks [--apply] [--with-stop] | doctor | backup | voice ptt|on|off | pair | forget-phones',
+    'Usage: sirius notify | setup-hooks [--apply] [--with-stop] | doctor | backup | voice ptt|on|off | pair | forget-phones | calendar',
   );
   process.exitCode = command ? 1 : 0;
 }

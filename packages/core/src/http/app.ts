@@ -12,6 +12,7 @@ import {
 } from '@sirius/contracts';
 import { cors } from 'hono/cors';
 import { ZodError } from 'zod';
+import { toIcs } from '../calendar.ts';
 import type { Core } from '../core.ts';
 import type { DesktopLink } from '../desktopLink.ts';
 import type { Caller } from '../dispatcher.ts';
@@ -20,6 +21,8 @@ import { Replays } from './replays.ts';
 import { serveUi } from './static.ts';
 
 export interface AppOptions {
+  /** The secret in the calendar feed's address (F37). Without it there is no feed. */
+  calendarToken?: string;
   /** Set on a local core, which stops when the desktop app goes (ADR 0009). */
   desktopLink?: DesktopLink;
   token: string;
@@ -133,6 +136,16 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
   );
 
   app.get('/v1/health', (c) => c.json({ ok: true, version: options.version, mode: options.mode }));
+
+  // F37: calendar apps cannot send a bearer token, so the feed's secret is in its address.
+  app.get('/calendar/:file', (c) => {
+    const given = c.req.param('file').replace(/\.ics$/, '');
+    if (!options.calendarToken || !tokensMatch(given, options.calendarToken)) return c.notFound();
+    const events = core.dispatcher.run('list_schedule', {}, { actor: 'system', via: 'system' });
+    return c.body(toIcs(events, core.timeZone), 200, {
+      'content-type': 'text/calendar; charset=utf-8',
+    });
+  });
 
   // The one route a phone can call before it has a token (ADR 0010).
   app.post('/v1/pair', async (c) => {

@@ -37,6 +37,7 @@ is away.
 |---|---|
 | **Sirius** | A chat with Claude or Codex, switched with one tap, through the official CLIs. One conversation lasts until you start a new one, and it carries over when you switch agents. A memory file keeps lasting facts across sessions. |
 | **Today** | Two or three priorities plus small tasks. Unfinished tasks move quietly to the next day at 04:00. |
+| **Schedule** | Fixed commitments such as lectures, the gym or shifts: weekly on chosen days within a term, or once. Kept apart from tasks, with a reminder 10 minutes before. Sirius can add them for you, and your phone's calendar can show them. |
 | **Goals** | A few goals, with milestone dots instead of percentages. You can add them by hand or ask Sirius. |
 | **Learning** | Roadmaps drawn as a growing vine. "Put it in Today" turns the next step into a task. Attach a syllabus PDF or Markdown file in the chat, and Sirius turns it into a roadmap. |
 | **To remember** | A plain list for things to buy or remember, with no day or time attached. |
@@ -123,6 +124,10 @@ version 0.1.0, and apt would otherwise skip it. If Sirius is open, restart it wi
 The code works once, for five minutes. `sirius forget-phones` signs out every paired phone.
 The phone picks up new versions by itself after each install.
 
+For the schedule in your phone's own calendar, with its widget and alarms that ring with the
+laptop off, run `sirius calendar` and subscribe to the address it prints with
+[ICSx⁵](https://icsx5.bitfire.at/), a free, open-source Android app.
+
 ## Everyday use
 
 | | |
@@ -131,6 +136,7 @@ The phone picks up new versions by itself after each install.
 | `sirius doctor` | Check the core, the agents, notifications and voice. |
 | `sirius voice on` / `off` | Turn voice on, or off and stop its service. |
 | `sirius pair` / `forget-phones` | Pair a phone, or sign all of them out. |
+| `sirius calendar` | Print the schedule's calendar feed address, for ICSx⁵ on Android. |
 | `sirius backup` | Take a snapshot of the database now. One is also taken every night. |
 | `sirius setup-hooks [--apply]` | Show, or apply, the Claude Code and Codex hook changes. |
 

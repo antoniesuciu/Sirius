@@ -97,6 +97,34 @@ export const ListItem = z.object({
 });
 export type ListItem = z.infer<typeof ListItem>;
 
+/**
+ * The schedule (F37): fixed commitments such as lectures or shifts. Weekly on the days in
+ * `weekdays`, or once on `date`. It never mixes with today's tasks.
+ */
+export const ScheduleEvent = z.object({
+  ...Common,
+  title: z.string(),
+  location: z.string().nullable(),
+  weekdays: Weekdays.describe('Weekly on these days; 0 for a one-off on `date`'),
+  date: LocalDate.nullable(),
+  start_local: TimeLocal,
+  end_local: TimeLocal.nullable(),
+  starts_on: LocalDate.nullable(),
+  ends_on: LocalDate.nullable(),
+});
+export type ScheduleEvent = z.infer<typeof ScheduleEvent>;
+
+/** One schedule event on one date. */
+export const ScheduleOccurrence = z.object({
+  event_id: z.string(),
+  title: z.string(),
+  location: z.string().nullable(),
+  date: LocalDate,
+  start_local: TimeLocal,
+  end_local: TimeLocal.nullable(),
+});
+export type ScheduleOccurrence = z.infer<typeof ScheduleOccurrence>;
+
 export const Goal = z.object({
   ...Common,
   title: z.string(),
@@ -208,6 +236,7 @@ export const TodayView = z.object({
   quiet_mode: z.boolean(),
   next_reminder: ReminderView.nullable(),
   resting_tomorrow: z.number().int().describe('Open tasks scheduled for tomorrow'),
+  schedule: z.array(ScheduleOccurrence).describe("Today's fixed commitments, by start time"),
 });
 export type TodayView = z.infer<typeof TodayView>;
 

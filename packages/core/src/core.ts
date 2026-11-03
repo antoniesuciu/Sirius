@@ -46,6 +46,7 @@ export interface Core {
   voice: VoiceState;
   phones: Phones;
   attachments: Attachments;
+  timeZone: string;
   close(): void;
 }
 
@@ -148,6 +149,7 @@ export function createCore(options: CoreOptions): Core {
     voice,
     phones,
     attachments,
+    timeZone,
     close() {
       scheduler.stop();
       sqlite.close();

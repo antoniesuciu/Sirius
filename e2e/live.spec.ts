@@ -135,3 +135,19 @@ test('a file Sirius cannot read is explained (F36)', async ({ page }) => {
     'Sirius reads PDF, Markdown and text files',
   );
 });
+
+test('the calendar feed serves the schedule to a calendar app (F37)', async () => {
+  await postToCore('/schedule', {
+    title: 'Lecture',
+    weekdays: 5,
+    start_local: '10:00',
+    end_local: '11:00',
+  });
+  const secret = readFileSync(`${LIVE_DATA_DIR}/calendar-token`, 'utf8').trim();
+  const feed = await fetch(`http://127.0.0.1:${LIVE_PORT}/calendar/${secret}.ics`);
+  expect(feed.headers.get('content-type')).toContain('text/calendar');
+  const text = await feed.text();
+  expect(text).toContain('SUMMARY:Lecture');
+  expect(text).toContain('RRULE:FREQ=WEEKLY;BYDAY=MO,WE');
+  expect((await fetch(`http://127.0.0.1:${LIVE_PORT}/calendar/wrong.ics`)).status).toBe(404);
+});

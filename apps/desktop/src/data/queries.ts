@@ -42,6 +42,7 @@ export const useGoals = () => useOpQuery('list_goals', {});
 export const useLearning = () => useOpQuery('list_learning', {});
 export const useReminders = () => useOpQuery('list_reminders', {});
 export const useList = () => useOpQuery('get_list', {});
+export const useSchedule = () => useOpQuery('list_schedule', {});
 export const useProposals = () => useOpQuery('list_proposals', {});
 export const useAgents = () => useOpQuery('get_agents', {});
 export const useConversation = () => useOpQuery('get_conversation', {});
@@ -58,6 +59,7 @@ const INVALIDATES: Record<EntityName, OpName[]> = {
   roadmap_steps: ['list_learning'],
   reminders: ['list_reminders', 'get_today'],
   list_items: ['get_list'],
+  schedule_events: ['list_schedule', 'get_today'],
   day_state: ['get_today', 'get_agents'],
   proposals: ['list_proposals'],
   agent_events: ['list_agent_events', 'get_agents'],

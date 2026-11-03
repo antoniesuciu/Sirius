@@ -71,6 +71,7 @@ void core.chat.refreshAvailability();
 
 const app = createApp(core, {
   token: loadOrCreateToken(config.tokenFile),
+  calendarToken: loadOrCreateToken(join(config.dataDir, 'calendar-token')),
   mode: config.mode,
   version: VERSION,
   // A remote core serves other devices, so no one window decides its life.

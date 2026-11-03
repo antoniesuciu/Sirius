@@ -4,6 +4,7 @@ import {
   buildSuggestions,
   describeAgentEvent,
   greeting,
+  logicalDate,
   type Proposal,
   type ReminderView,
 } from '@sirius/contracts';
@@ -19,6 +20,7 @@ import {
   nextStep,
   type PendingFile,
   PersonalPanel,
+  SchedulePanel,
   SiriusPanel,
   TodayPanel,
   usePageHidden,
@@ -44,6 +46,7 @@ import {
   useOp,
   useProposals,
   useReminders,
+  useSchedule,
   useSetQuiet,
   useSettings,
   useTickListItem,
@@ -84,6 +87,7 @@ export function App({ phone = false }: { phone?: boolean }) {
   const roadmaps = useLearning().data ?? [];
   const reminders = useReminders().data ?? [];
   const listItems = useList().data;
+  const schedule = useSchedule().data ?? [];
   const proposals = useProposals().data ?? [];
   const agents = useAgents().data;
   const conversation = useConversation().data;
@@ -97,6 +101,9 @@ export function App({ phone = false }: { phone?: boolean }) {
   const setQuiet = useSetQuiet();
   const renameGoal = useOp('rename_goal', ['list_goals']);
   const addGoal = useOp('add_goal', ['list_goals']);
+  const addScheduleEvent = useOp('add_schedule_event', ['list_schedule', 'get_today']);
+  const updateScheduleEvent = useOp('update_schedule_event', ['list_schedule', 'get_today']);
+  const deleteScheduleEvent = useOp('delete_schedule_event', ['list_schedule', 'get_today']);
   const addToList = useAddToList();
   const tickListItem = useTickListItem();
   const deleteGoal = useOp('delete_goal', ['list_goals']);
@@ -315,6 +322,16 @@ export function App({ phone = false }: { phone?: boolean }) {
             onToggle={(task) => toggleTask.mutate(task)}
             onAdd={(title) => addTask.mutate(title)}
             onDrop={(task) => dropTask.mutate(task)}
+          />
+          <SchedulePanel
+            events={schedule}
+            today={
+              today?.date ??
+              logicalDate(Date.now(), Intl.DateTimeFormat().resolvedOptions().timeZone)
+            }
+            onAdd={(event) => addScheduleEvent.mutate(event)}
+            onRename={(id, title) => updateScheduleEvent.mutate({ id, title })}
+            onDelete={(id) => deleteScheduleEvent.mutate({ id })}
           />
           <GoalsPanel
             goals={goals}

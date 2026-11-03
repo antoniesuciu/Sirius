@@ -126,3 +126,19 @@ export function nextOccurrence(
 }
 
 export const EVERY_DAY = 0b1111111;
+
+interface Recurring {
+  weekdays: number;
+  date: string | null;
+  starts_on: string | null;
+  ends_on: string | null;
+}
+
+/** Whether a schedule event happens on a date (F37): its one-off date, or a weekday in term. */
+export function happensOn(event: Recurring, date: string): boolean {
+  if (event.date) return event.date === date;
+  if (!(event.weekdays & (1 << weekdayOf(date)))) return false;
+  if (event.starts_on && date < event.starts_on) return false;
+  if (event.ends_on && date > event.ends_on) return false;
+  return true;
+}

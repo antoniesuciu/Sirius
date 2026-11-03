@@ -7,6 +7,7 @@ export { LearningPanel, nextStep } from './LearningPanel.tsx';
 export { Leaves } from './Leaves.tsx';
 export { ListPanel } from './ListPanel.tsx';
 export { PersonalPanel } from './PersonalPanel.tsx';
+export { type NewScheduleEvent, SchedulePanel } from './SchedulePanel.tsx';
 export { type AvatarState, SiriusAvatar } from './SiriusAvatar.tsx';
 export { type ChatLine, type PendingFile, SiriusPanel } from './SiriusPanel.tsx';
 export { TodayPanel } from './TodayPanel.tsx';

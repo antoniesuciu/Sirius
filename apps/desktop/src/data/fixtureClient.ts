@@ -9,6 +9,7 @@ import {
   ApiError,
   addDays,
   agentCatalog,
+  type EntityName,
   EVERY_DAY,
   type EventHandlers,
   type GoalView,
@@ -19,9 +20,11 @@ import {
   type OpInput,
   type OpName,
   type OpOutput,
+  occurrencesOn,
   type Proposal,
   type ReminderView,
   type RoadmapView,
+  type ScheduleEvent,
   type SiriusClient,
   type SiriusEvent,
   type Task,
@@ -48,6 +51,26 @@ function task(title: string, tier: Task['tier'], date: string, position: number)
     completed_at: null,
     source: 'user',
     roadmap_step_id: null,
+  };
+}
+
+function scheduleEvent(
+  title: string,
+  weekdays: number,
+  start: string,
+  end: string | null,
+  location: string | null,
+): ScheduleEvent {
+  return {
+    ...common(),
+    title,
+    location,
+    weekdays,
+    date: null,
+    start_local: start,
+    end_local: end,
+    starts_on: null,
+    ends_on: null,
   };
 }
 
@@ -140,6 +163,10 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       roadmap('Stochastic calculus', 'Later, for quantitative finance', 'later', []),
     ],
     list: [] as ListItem[],
+    schedule: [
+      scheduleEvent('Real analysis lecture', 0b0000101, '10:00', '11:30', 'Room 2.14'),
+      scheduleEvent('Gym', 0b0001010, '18:00', '19:00', null),
+    ],
     reminders: [
       reminder('Midday pause', 'prayer', '12:30'),
       reminder('Evening prayer or reflection', 'prayer', '17:40'),
@@ -160,9 +187,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
   const emit = (event: SiriusEvent) => {
     for (const l of listeners) l.onEvent(event);
   };
-  const changed = (
-    entity: 'tasks' | 'goals' | 'roadmaps' | 'reminders' | 'list_items' | 'day_state' | 'proposals',
-  ) =>
+  const changed = (entity: EntityName) =>
     emit({ type: 'change', entity, id: 'x', op: 'update', rev: 1, actor: 'user', change_id: 'x' });
 
   const pushMessage = (role: Message['role'], text: string, meta: Message['meta'] = null) => {
@@ -263,7 +288,38 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       resting_tomorrow: state.tasks.filter(
         (t) => t.scheduled_for === tomorrow && t.status === 'open',
       ).length,
+      schedule: occurrencesOn(state.schedule, today),
     }),
+    list_schedule: () => state.schedule.filter((e) => e.deleted_at === null),
+    add_schedule_event: (input) => {
+      const event: ScheduleEvent = {
+        ...scheduleEvent(
+          input.title,
+          input.weekdays ?? 0,
+          input.start_local,
+          input.end_local ?? null,
+          input.location ?? null,
+        ),
+        date: input.date ?? null,
+      };
+      state.schedule.push(event);
+      changed('schedule_events');
+      return event;
+    },
+    update_schedule_event: ({ id, ...patch }) => {
+      const event = find(state.schedule, id);
+      Object.assign(
+        event,
+        Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)),
+      );
+      changed('schedule_events');
+      return event;
+    },
+    delete_schedule_event: ({ id }) => {
+      find(state.schedule, id).deleted_at = Date.now();
+      changed('schedule_events');
+      return { ok: true as const };
+    },
     list_goals: () => state.goals,
     list_learning: () => state.roadmaps,
     list_reminders: () => state.reminders,
