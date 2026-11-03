@@ -62,6 +62,8 @@ export interface SiriusPanelProps {
   voice: VoiceProps;
   /** On the phone: opens the tab a receipt points to. Without it, receipts are not shown. */
   onOpenTab?(tab: PhoneTab): void;
+  /** On the phone: the agent and model sit beside the avatar, so the chat gets the height. */
+  compact?: boolean;
 }
 
 const STATUS_TEXT: Record<AgentStatusValue, string> = {
@@ -125,50 +127,72 @@ export function SiriusPanel(props: SiriusPanelProps) {
     else if (props.busy) props.onCancel();
   };
 
+  const agentSwitch = (
+    <fieldset className="agent-switch" aria-label="Agent">
+      {props.agents.map((agent) => (
+        <button
+          key={agent.id}
+          type="button"
+          aria-pressed={agent.id === props.selected}
+          onClick={() => props.onSelectAgent(agent.id)}
+        >
+          {agent.label}
+        </button>
+      ))}
+    </fieldset>
+  );
+  const modelSelect = (
+    <div className="model-select">
+      <span>via</span>
+      <ModelPicker
+        models={active?.models ?? []}
+        value={active?.model ?? ''}
+        onChange={props.onSelectModel}
+      />
+    </div>
+  );
+
   return (
     <section className="panel panel-sirius rise d3" onKeyDown={onKey}>
-      <div className="sirius-head">
-        <div className="sirius-identity">
+      {props.compact ? (
+        <div className="sirius-head sirius-head-compact">
           <SiriusAvatar state={props.avatar} level={props.level} still={props.still} />
-          <div className="sirius-name">
-            <span className="sirius-title">Sirius</span>
-            <span className="sirius-status">{props.status}</span>
+          <div className="sirius-controls">
+            {agentSwitch}
+            <div className="sirius-meta-line">
+              {modelSelect}
+              <span className="sirius-status">{props.status}</span>
+            </div>
           </div>
         </div>
-        <fieldset className="agent-switch" aria-label="Agent">
-          {props.agents.map((agent) => (
-            <button
-              key={agent.id}
-              type="button"
-              aria-pressed={agent.id === props.selected}
-              onClick={() => props.onSelectAgent(agent.id)}
-            >
-              {agent.label}
-            </button>
-          ))}
-        </fieldset>
-      </div>
+      ) : (
+        <>
+          <div className="sirius-head">
+            <div className="sirius-identity">
+              <SiriusAvatar state={props.avatar} level={props.level} still={props.still} />
+              <div className="sirius-name">
+                <span className="sirius-title">Sirius</span>
+                <span className="sirius-status">{props.status}</span>
+              </div>
+            </div>
+            {agentSwitch}
+          </div>
 
-      <div className="sirius-meta">
-        <div className="model-select">
-          <span>via</span>
-          <ModelPicker
-            models={active?.models ?? []}
-            value={active?.model ?? ''}
-            onChange={props.onSelectModel}
-          />
-        </div>
-        <span className="agent-states">
-          {props.agents.map((agent) => (
-            <span className="agent-state" key={agent.id}>
-              <span
-                className={`agent-dot ${agent.status === 'working' || agent.status === 'waiting' ? 'agent-dot-on' : ''}`}
-              />
-              {agent.label} · {STATUS_TEXT[agent.status]}
+          <div className="sirius-meta">
+            {modelSelect}
+            <span className="agent-states">
+              {props.agents.map((agent) => (
+                <span className="agent-state" key={agent.id}>
+                  <span
+                    className={`agent-dot ${agent.status === 'working' || agent.status === 'waiting' ? 'agent-dot-on' : ''}`}
+                  />
+                  {agent.label} · {STATUS_TEXT[agent.status]}
+                </span>
+              ))}
             </span>
-          ))}
-        </span>
-      </div>
+          </div>
+        </>
+      )}
 
       <div className="chat-log" aria-live="polite">
         {/* column-reverse: newest first in the DOM, so the log pins to the bottom. */}

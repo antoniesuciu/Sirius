@@ -57,6 +57,35 @@ test('the phone opens on Sirius and shows one section at a time', async ({ page 
   expect(pageScrolls).toBe(false);
 });
 
+test('on Sirius only the chat scrolls, even on a short screen', async ({ page }) => {
+  // Shorter than the Pixel 7: Chrome's own bars take room on a real phone.
+  await page.setViewportSize({ width: 390, height: 700 });
+  await openPhone(page);
+  for (let i = 0; i < 6; i++) {
+    await page.getByLabel('Message Sirius').fill(`message ${i}`);
+    await page.getByLabel('Message Sirius').press('Enter');
+    await expect(page.locator('.chat-log')).toContainText(`message ${i}`);
+    await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
+  }
+  const sizes = await page.evaluate(() => {
+    const scrolls = (selector: string) => {
+      const el = document.querySelector(selector) as HTMLElement;
+      return el.scrollHeight > el.clientHeight + 1;
+    };
+    return {
+      page: document.documentElement.scrollHeight > window.innerHeight + 1,
+      section: scrolls('.phone-body'),
+      chat: scrolls('.chat-log'),
+    };
+  });
+  expect(sizes).toEqual({ page: false, section: false, chat: true });
+  // The agent and model sit beside the avatar rather than under it.
+  const avatar = await page.locator('.panel-sirius .sirius').boundingBox();
+  const agents = await page.getByRole('group', { name: 'Agent' }).boundingBox();
+  expect(agents?.x).toBeGreaterThan((avatar?.x ?? 0) + (avatar?.width ?? 0) - 1);
+  expect(agents?.y).toBeLessThan((avatar?.y ?? 0) + (avatar?.height ?? 0));
+});
+
 test('a draft survives switching sections', async ({ page }) => {
   await openPhone(page);
   await page.getByLabel('Message Sirius').fill('half a thought');

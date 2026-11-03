@@ -387,7 +387,7 @@ export function App({ phone = false }: { phone?: boolean }) {
           void client.call('voice_stop', {}).catch(() => {});
         },
       }}
-      {...(tabbed ? { onOpenTab: openTab } : {})}
+      {...(tabbed ? { onOpenTab: openTab, compact: true } : {})}
     />
   );
   const wellbeingPanel = (
@@ -473,7 +473,8 @@ export function App({ phone = false }: { phone?: boolean }) {
       {tabbed ? (
         <>
           {/* Every section stays mounted, so a draft or a breathing round survives a switch. */}
-          <main className="phone-body">
+          {/* On Sirius only the chat scrolls; the other sections scroll as a whole. */}
+          <main className={`phone-body ${tab === 'sirius' ? 'phone-body-still' : ''}`}>
             <div className="phone-section phone-sirius" hidden={tab !== 'sirius'}>
               {siriusPanel}
             </div>

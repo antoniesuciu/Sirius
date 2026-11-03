@@ -1296,7 +1296,39 @@ fieldset.agent-switch {
 .phone-sirius .chat-log {
   flex: 1;
   height: auto;
-  min-height: 140px;
+  min-height: 0;
+}
+.phone-body-still {
+  overflow: hidden;
+}
+.sirius-head-compact {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.sirius-controls {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.sirius-head-compact .agent-switch button {
+  min-height: 34px;
+}
+.sirius-meta-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+.sirius-meta-line .model-button {
+  min-height: 34px;
 }
 .tab-bar {
   position: relative;
