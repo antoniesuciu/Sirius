@@ -97,7 +97,10 @@ if $with_voice; then
   groups=()
   # Whisper is 10 times faster on the GPU. Its CUDA libraries stay inside the venv.
   if nvidia-smi -L >/dev/null 2>&1; then groups=(--group gpu); fi
-  UV_PROJECT_ENVIRONMENT="$VENV" uv sync --project services/voice --no-dev --no-editable "${groups[@]}"
+  # uv rebuilds a local project only when pyproject.toml changes, not its source, so without
+  # --reinstall-package every install kept the first build of the voice service (2026-11-03).
+  UV_PROJECT_ENVIRONMENT="$VENV" uv sync --project services/voice --no-dev --no-editable \
+    --reinstall-package sirius-voice "${groups[@]}"
 
   mkdir -p "$DATA/voices"
   # Importing piper loads onnxruntime, which reports to Microsoft unless told not to first.
