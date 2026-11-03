@@ -86,7 +86,7 @@
 - Desktop notifications now show a banner. At low urgency GNOME only filed them in the tray, which
   also hid every reminder.
 - A new prompt in a project alerts again even if the last toast was never answered.
-- `deployment.env` chooses Sirius's voices and pace. The installer's voice download no longer lets
+- `deployment.env` chooses Sirius's voices and pace, by Piper name or by a link to a voice file. The installer's voice download no longer lets
   onnxruntime report to Microsoft.
 - Voice grammar learned phrases from a real voice: "and … today" as a misheard "add",
   "adaugă … azi", "lazi", "am ceva de făcut azi" and "ce mai am de făcut".

@@ -82,18 +82,33 @@ if $with_voice; then
   UV_PROJECT_ENVIRONMENT="$VENV" uv sync --project services/voice --no-dev --no-editable "${groups[@]}"
 
   mkdir -p "$DATA/voices"
-  voice_en="${SIRIUS_VOICE_EN:-en_US-lessac-medium}"
-  voice_ro="${SIRIUS_VOICE_RO:-ro_RO-mihai-medium}"
   # Importing piper loads onnxruntime, which reports to Microsoft unless told not to first.
   export ORT_DISABLE_TELEMETRY=1
-  "$VENV/bin/python" -m piper.download_voices "$voice_en" "$voice_ro" \
-    --download-dir "$DATA/voices"
+  # A voice is a Piper catalog name, or a link to an .onnx with its .onnx.json beside it.
+  fetch_voice() {
+    local base
+    base="$DATA/voices/$(basename "$1" .onnx)"
+    if [ -f "$base.onnx" ] && [ -f "$base.onnx.json" ]; then return 0; fi
+    case "$1" in
+      https://*)
+        curl -fL -o "$base.onnx.part" "$1"
+        curl -fL -o "$base.onnx.json.part" "$1.json"
+        mv "$base.onnx.part" "$base.onnx"
+        mv "$base.onnx.json.part" "$base.onnx.json"
+        ;;
+      *) "$VENV/bin/python" -m piper.download_voices "$1" --download-dir "$DATA/voices" ;;
+    esac
+  }
+  voice_en="${SIRIUS_VOICE_EN:-en_US-lessac-medium}"
+  voice_ro="${SIRIUS_VOICE_RO:-ro_RO-mihai-medium}"
+  fetch_voice "$voice_en"
+  fetch_voice "$voice_ro"
   HF_HOME="$DATA/models" "$VENV/bin/python" -c \
     "from faster_whisper.utils import download_model; download_model('small')"
 
   {
-    echo "SIRIUS_VOICE_EN=$voice_en"
-    echo "SIRIUS_VOICE_RO=$voice_ro"
+    echo "SIRIUS_VOICE_EN=$(basename "$voice_en" .onnx)"
+    echo "SIRIUS_VOICE_RO=$(basename "$voice_ro" .onnx)"
     echo "SIRIUS_VOICE_PACE=${SIRIUS_VOICE_PACE:-1.0}"
   } > "$CONFIG/voice-env"
   site="$("$VENV/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
