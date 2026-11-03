@@ -12,9 +12,14 @@ export interface Notifier {
   notify(notification: Notification): void;
 }
 
+/** Normal, because GNOME puts a low urgency notification in the tray with no banner at all. */
+export function notifySendArgs(title: string, body: string): string[] {
+  return ['--app-name=Sirius', '--urgency=normal', '--', title, body];
+}
+
 export class LibnotifyNotifier implements Notifier {
   notify({ title, body }: Notification): void {
-    execFile('notify-send', ['--app-name=Sirius', '--urgency=low', '--', title, body], (error) => {
+    execFile('notify-send', notifySendArgs(title, body), (error) => {
       // A desktop with no notification daemon must never take the core down.
       if (error) console.warn('notify-send failed:', error.message);
     });

@@ -1,5 +1,6 @@
 import { EVERY_DAY } from '@sirius/contracts';
 import { describe, expect, test } from 'vitest';
+import { NOTIFY_WINDOW_MS, notifySendArgs } from '../src/notifier.ts';
 import { harness, NOON_ISH } from './harness.ts';
 
 const at = (iso: string) => Date.parse(iso);
@@ -266,4 +267,39 @@ test('the agent choice and model persist', () => {
   const view = h.run('get_agents', {});
   expect(view.selected).toBe('codex');
   expect(view.agents.find((a) => a.id === 'codex')?.model).toBe('gpt-6.1-terra');
+});
+
+describe('alerts that have to be seen', () => {
+  const prompt = { source: 'claude', kind: 'needs_input', project: 'tmp' } as const;
+
+  test('a second prompt in a project alerts again, while staying one event (F25)', () => {
+    const h = harness();
+    h.run('post_agent_event', prompt);
+    h.advance(NOTIFY_WINDOW_MS);
+    h.run('post_agent_event', prompt);
+    expect(h.notified.length).toBe(2);
+    expect(h.run('list_agent_events', {}).length).toBe(1);
+  });
+
+  test('prompts in a burst still notify only once (F25)', () => {
+    const h = harness();
+    h.run('post_agent_event', prompt);
+    h.run('post_agent_event', prompt);
+    expect(h.notified.length).toBe(1);
+  });
+
+  test('quiet mode keeps a repeat silent too (F24)', () => {
+    const h = harness();
+    h.run('set_quiet_mode', { on: true });
+    h.run('post_agent_event', prompt);
+    h.advance(NOTIFY_WINDOW_MS);
+    h.run('post_agent_event', prompt);
+    expect(h.notified).toEqual([]);
+  });
+
+  test('GNOME shows a banner, which it never does at low urgency', () => {
+    const args = notifySendArgs('Sirius', 'Claude needs you');
+    expect(args).toContain('--urgency=normal');
+    expect(args.slice(-2)).toEqual(['Sirius', 'Claude needs you']);
+  });
 });

@@ -83,6 +83,9 @@
 - Sirius is all up or all down (ADR 0009). Quitting or killing the app stops the core and voice,
   stopping the core closes the app, and opening the app starts everything. Voice alone restarts.
 - An unreachable core is explained in the chat instead of WebKit's "Load failed".
+- Desktop notifications now show a banner. At low urgency GNOME only filed them in the tray, which
+  also hid every reminder.
+- A new prompt in a project alerts again even if the last toast was never answered.
 - Voice grammar learned phrases from a real voice: "and … today" as a misheard "add",
   "adaugă … azi", "lazi", "am ceva de făcut azi" and "ce mai am de făcut".
 - Whisper decodes with a beam of 5 instead of greedily, and knows more of the Romanian commands.

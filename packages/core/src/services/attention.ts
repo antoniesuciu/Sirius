@@ -74,7 +74,12 @@ export class Attention {
           ),
         )
         .get();
-      if (duplicate) return tx.update('agent_events', duplicate.id, { message });
+      if (duplicate) {
+        // One event, but a new prompt: without this, an unanswered toast silences the project.
+        const updated = tx.update('agent_events', duplicate.id, { message });
+        if (!this.isQuiet(tx)) tx.afterCommit(() => this.announce(updated));
+        return updated;
+      }
 
       const event = tx.insert('agent_events', {
         source: input.source,
