@@ -151,8 +151,9 @@ fi
 if $with_desktop; then
   (cd apps/desktop && bunx tauri build --bundles deb)
   echo
+  # --reinstall: every build is 0.1.0, and apt skips a version it already has.
   echo "To install the desktop app:"
-  echo "  sudo apt install ./apps/desktop/src-tauri/target/release/bundle/deb/Sirius_0.1.0_amd64.deb"
+  echo "  sudo apt install --reinstall ./apps/desktop/src-tauri/target/release/bundle/deb/Sirius_0.1.0_amd64.deb"
   # Closing only hides to the tray, and a second launch raises the old process.
   echo "If Sirius is already open, restart it so the new version loads:"
   echo "  pkill -x sirius-desktop"
