@@ -149,3 +149,4 @@
 - Phone: switching tabs no longer replays the panels' fade-in, a long model name no longer pushes
   the status onto a new line, and a 360 px screen keeps the header buttons on one line.
 - The phone opens on Today, which comes first in the bar. The mic still opens Sirius.
+- The wolf avatar is hidden on the desktop and the phone for now. Its files stay in `packages/ui`, and its states still show in the status line.

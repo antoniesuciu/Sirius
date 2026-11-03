@@ -73,11 +73,11 @@ test.describe('header', () => {
     await open(page);
     await page.getByRole('button', { name: "I'm done for today" }).click();
     await expect(page.getByText('Quiet mode until tomorrow.')).toBeVisible();
-    await expect(page.locator('.sirius')).toHaveAttribute('data-state', 'asleep');
+    await expect(page.locator('.sirius-identity')).toHaveAttribute('data-state', 'asleep');
     await expect(page.locator('.sirius-status')).toHaveText('quiet until tomorrow');
     await expect(page.locator('.panel-dim')).toHaveCount(2);
     await page.getByRole('button', { name: 'Welcome back' }).click();
-    await expect(page.locator('.sirius')).toHaveAttribute('data-state', 'idle');
+    await expect(page.locator('.sirius-identity')).toHaveAttribute('data-state', 'idle');
     await expect(page.locator('.panel-dim')).toHaveCount(0);
   });
 });
@@ -289,7 +289,7 @@ test.describe('sirius', () => {
     await page.getByRole('button', { name: 'Send' }).click();
     await expect(page.locator('.chat-log')).toContainText('That failed straight away.');
     await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
-    await expect(page.locator('.sirius')).toHaveAttribute('data-state', 'idle');
+    await expect(page.locator('.sirius-identity')).toHaveAttribute('data-state', 'idle');
   });
 
   test('a proposal changes nothing until Confirm', async ({ page }) => {

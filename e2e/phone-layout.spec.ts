@@ -86,11 +86,11 @@ test('on Sirius only the chat scrolls, even on a short screen', async ({ page })
     };
   });
   expect(sizes).toEqual({ page: false, section: false, chat: true });
-  // The agent and model sit beside the avatar rather than under it.
-  const avatar = await page.locator('.panel-sirius .sirius').boundingBox();
+  // No wolf for now (it stays in the code), so the header is just the controls.
+  await expect(page.locator('.panel-sirius .sirius')).toHaveCount(0);
   const agents = await page.getByRole('group', { name: 'Agent' }).boundingBox();
-  expect(agents?.x).toBeGreaterThan((avatar?.x ?? 0) + (avatar?.width ?? 0) - 1);
-  expect(agents?.y).toBeLessThan((avatar?.y ?? 0) + (avatar?.height ?? 0));
+  const card = await page.locator('.panel-sirius').boundingBox();
+  expect((agents?.x ?? 0) - (card?.x ?? 0)).toBeLessThan(30);
 });
 
 test('a new chat is started from the top of the card, not a row of its own', async ({ page }) => {

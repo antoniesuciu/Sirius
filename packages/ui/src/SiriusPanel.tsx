@@ -5,7 +5,9 @@ import { useSmoothedText } from './hooks.ts';
 import { MicIcon, PaperclipIcon, SendIcon } from './Icons.tsx';
 import { ModelPicker } from './ModelPicker.tsx';
 import type { PhoneTab, Receipt } from './PhoneTabs.tsx';
-import { type AvatarState, SiriusAvatar } from './SiriusAvatar.tsx';
+// The wolf is kept in SiriusAvatar.tsx but not shown for now (owner, 2026-11-03). Its states
+// still show as the status line.
+import type { AvatarState } from './SiriusAvatar.tsx';
 
 export interface ChatLine {
   id: string;
@@ -62,7 +64,7 @@ export interface SiriusPanelProps {
   voice: VoiceProps;
   /** On the phone: opens the tab a receipt points to. Without it, receipts are not shown. */
   onOpenTab?(tab: PhoneTab): void;
-  /** On the phone: the agent and model sit beside the avatar, so the chat gets the height. */
+  /** On the phone: one short header, so the chat gets the height. */
   compact?: boolean;
 }
 
@@ -156,7 +158,6 @@ export function SiriusPanel(props: SiriusPanelProps) {
     <section className="panel panel-sirius rise d3" onKeyDown={onKey}>
       {props.compact ? (
         <div className="sirius-head sirius-head-compact">
-          <SiriusAvatar state={props.avatar} level={props.level} still={props.still} />
           <div className="sirius-controls">
             <div className="sirius-controls-top">
               {agentSwitch}
@@ -185,8 +186,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
       ) : (
         <>
           <div className="sirius-head">
-            <div className="sirius-identity">
-              <SiriusAvatar state={props.avatar} level={props.level} still={props.still} />
+            <div className="sirius-identity" data-state={props.avatar}>
               <div className="sirius-name">
                 <span className="sirius-title">Sirius</span>
                 <span className="sirius-status">{props.status}</span>
