@@ -4,6 +4,21 @@ import { expect, type Page, test } from '@playwright/test';
 const open = (page: Page, query = '?fixtures&toastMs=600000') => page.goto(`/${query}`);
 const typed = (page: Page) => expect(page.locator('h1 .caret')).toHaveCount(0, { timeout: 10_000 });
 
+test("on a wide window the header buttons share the greeting's rows", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'desktop only');
+  await open(page);
+  const greeting = await page.locator('h1.greeting').boundingBox();
+  const button = await page.getByRole('button', { name: "I'm done for today" }).boundingBox();
+  expect(button?.y).toBeLessThan((greeting?.y ?? 0) + (greeting?.height ?? 0));
+  // The suggestion line appears when asked for.
+  await expect(page.locator('.suggestion')).toBeHidden();
+  await page.getByRole('button', { name: 'What should I do now?' }).click();
+  await expect(page.locator('.suggestion')).toBeVisible();
+});
+
 test.describe('window without a system title bar', () => {
   test('the desktop app draws its own controls and they reach Tauri', async ({ page }) => {
     await page.addInitScript(() => {

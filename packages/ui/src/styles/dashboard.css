@@ -1458,3 +1458,22 @@ fieldset.agent-switch {
     white-space: nowrap;
   }
 }
+/* Wide windows: the two header buttons sit beside the greeting, top right, instead of taking a
+   row of their own under it (owner, 2026-11-03). */
+@media (min-width: 901px) {
+  .app:not(.app-tabbed) .header {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+  .app:not(.app-tabbed) .header-left {
+    flex: 1 1 0;
+  }
+  .app:not(.app-tabbed) .header-actions {
+    flex: none;
+    flex-wrap: nowrap;
+  }
+  /* The answer line takes room only once there is an answer. */
+  .app:not(.app-tabbed) .suggestion:empty {
+    display: none;
+  }
+}
