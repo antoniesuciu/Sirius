@@ -3,7 +3,7 @@
  * app, which knows how old it is; this file only keeps the pages and assets. Network first, so
  * an update to the laptop reaches the phone the next time it opens Sirius in reach of it.
  */
-const CACHE = 'sirius-shell-v2';
+const CACHE = 'sirius-shell-v3';
 
 /** The first visit must already be enough to open offline, so the shell is fetched up front. */
 async function precache() {

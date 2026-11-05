@@ -234,7 +234,7 @@ export function VoiceOrb({
     const el = canvas.current;
     const ctx = el?.getContext('2d');
     if (!el || !ctx) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
     const px = Math.round(size * dpr);
     el.width = px;
     el.height = px;
