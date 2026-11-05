@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
-test('the original orb remains visible while idle in all themes', async ({ page }, info) => {
+test('the Sirius wolf is visible and still while idle in all themes', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop');
   mkdirSync('docs/design/logos/themes', { recursive: true });
   await page.goto('/?fixtures&toastMs=600000');
@@ -12,20 +12,17 @@ test('the original orb remains visible while idle in all themes', async ({ page 
     if (theme === 'paper')
       await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);
     else await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-    const orb = page.locator('.sirius-head .voice-orb');
-    await expect(orb).toBeVisible();
-    await expect(orb).toHaveAttribute('data-state', 'idle');
-    await expect(orb).toHaveAttribute('data-running', 'false');
-    await expect(page.locator('.sirius-mark')).toHaveCount(0);
-    expect(
-      await orb.evaluate((node) => {
-        const canvas = node as HTMLCanvasElement;
-        const pixels = canvas
-          .getContext('2d')!
-          .getImageData(0, 0, canvas.width, canvas.height).data;
-        return pixels.some((value, i) => i % 4 === 3 && value > 0);
-      }),
-    ).toBe(true);
+    const mark = page.locator('.sirius-head .sirius-mark');
+    await expect(mark).toBeVisible();
+    await expect(mark).toHaveAttribute('data-state', 'idle');
+    await expect(mark).toHaveAttribute('data-running', 'false');
+    await expect(page.locator('.sirius-head .voice-orb')).toHaveCount(0);
+    // The wolf takes the theme's voice colours, so it is never left unpainted.
+    const ink = await mark
+      .locator('stop')
+      .first()
+      .evaluate((stop) => getComputedStyle(stop).stopColor);
+    expect(ink).not.toBe('rgba(0, 0, 0, 0)');
     await page
       .locator('.sirius-head')
       .screenshot({ path: `docs/design/logos/themes/orb-${theme}.png` });

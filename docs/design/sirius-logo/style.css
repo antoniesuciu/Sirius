@@ -1,0 +1,22 @@
+/* Playground chrome only; the logos take their colours from the app's tokens.css. */
+* { box-sizing: border-box; }
+html, body { margin: 0; overflow-x: clip; background: var(--bg); color: var(--ink); }
+body { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 15px; transition: background 0.4s; }
+main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 40px; }
+header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+h1 { font-size: 26px; font-weight: 500; margin: 0; }
+a { color: inherit; }
+.intro, .note, figcaption { color: var(--muted); }
+.stage { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-end; justify-content: center;
+  padding: 28px 0; border-block: 1px solid var(--line-mid, currentColor); margin: 18px 0; }
+figure { margin: 0; display: grid; justify-items: center; gap: 8px; }
+figure svg { display: block; overflow: visible; max-width: 100%; height: auto; }
+.caption { min-height: 2.8em; text-align: center; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin: 10px 0; }
+button { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line-mid, currentColor);
+  border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+button[aria-pressed='true'] { background: var(--ink); color: var(--on-ink); }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+kbd { font: inherit; opacity: 0.55; margin-left: 4px; font-size: 12px; }
+label { display: inline-flex; gap: 8px; align-items: center; }
+.index ul { line-height: 2; }

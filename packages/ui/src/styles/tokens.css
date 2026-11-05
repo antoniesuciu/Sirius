@@ -23,13 +23,16 @@
   --leaf-3: #a8714a;
   --leaf-4: #7d8560;
 
-  /* The voice animation, top to bottom of the sphere. `--orb-glow` 1 adds light (dark themes),
+  /* The voice animation, top to bottom of the wolf and the orbs. `--orb-glow` 1 adds light (dark themes),
      0 lays ink on paper (light themes). */
   --orb-1: #5f6b3a;
   --orb-2: #8c9159;
   --orb-3: #b49560;
   --orb-4: #a8714a;
   --orb-glow: 0;
+  /* The logo's own gradient (docs/design/sirius-logo), the same in every theme. */
+  --sirius-1: #6c7bbe;
+  --sirius-2: #926bad;
 
   --radius-panel: 20px;
   --font: "Newsreader Variable", Georgia, "Times New Roman", serif;

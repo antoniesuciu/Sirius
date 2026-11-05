@@ -543,7 +543,7 @@ export const ops = {
     class: 'system',
     agentTool: true,
     summary:
-      'Change how Sirius looks: the colour theme, the voice animation, or both. Themes: paper, midnight (Midnight Blue), night-owl (Night Owl, Ubuntu font), graphite, sage, ember, orb (black with a blue-to-orange gradient). Animations: sphere, ring, dot.',
+      'Change how Sirius looks: the colour theme, the voice animation, or both. Themes: paper, midnight (Midnight Blue), night-owl (Night Owl, Ubuntu font), graphite, sage, ember, orb (black with a blue-to-orange gradient). Animations: sirius (the wolf, the default), ring, dot.',
     http: { method: 'post', path: '/appearance' },
     // Neither given just reports the current choice.
     input: z.object({ theme: ThemeId.optional(), orb: OrbStyle.optional() }),

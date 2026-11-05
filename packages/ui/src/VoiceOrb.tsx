@@ -1,7 +1,5 @@
 /**
- * Sirius as an orb, where the wolf was (F40). Three styles, chosen by asking Sirius:
- * - sphere: a dot-matrix sphere in the theme's gradient that turns and ripples with the voice
- *   (after docs/design/references/orb-theme-mock.png and particle-sphere.jpg);
+ * The canvas voice animations (F40), chosen by asking Sirius instead of the wolf (SiriusMark):
  * - ring: lines around the edge that swell with the voice, with bright arcs running round it;
  * - dot: a plain circle that pulses.
  * Idle is one still frame. Frames run only while listening, thinking or speaking (ADR 0004).
@@ -12,7 +10,7 @@ import type { AvatarState } from './SiriusAvatar.tsx';
 
 export interface VoiceOrbProps {
   state: AvatarState;
-  orb?: OrbStyle;
+  orb?: Exclude<OrbStyle, 'sirius'>;
   /** CSS pixels, square. */
   size?: number;
   /** Changes when the theme does, so the colours are read again. */
@@ -31,7 +29,7 @@ function parseColor(value: string, fallback: Rgb): Rgb {
   return [0, 2, 4].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)) as Rgb;
 }
 
-/** 64 steps through the theme's four orb colours, top of the sphere to bottom. */
+/** 64 steps through the theme's four orb colours, top to bottom. */
 function palette(el: Element): { colors: string[]; glow: boolean } {
   const style = getComputedStyle(el);
   const stops = [1, 2, 3, 4].map((n) =>
@@ -49,33 +47,6 @@ function palette(el: Element): { colors: string[]; glow: boolean } {
   return { colors, glow: style.getPropertyValue('--orb-glow').trim() === '1' };
 }
 
-interface Point {
-  x: number;
-  y: number;
-  z: number;
-  seed: number;
-}
-
-/** Latitude rows of evenly spaced dots: projected, they read as the mock's dot matrix. */
-function spherePoints(rows: number): Point[] {
-  const points: Point[] = [];
-  for (let i = 0; i < rows; i++) {
-    const theta = (Math.PI * (i + 0.5)) / rows;
-    const ring = Math.sin(theta);
-    const count = Math.max(4, Math.round(rows * 2 * ring));
-    for (let j = 0; j < count; j++) {
-      const phi = (2 * Math.PI * (j + (i % 2) * 0.5)) / count;
-      points.push({
-        x: ring * Math.cos(phi),
-        y: Math.cos(theta),
-        z: ring * Math.sin(phi),
-        seed: points.length * 12.9898,
-      });
-    }
-  }
-  return points;
-}
-
 interface Frame {
   ctx: CanvasRenderingContext2D;
   size: number;
@@ -85,54 +56,6 @@ interface Frame {
   amp: number;
   colors: string[];
   glow: boolean;
-}
-
-const TILT = 0.38;
-
-function drawSphere(f: Frame, points: Point[]): void {
-  const { ctx, size, dpr, t, amp, colors, glow } = f;
-  const c = size / 2;
-  const radius = size * 0.34;
-  if (glow) {
-    // The soft light behind the sphere: cool above, warm below.
-    for (const [dy, color, alpha] of [
-      [-0.25, colors[4], 0.22],
-      [0.3, colors[60], 0.18],
-    ] as const) {
-      const g = ctx.createRadialGradient(c, c + dy * radius, 0, c, c + dy * radius, radius * 1.45);
-      g.addColorStop(0, color ?? '#888');
-      g.addColorStop(1, 'transparent');
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, size, size);
-    }
-  }
-  ctx.globalCompositeOperation = glow ? 'lighter' : 'source-over';
-  const spin = t * 0.35;
-  const cosA = Math.cos(spin);
-  const sinA = Math.sin(spin);
-  const cosT = Math.cos(TILT);
-  const sinT = Math.sin(TILT);
-  const dot = Math.max(1, Math.min(2.4, size / (90 * dpr))) * dpr;
-  for (const p of points) {
-    // Turn about the vertical axis, then tilt towards the viewer.
-    const x1 = p.x * cosA + p.z * sinA;
-    const z1 = -p.x * sinA + p.z * cosA;
-    const y2 = p.y * cosT - z1 * sinT;
-    const z2 = p.y * sinT + z1 * cosT;
-    const wave =
-      Math.sin(3.1 * p.x + 1.9 * t) * Math.sin(2.7 * p.y - 1.4 * t) +
-      0.6 * Math.sin(4.3 * p.z + 2.3 * t + 1.7 * p.y);
-    // Loud moments throw the edge dots outward, as in the reference.
-    const scatter = amp > 0.2 ? Math.max(0, Math.sin(p.seed + t * 3.3)) ** 6 * amp * 0.25 : 0;
-    const d = 1 + amp * 0.2 * wave + scatter;
-    const front = (z2 + 1) / 2;
-    ctx.globalAlpha = 0.12 + 0.88 * front ** 1.6;
-    const shade = Math.round((1 - (y2 + 1) / 2) * 63 + x1 * 4);
-    ctx.fillStyle = colors[Math.max(0, Math.min(63, shade))] ?? '#888';
-    const s = dot * (0.55 + 0.75 * front);
-    ctx.fillRect(c + x1 * radius * d - s / 2, c - y2 * radius * d - s / 2, s, s);
-  }
 }
 
 function drawRing(f: Frame): void {
@@ -219,7 +142,7 @@ function motion(
 
 export function VoiceOrb({
   state,
-  orb = 'sphere',
+  orb = 'ring',
   size = 44,
   theme,
   level,
@@ -239,15 +162,12 @@ export function VoiceOrb({
     el.width = px;
     el.height = px;
     const { colors, glow } = palette(el);
-    const points =
-      orb === 'sphere' ? spherePoints(Math.max(14, Math.min(44, Math.round(size / 4.5)))) : [];
     const render = (t: number, amp: number) => {
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
       ctx.clearRect(0, 0, px, px);
       const frame: Frame = { ctx, size: px, dpr, t, amp, colors, glow };
-      if (orb === 'sphere') drawSphere(frame, points);
-      else if (orb === 'ring') drawRing(frame);
+      if (orb === 'ring') drawRing(frame);
       else drawDot(frame);
     };
     const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;

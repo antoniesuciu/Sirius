@@ -5,10 +5,10 @@ import { CLAUDE, harness } from './harness.ts';
 describe('appearance (F40)', () => {
   test('an agent can switch the theme and the animation, and they are kept', () => {
     const h = harness();
-    expect(h.run('set_appearance', {}, CLAUDE)).toEqual({ theme: 'paper', orb: 'sphere' });
+    expect(h.run('set_appearance', {}, CLAUDE)).toEqual({ theme: 'paper', orb: 'sirius' });
     expect(h.run('set_appearance', { theme: 'midnight' }, CLAUDE)).toEqual({
       theme: 'midnight',
-      orb: 'sphere',
+      orb: 'sirius',
     });
     expect(h.run('set_appearance', { orb: 'ring' }, CLAUDE)).toEqual({
       theme: 'midnight',
