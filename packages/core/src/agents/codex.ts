@@ -12,6 +12,7 @@
  * bench/agents.ts proves that against a canary file.
  */
 
+import { agentCatalog } from '@sirius/contracts';
 import { commandExists, probe, spawnLines } from './spawn.ts';
 import {
   type AdapterOptions,
@@ -46,6 +47,7 @@ const DISABLED_FEATURES = [
 const toml = (value: string) => JSON.stringify(value);
 
 export function codexArgs(turn: AgentTurn, options: AdapterOptions): string[] {
+  const preset = agentCatalog.codex.models.find((m) => m.id === turn.model);
   const { command, args, env } = options.mcp('codex');
   const envPairs = Object.entries(env).map(([k, v]) => `${k}=${toml(v)}`);
   const config = [
@@ -53,7 +55,7 @@ export function codexArgs(turn: AgentTurn, options: AdapterOptions): string[] {
     'approval_policy="never"',
     'web_search="disabled"',
     // The spec's "6.1 Sol Light" is the model at low effort (docs/verified.md).
-    'model_reasoning_effort="low"',
+    `model_reasoning_effort=${toml(preset?.effort ?? 'low')}`,
     `developer_instructions=${toml(options.systemPrompt)}`,
     `mcp_servers.sirius.command=${toml(command)}`,
     `mcp_servers.sirius.args=[${args.map(toml).join(',')}]`,
@@ -68,7 +70,7 @@ export function codexArgs(turn: AgentTurn, options: AdapterOptions): string[] {
     '--ignore-user-config',
     '--ignore-rules',
     '-m',
-    turn.model,
+    preset?.model ?? turn.model,
     ...config.flatMap((c) => ['-c', c]),
     ...DISABLED_FEATURES.flatMap((f) => ['--disable', f]),
     turn.prompt,

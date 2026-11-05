@@ -210,6 +210,15 @@ describe('codex adapter', () => {
     expect(args).toContain('--ignore-user-config');
   });
 
+  test('Sol Medium selects the real model slug and medium reasoning', () => {
+    const args = codexArgs({ ...turn, model: 'gpt-6.1-sol-medium' }, options);
+    expect(args[args.indexOf('-m') + 1]).toBe('gpt-6.1-sol');
+    expect(args).toContain('model_reasoning_effort="medium"');
+    expect(codexArgs({ ...turn, model: 'gpt-6-luna' }, options)).toContain(
+      'model_reasoning_effort="low"',
+    );
+  });
+
   test('encodes the system prompt as a valid TOML string', () => {
     const args = codexArgs(turn, options);
     expect(args).toContain('developer_instructions="Be calm. \\"Always\\""');

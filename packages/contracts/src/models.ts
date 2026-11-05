@@ -8,6 +8,8 @@ import type { AgentId } from './schemas.ts';
 export interface ModelOption {
   id: string;
   label: string;
+  model?: string;
+  effort?: 'low' | 'medium';
 }
 
 export interface AgentCatalogEntry {
@@ -34,8 +36,15 @@ export const agentCatalog: Record<AgentId, AgentCatalogEntry> = {
     // The spec's "6.1 Sol Light" is this model at low reasoning effort (docs/verified.md).
     defaultModel: 'gpt-6.1-sol',
     models: [
-      { id: 'gpt-6.1-sol', label: 'Codex 6.1 Sol Light' },
-      { id: 'gpt-6.1-terra', label: 'Codex 6.1 Terra' },
+      { id: 'gpt-6.1-sol', label: 'Codex 6.1 Sol Light', effort: 'low' },
+      {
+        id: 'gpt-6.1-sol-medium',
+        label: 'Codex 6.1 Sol Medium',
+        model: 'gpt-6.1-sol',
+        effort: 'medium',
+      },
+      { id: 'gpt-6-luna', label: 'Codex 6 Luna Light', effort: 'low' },
+      { id: 'gpt-6.1-terra', label: 'Codex 6.1 Terra Light', effort: 'low' },
     ],
   },
 };
