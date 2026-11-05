@@ -1,13 +1,14 @@
 import type { AgentId, AgentInfo, AgentStatusValue, OrbStyle, Proposal } from '@sirius/contracts';
 import type { FormEvent, KeyboardEvent } from 'react';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSmoothedText } from './hooks.ts';
-import { MicIcon, PaperclipIcon, SendIcon } from './Icons.tsx';
+import { MicIcon, PaperclipIcon, SendIcon, StopIcon } from './Icons.tsx';
 import { ModelPicker } from './ModelPicker.tsx';
 import type { PhoneTab, Receipt } from './PhoneTabs.tsx';
 // The wolf is kept in SiriusAvatar.tsx but not shown for now (owner, 2026-11-03). Its states
 // still show as the status line.
 import type { AvatarState } from './SiriusAvatar.tsx';
+import { SiriusMark } from './SiriusMark.tsx';
 import { VoiceOrb } from './VoiceOrb.tsx';
 
 export interface ChatLine {
@@ -32,6 +33,8 @@ export interface VoiceProps {
   /** The mic is open beyond wake-word detection (F33). */
   micOpen: boolean;
   transcript: string | null;
+  /** A spoken exchange is under way: listening, working out the answer, or saying it. */
+  active: boolean;
   onMic(): void;
   /** Esc: abort listening or speaking (F28). */
   onStop(): void;
@@ -82,14 +85,61 @@ const STATUS_TEXT: Record<AgentStatusValue, string> = {
   unavailable: 'not set up',
 };
 
-function StreamingBubble({ text }: { text: string }) {
+/**
+ * The reply being written, from the thinking dots to the last letter, as one element: the dots
+ * turn into text in place, and the text keeps typing after the stream ends (owner, 2026-11-05).
+ */
+function LiveReply({
+  text,
+  streaming,
+  onTyped,
+}: {
+  text: string;
+  streaming: boolean;
+  onTyped(): void;
+}) {
   const shown = useSmoothedText(text);
+  const typing = shown.length < text.length;
+  useEffect(() => {
+    if (!typing && !streaming) onTyped();
+  }, [typing, streaming, onTyped]);
+  if (!text) {
+    return (
+      <div className="bubble bubble-thinking msg" role="status" aria-label="Sirius is thinking">
+        <span className="dot" />
+        <span className="dot" />
+        <span className="dot" />
+      </div>
+    );
+  }
   return (
     <div className="bubble">
       {shown}
-      <span className="caret" />
+      {(typing || streaming) && <span className="caret" />}
     </div>
   );
+}
+
+/** Animates in once: the sent line that replaces its pending copy must not fade in again. */
+function MyBubble({ line, seen }: { line: ChatLine; seen: Set<string> }) {
+  const [fresh] = useState(() => !seen.has(line.text));
+  seen.add(line.text);
+  return (
+    <div className={fresh ? 'bubble bubble-me msg' : 'bubble bubble-me'}>
+      {line.text}
+      {line.attachments && line.attachments.length > 0 && (
+        <span className="bubble-files">{line.attachments.join(' · ')}</span>
+      )}
+    </div>
+  );
+}
+
+/** A finished reply kept on screen until the stored copy replaces it, so it never blinks. */
+interface Held {
+  text: string;
+  /** The newest line when the stream ended; the stored reply is whatever comes after it. */
+  after: string | undefined;
+  typed: boolean;
 }
 
 function ProposalCard({
@@ -121,6 +171,33 @@ export function SiriusPanel(props: SiriusPanelProps) {
   const [draft, setDraft] = useState('');
   const active = props.agents.find((a) => a.id === props.selected);
 
+  const newest = props.messages[props.messages.length - 1];
+  const [held, setHeld] = useState<Held | null>(null);
+  // Set while rendering, not in an effect, so not one frame passes without the reply.
+  const [lastStream, setLastStream] = useState(props.streaming);
+  if (props.streaming !== lastStream) {
+    setLastStream(props.streaming);
+    if (props.streaming === null && lastStream) {
+      setHeld({ text: lastStream, after: newest?.id, typed: false });
+    } else if (props.streaming !== null && held) setHeld(null);
+  }
+  const stored = held !== null && newest !== undefined && newest.id !== held.after;
+  useEffect(() => {
+    // Let go once the stored reply is in and typing is done, or at once if I wrote something.
+    if (stored && (held?.typed || newest?.mine)) setHeld(null);
+  }, [stored, held?.typed, newest?.mine]);
+  const onTyped = useCallback(
+    () => setHeld((h) => (h && !h.typed ? { ...h, typed: true } : h)),
+    [],
+  );
+  const liveText = props.streaming ?? held?.text ?? (props.thinking ? '' : null);
+  const shownMessages = stored && !newest?.mine ? props.messages.slice(0, -1) : props.messages;
+  const seen = useRef(new Set<string>());
+  const newChat = () => {
+    setHeld(null);
+    props.onNewConversation();
+  };
+
   const picker = useRef<HTMLInputElement>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -142,9 +219,22 @@ export function SiriusPanel(props: SiriusPanelProps) {
     ...(props.theme ? { theme: props.theme } : {}),
     ...(props.readLevel ? { readLevel: props.readLevel } : {}),
   };
-  const headOrb = <VoiceOrb {...orbProps} size={44} />;
-  // Large, over the chat, while a voice is on: the person talking or Sirius answering aloud.
-  const stage = props.avatar === 'listening' || props.avatar === 'speaking';
+  const mark = (size: number, state: AvatarState) =>
+    props.orb === 'ring' || props.orb === 'dot' ? (
+      <VoiceOrb {...orbProps} state={state} orb={props.orb} size={size} />
+    ) : (
+      <SiriusMark
+        state={state}
+        size={size}
+        level={props.level}
+        still={props.still}
+        {...(props.readLevel ? { readLevel: props.readLevel } : {})}
+      />
+    );
+  const headOrb = mark(44, props.avatar);
+  // Large, over the chat, for the whole spoken exchange: it stays up from listening through
+  // thinking to speaking, and fades rather than blinking between them.
+  const stage = voice.active;
 
   const agentSwitch = (
     <fieldset className="agent-switch" aria-label="Agent">
@@ -181,11 +271,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
               {agentSwitch}
               {/* Here rather than on a row of its own under the chat, which a phone cannot spare. */}
               {!props.busy && (
-                <button
-                  type="button"
-                  className="text-button new-chat"
-                  onClick={props.onNewConversation}
-                >
+                <button type="button" className="text-button new-chat" onClick={newChat}>
                   New chat
                 </button>
               )}
@@ -231,11 +317,11 @@ export function SiriusPanel(props: SiriusPanelProps) {
       )}
 
       <div className="chat-area">
-        {stage && (
-          <div className="voice-stage" aria-hidden="true">
-            <VoiceOrb {...orbProps} size={props.compact ? 200 : 180} />
-          </div>
-        )}
+        <div className="voice-stage" data-on={stage} aria-hidden="true">
+          {mark(props.compact ? 200 : 180, stage ? props.avatar : 'idle')}
+          {/* What was heard, here and not under the chat, so the chat never moves. */}
+          <p className="stage-caption">{stage ? voice.transcript : null}</p>
+        </div>
         <div className="chat-log" aria-live="polite">
           {/* column-reverse: newest first in the DOM, so the log pins to the bottom. */}
           {props.undoLabel && (
@@ -254,22 +340,20 @@ export function SiriusPanel(props: SiriusPanelProps) {
               onReject={props.onReject}
             />
           ))}
-          {props.thinking && (
-            <div
-              className="bubble bubble-thinking msg"
-              role="status"
-              aria-label="Sirius is thinking"
-            >
-              <span className="dot" />
-              <span className="dot" />
-              <span className="dot" />
-            </div>
+          {liveText !== null && (
+            <LiveReply
+              key="live"
+              text={liveText}
+              streaming={props.streaming !== null}
+              onTyped={onTyped}
+            />
           )}
-          {props.streaming !== null && <StreamingBubble text={props.streaming} />}
-          {[...props.messages].reverse().map((m) => {
+          {[...shownMessages].reverse().map((m) => {
             const open = props.onOpenTab;
-            const bubble = (
-              <div key={m.id} className={m.mine ? 'bubble bubble-me msg' : 'bubble'}>
+            const bubble = m.mine ? (
+              <MyBubble key={m.id} line={m} seen={seen.current} />
+            ) : (
+              <div key={m.id} className="bubble">
                 {m.text}
                 {m.attachments && m.attachments.length > 0 && (
                   <span className="bubble-files">{m.attachments.join(' · ')}</span>
@@ -297,8 +381,6 @@ export function SiriusPanel(props: SiriusPanelProps) {
           })}
         </div>
       </div>
-
-      {voice.transcript && <div className="transcript">{voice.transcript}</div>}
 
       {props.files.length > 0 && (
         <ul className="pending-files" aria-label="Files to send">
@@ -357,13 +439,24 @@ export function SiriusPanel(props: SiriusPanelProps) {
         >
           <MicIcon stroke={voice.micOpen ? 'var(--on-ink)' : 'var(--ink)'} />
         </button>
-        <button type="submit" className="round round-lg" aria-label="Send" disabled={props.busy}>
-          <SendIcon />
-        </button>
+        {/* On the phone Send turns into Stop, so no row comes and goes under the chat. */}
+        {props.compact && props.busy ? (
+          <button
+            type="button"
+            className="round round-lg"
+            aria-label="Stop"
+            onClick={props.onCancel}
+          >
+            <StopIcon />
+          </button>
+        ) : (
+          <button type="submit" className="round round-lg" aria-label="Send" disabled={props.busy}>
+            <SendIcon />
+          </button>
+        )}
       </form>
 
-      {/* On the phone the row appears only while it has something to say. */}
-      {(!props.compact || voice.micOpen || props.busy) && (
+      {!props.compact && (
         <div className="chat-foot">
           {voice.micOpen ? (
             <span className="mic-indicator" role="status">
@@ -378,7 +471,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
               Stop
             </button>
           ) : props.compact ? null : (
-            <button type="button" className="text-button" onClick={props.onNewConversation}>
+            <button type="button" className="text-button" onClick={newChat}>
               New conversation
             </button>
           )}

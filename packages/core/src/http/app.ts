@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import {
   Actor,
+  groundFrom,
   type OpDefinition,
   type OpName,
   opNames,
@@ -274,7 +275,16 @@ export function createApp(core: Core, options: AppOptions): OpenAPIHono {
     info: { title: 'Sirius core', version: options.version },
   });
 
-  if (options.uiDir) serveUi(app, options.uiDir);
+  if (options.uiDir) {
+    serveUi(app, options.uiDir, () =>
+      groundFrom(
+        core.dispatcher.run('get_settings', {}, { actor: 'system', via: 'system' }) as Record<
+          string,
+          unknown
+        >,
+      ),
+    );
+  }
 
   app.onError((error, c) => {
     if (error instanceof DomainError) {

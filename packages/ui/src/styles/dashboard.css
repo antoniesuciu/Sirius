@@ -1014,11 +1014,6 @@ ul {
   gap: 10px;
   flex-wrap: wrap;
 }
-.transcript {
-  font-size: 16px;
-  font-style: italic;
-  color: var(--muted);
-}
 .mic-indicator {
   display: inline-flex;
   align-items: center;
@@ -1538,18 +1533,45 @@ fieldset.agent-switch {
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   backdrop-filter: blur(6px);
   border-radius: 14px;
-  animation: stage-in 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
   pointer-events: none;
+  align-content: center;
+  gap: 14px;
+  /* Leaving waits half a second, so the short gaps between listening, thinking and speaking
+     never flash the chat through (owner, 2026-11-05). */
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.97);
+  transition:
+    opacity 0.4s ease 0.5s,
+    transform 0.4s ease 0.5s,
+    visibility 0s linear 0.9s;
 }
-@keyframes stage-in {
-  from {
-    opacity: 0;
-    transform: scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.voice-stage[data-on="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.4s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1),
+    visibility 0s;
+}
+/* One line reserved, so the mark does not shift when the words arrive. */
+.stage-caption {
+  margin: 0;
+  min-height: 1.4em;
+  max-width: 88%;
+  text-align: center;
+  font-size: 17px;
+  font-style: italic;
+  color: var(--muted);
+}
+.sirius-mark {
+  display: block;
+  overflow: visible;
+  transition: opacity 0.4s ease;
+}
+.sirius-mark[data-state="asleep"] {
+  opacity: 0.4;
 }
 .phone-sirius .chat-area {
   flex: 1;

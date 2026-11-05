@@ -235,14 +235,23 @@ export function App({ phone = false }: { phone?: boolean }) {
 
   const theme = themeFrom(settings);
   const orb = orbFrom(settings);
+  const settingsLoaded = settings !== undefined;
   // A layout effect, so the orb's own effect reads the new theme's colours, not the old ones.
   useLayoutEffect(() => {
+    // Before the settings arrive, index.html has already put up the last theme.
+    if (!settingsLoaded) return;
     const root = document.documentElement;
     if (theme === 'paper') delete root.dataset.theme;
     else root.dataset.theme = theme;
-    const bar = document.querySelector('meta[name="theme-color"]');
-    bar?.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim());
-  }, [theme]);
+    const ground = getComputedStyle(root).getPropertyValue('--bg').trim();
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground);
+    // From here the theme's CSS paints; index.html reads this on the next launch.
+    root.style.removeProperty('background');
+    try {
+      localStorage.setItem('sirius.ground', ground);
+      localStorage.setItem('sirius.theme', theme);
+    } catch {}
+  }, [theme, settingsLoaded]);
 
   const quiet = today?.quiet_mode ?? false;
   const tasks = today?.tasks;
@@ -419,6 +428,7 @@ export function App({ phone = false }: { phone?: boolean }) {
       voice={{
         micOpen: (voice?.mic_open ?? false) || phoneVoice.recording,
         transcript: voice?.transcript ?? null,
+        active: voiceState !== 'idle',
         onMic,
         onStop: () => {
           phoneVoice.stopSpeaking();
@@ -509,6 +519,7 @@ export function App({ phone = false }: { phone?: boolean }) {
         suggestions={suggestions}
         quiet={quiet}
         onToggleQuiet={() => setQuiet.mutate(!quiet)}
+        actions={!tabbed}
       />
       {phone && <ConnectionLine />}
       {quiet && <div className="quiet-line msg">Quiet mode until tomorrow. Reminders are off.</div>}

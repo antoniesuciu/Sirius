@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { createAccessVerifier } from '../src/http/access.ts';
 import { createApp } from '../src/http/app.ts';
 import { FanOutNotifier, NtfyNotifier } from '../src/notifier.ts';
-import { harness } from './harness.ts';
+import { CLAUDE, harness } from './harness.ts';
 
 const TEAM = 'team.cloudflareaccess.com';
 const AUD = 'sirius-aud';
@@ -140,6 +140,20 @@ describe('serving the UI', () => {
 
   test('the API is still protected', async () => {
     expect((await app().request('/v1/today')).status).toBe(401);
+  });
+
+  test("the manifest takes the theme's ground, which Android paints its splash with", async () => {
+    const h = harness();
+    const root = dir();
+    writeFileSync(
+      join(root, 'manifest.webmanifest'),
+      JSON.stringify({ name: 'Sirius', background_color: '#EBE3D1', theme_color: '#EBE3D1' }),
+    );
+    const served = createApp(h.core, { token: 't', mode: 'remote', version: 'x', uiDir: root });
+    const read = async () => (await served.request('/manifest.webmanifest')).json();
+    expect(await read()).toMatchObject({ name: 'Sirius', background_color: '#ebe3d1' });
+    h.run('set_appearance', { theme: 'midnight' }, CLAUDE);
+    expect(await read()).toMatchObject({ background_color: '#070d1c', theme_color: '#070d1c' });
   });
 });
 

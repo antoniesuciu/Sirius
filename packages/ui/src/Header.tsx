@@ -8,9 +8,17 @@ export interface HeaderProps {
   suggestions: string[];
   quiet: boolean;
   onToggleQuiet(): void;
+  /** The two buttons; the phone goes without them (owner, 2026-11-05). */
+  actions?: boolean;
 }
 
-export function Header({ greeting, suggestions, quiet, onToggleQuiet }: HeaderProps) {
+export function Header({
+  greeting,
+  suggestions,
+  quiet,
+  onToggleQuiet,
+  actions = true,
+}: HeaderProps) {
   // Lock in the first greeting: live data changing later must not retype it.
   const [locked, setLocked] = useState<string | null>(null);
   if (locked === null && greeting !== null) setLocked(greeting);
@@ -42,14 +50,16 @@ export function Header({ greeting, suggestions, quiet, onToggleQuiet }: HeaderPr
           )}
         </div>
       </div>
-      <div className="header-actions">
-        <button type="button" className="pill pill-lg" onClick={nextSuggestion}>
-          What should I do now?
-        </button>
-        <button type="button" className="pill pill-lg pill-solid" onClick={onToggleQuiet}>
-          {quiet ? 'Welcome back' : "I'm done for today"}
-        </button>
-      </div>
+      {actions && (
+        <div className="header-actions">
+          <button type="button" className="pill pill-lg" onClick={nextSuggestion}>
+            What should I do now?
+          </button>
+          <button type="button" className="pill pill-lg pill-solid" onClick={onToggleQuiet}>
+            {quiet ? 'Welcome back' : "I'm done for today"}
+          </button>
+        </div>
+      )}
     </header>
   );
 }

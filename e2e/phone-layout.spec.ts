@@ -86,9 +86,8 @@ test('on Sirius only the chat scrolls, even on a short screen', async ({ page })
     };
   });
   expect(sizes).toEqual({ page: false, section: false, chat: true });
-  // The circle sits where the wolf was, with the agent switch beside it.
-  await expect(page.locator('.panel-sirius .sirius')).toHaveCount(0);
-  const orb = await page.locator('.panel-sirius .voice-orb').boundingBox();
+  // The wolf sits at the top left, with the agent switch beside it.
+  const orb = await page.locator('.sirius-head .sirius-mark').boundingBox();
   const agents = await page.getByRole('group', { name: 'Agent' }).boundingBox();
   expect(agents?.x).toBeGreaterThan((orb?.x ?? 0) + (orb?.width ?? 0) - 1);
 });
@@ -128,11 +127,9 @@ test('on a 360 px phone the card header stays two lines, even with a long model 
   const card = await box('.panel-sirius');
   expect(newChat.x + newChat.width).toBeLessThanOrEqual(card.x + card.width);
   expect(status.x + status.width).toBeLessThanOrEqual(card.x + card.width);
-  // The header buttons stay one line each and inside the screen.
+  // The phone has no header buttons (owner, 2026-11-05).
   for (const name of ['What should I do now?', "I'm done for today"]) {
-    const button = await page.getByRole('button', { name }).boundingBox();
-    expect(button?.height).toBeLessThan(48);
-    expect((button?.x ?? 0) + (button?.width ?? 0)).toBeLessThanOrEqual(360);
+    await expect(page.getByRole('button', { name })).toHaveCount(0);
   }
 });
 
@@ -181,11 +178,11 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
   // The mic takes you to the conversation, where the answer appears.
   await expect(tab(page, 'Sirius')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.sirius-status')).toHaveText('listening');
-  // The orb animates while listening, and a large one comes up over the chat.
-  const orb = page.locator('.sirius-head .voice-orb');
+  // The wolf animates while listening, and a large one comes up over the chat.
+  const orb = page.locator('.sirius-head .sirius-mark');
   await expect(orb).toHaveAttribute('data-state', 'listening');
   await expect(orb).toHaveAttribute('data-running', 'true');
-  await expect(page.locator('.voice-stage .voice-orb')).toBeVisible();
+  await expect(page.locator('.voice-stage .sirius-mark')).toBeVisible();
   if (process.env.SIRIUS_SHOTS)
     await page.screenshot({ path: `${process.env.SIRIUS_SHOTS}/listening.png` });
   await page.waitForTimeout(300);
@@ -202,7 +199,9 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
   // Back to idle: the same orb stays visible without running frames.
   await expect(orb).toHaveAttribute('data-state', 'idle');
   await expect(orb).toHaveAttribute('data-running', 'false');
-  await expect(page.locator('.voice-stage')).toHaveCount(0);
+  // The stage fades away rather than disappearing.
+  await expect(page.locator('.voice-stage')).toHaveAttribute('data-on', 'false');
+  await expect(page.locator('.voice-stage')).toBeHidden();
   await page.getByRole('button', { name: /Changed Today/ }).click();
   await expect(page.locator('.task', { hasText: 'Water the basil' })).toBeVisible();
 });
@@ -301,10 +300,10 @@ test('screenshots of every theme and animation', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
     await page.waitForTimeout(900);
   };
-  for (const orb of ['sphere', 'ring', 'dot']) {
+  for (const orb of ['sirius', 'ring', 'dot']) {
     await say(`orb ${orb}`);
     for (const theme of ['paper', 'midnight', 'night-owl', 'graphite', 'sage', 'ember', 'orb']) {
-      if (orb !== 'sphere' && !['paper', 'orb'].includes(theme)) continue;
+      if (orb !== 'sirius' && !['paper', 'orb'].includes(theme)) continue;
       await say(`theme ${theme}`);
       await page.getByRole('button', { name: 'Talk to Sirius' }).click();
       await page.waitForTimeout(900);

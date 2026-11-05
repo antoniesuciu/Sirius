@@ -506,7 +506,8 @@
   .toast,
   .msg,
   .planted,
-  .mic-live {
+  .mic-live,
+  .voice-stage {
     animation: none !important;
     transition: none !important;
   }

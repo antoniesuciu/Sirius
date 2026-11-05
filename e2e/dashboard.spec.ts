@@ -322,6 +322,34 @@ test.describe('adding things', () => {
 });
 
 test.describe('sirius', () => {
+  test('a reply types out and never blinks on its way into the thread', async ({ page }) => {
+    // The stored copy arrives a round trip after the stream ends, as it does on the phone.
+    await open(page, '?fixtures&toastMs=600000&latencyMs=250');
+    // Sample every frame: once the reply bubble is there, it must stay there.
+    await page.evaluate(() => {
+      const w = window as unknown as { gaps: number; seen: boolean };
+      w.gaps = 0;
+      w.seen = false;
+      const sample = () => {
+        const there = [...document.querySelectorAll('.chat-log .bubble:not(.bubble-me)')].some(
+          (b) => b.textContent?.startsWith('Noted.'),
+        );
+        if (there) w.seen = true;
+        else if (w.seen) w.gaps++;
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    await page.getByLabel('Message Sirius').fill('hello there');
+    await page.getByRole('button', { name: 'Send' }).click();
+    const reply = page.locator('.chat-log .bubble', { hasText: 'all I can do.' });
+    await expect(reply).toHaveCount(1);
+    await expect(reply.locator('.caret')).toHaveCount(0);
+    await expect(page.getByRole('status', { name: 'Sirius is thinking' })).toHaveCount(0);
+    await page.waitForTimeout(400);
+    expect(await page.evaluate(() => (window as unknown as { gaps: number }).gaps)).toBe(0);
+  });
+
   test('streams a reply and shows it', async ({ page }) => {
     await open(page);
     await page.getByLabel('Message Sirius').fill('Add goal: learn to sail');
@@ -365,10 +393,28 @@ test.describe('sirius', () => {
     await expect(page.locator('.task')).toHaveCount(6);
   });
 
-  test('Sirius shows the original still orb while idle', async ({ page }) => {
+  test('Sirius shows the still wolf while idle', async ({ page }) => {
     await open(page);
-    await expect(page.locator('.panel-sirius .voice-orb')).toBeVisible();
-    await expect(page.locator('.panel-sirius .voice-orb')).toHaveAttribute('data-running', 'false');
+    await expect(page.locator('.sirius-head .sirius-mark')).toBeVisible();
+    await expect(page.locator('.sirius-head .sirius-mark')).toHaveAttribute(
+      'data-running',
+      'false',
+    );
+  });
+
+  test('the next launch opens in the last theme, before any data arrives', async ({ page }) => {
+    await open(page);
+    await page.getByLabel('Message Sirius').fill('theme midnight');
+    await page.getByLabel('Message Sirius').press('Enter');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'midnight');
+    // The fixture forgets the theme on reload, and its settings take 1.5 s to come back.
+    await page.goto('/?fixtures&toastMs=600000&latencyMs=1500', { waitUntil: 'commit' });
+    await page.waitForLoadState('domcontentloaded');
+    const first = await page.evaluate(() => ({
+      theme: document.documentElement.dataset.theme,
+      html: getComputedStyle(document.documentElement).backgroundColor,
+    }));
+    expect(first).toEqual({ theme: 'midnight', html: 'rgb(7, 13, 28)' });
   });
 
   test('asking Sirius changes the theme and the animation (F40)', async ({ page }) => {
@@ -386,7 +432,7 @@ test.describe('sirius', () => {
     await ask('orb ring');
     await page.getByLabel('Message Sirius').fill('Check selected animation');
     await page.getByLabel('Message Sirius').press('Enter');
-    await expect(page.locator('.panel-sirius .voice-orb')).toHaveAttribute('data-orb', 'ring');
+    await expect(page.locator('.sirius-head .voice-orb')).toHaveAttribute('data-orb', 'ring');
     await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
     await ask('theme paper');
     await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);

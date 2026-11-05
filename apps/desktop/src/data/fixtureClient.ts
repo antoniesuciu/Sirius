@@ -133,6 +133,8 @@ function reminder(label: string, kind: ReminderView['kind'], time: string): Remi
 
 export interface FixtureOptions {
   toastAfterMs: number;
+  /** A round trip, as from a phone over Tailscale; 0 answers at once. */
+  latencyMs?: number;
 }
 
 export function createFixtureClient(options: FixtureOptions): SiriusClient {
@@ -388,7 +390,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       changed('settings');
       return {
         theme: (state.settings['ui.theme'] as 'paper') ?? 'paper',
-        orb: (state.settings['ui.orb'] as 'sphere') ?? 'sphere',
+        orb: (state.settings['ui.orb'] as 'sirius') ?? 'sirius',
       };
     },
     voice_ptt: () => {
@@ -598,6 +600,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
     async call(name, input) {
       const handler = handlers[name] as ((i: typeof input) => OpOutput<typeof name>) | undefined;
       if (!handler) throw new ApiError(501, 'not_implemented', `Fixture has no ${name}`);
+      if (options.latencyMs) await new Promise((r) => setTimeout(r, options.latencyMs));
       // Cloned so React Query never shares objects with this mutable store.
       return structuredClone(handler(input));
     },

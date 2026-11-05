@@ -181,7 +181,11 @@ test('the first visit keeps everything needed to open with no network', async ({
     return (await cache.keys()).map((request) => new URL(request.url).pathname);
   });
   const needed = await page.evaluate(() => [
-    ...[...document.scripts].map((s) => new URL(s.src).pathname).filter((p) => p !== '/'),
+    // Inline scripts, such as the one that paints the last theme, have nothing to fetch.
+    ...[...document.scripts]
+      .filter((s) => s.src)
+      .map((s) => new URL(s.src).pathname)
+      .filter((p) => p !== '/'),
     ...[...document.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]')].map(
       (l) => new URL(l.href).pathname,
     ),

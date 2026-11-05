@@ -12,6 +12,18 @@
       html { background: #ebe3d1; }
       html[data-theme] { background: var(--bg); }
     </style>
+    <!-- The last theme's ground, so the first frame is already in it, not in Paper's beige. -->
+    <script>
+      try {
+        const ground = localStorage.getItem('sirius.ground');
+        const theme = localStorage.getItem('sirius.theme');
+        if (/^[a-z-]+$/.test(theme) && theme !== 'paper') document.documentElement.dataset.theme = theme;
+        if (/^#[0-9a-f]{6}$/i.test(ground)) {
+          document.documentElement.style.background = ground;
+          document.querySelector('meta[name="theme-color"]').content = ground;
+        }
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

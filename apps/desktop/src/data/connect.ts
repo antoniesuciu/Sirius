@@ -50,7 +50,10 @@ export function codeFromLink(): string | null {
 export async function connect(): Promise<Boot> {
   const params = new URLSearchParams(window.location.search);
   if (params.has('fixtures')) {
-    const client = createFixtureClient({ toastAfterMs: Number(params.get('toastMs') ?? 14_000) });
+    const client = createFixtureClient({
+      toastAfterMs: Number(params.get('toastMs') ?? 14_000),
+      latencyMs: Number(params.get('latencyMs') ?? 0),
+    });
     // ?fixtures&phone shows the phone layout with the same fake data.
     return { kind: 'ready', client, phone: params.has('phone'), reachable: true };
   }

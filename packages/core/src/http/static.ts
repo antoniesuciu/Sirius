@@ -13,7 +13,8 @@ const TYPES: Record<string, string> = {
   '.woff2': 'font/woff2',
 };
 
-export function serveUi(app: OpenAPIHono, dir: string): void {
+/** `ground` is the current theme's background, for the phone's splash screen. */
+export function serveUi(app: OpenAPIHono, dir: string, ground: () => string): void {
   const root = resolve(dir);
   app.get('*', (c) => {
     const pathname = decodeURIComponent(new URL(c.req.url).pathname);
@@ -24,6 +25,13 @@ export function serveUi(app: OpenAPIHono, dir: string): void {
     const file = isFile ? wanted : join(root, 'index.html');
     if (!existsSync(file)) return c.notFound();
     const type = TYPES[extname(file)] ?? 'application/octet-stream';
+    if (extname(file) === '.webmanifest') {
+      // Android draws its splash from these before any page loads, so they follow the theme.
+      const manifest = JSON.parse(readFileSync(file, 'utf8'));
+      const color = ground();
+      const body = { ...manifest, background_color: color, theme_color: color };
+      return new Response(JSON.stringify(body), { headers: { 'content-type': type } });
+    }
     return new Response(readFileSync(file), { headers: { 'content-type': type } });
   });
 }
