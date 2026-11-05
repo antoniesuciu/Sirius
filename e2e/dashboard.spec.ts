@@ -322,33 +322,41 @@ test.describe('adding things', () => {
 });
 
 test.describe('sirius', () => {
-  test('a reply types out and never blinks on its way into the thread', async ({ page }) => {
-    // The stored copy arrives a round trip after the stream ends, as it does on the phone.
-    await open(page, '?fixtures&toastMs=600000&latencyMs=250');
-    // Sample every frame: once the reply bubble is there, it must stay there.
-    await page.evaluate(() => {
-      const w = window as unknown as { gaps: number; seen: boolean };
-      w.gaps = 0;
-      w.seen = false;
-      const sample = () => {
-        const there = [...document.querySelectorAll('.chat-log .bubble:not(.bubble-me)')].some(
-          (b) => b.textContent?.startsWith('Noted.'),
-        );
-        if (there) w.seen = true;
-        else if (w.seen) w.gaps++;
+  for (const [name, latency] of [
+    ['a fast core', 0],
+    ['a core a round trip away', 250],
+  ] as const) {
+    test(`a reply types out once and never blinks, from ${name}`, async ({ page }) => {
+      await open(page, `?fixtures&toastMs=600000&latencyMs=${latency}`);
+      // Sample every frame: once the reply bubble is there, it must stay there, and be one.
+      await page.evaluate(() => {
+        const w = window as unknown as { gaps: number; twice: number; seen: boolean };
+        Object.assign(w, { gaps: 0, twice: 0, seen: false });
+        const sample = () => {
+          const replies = [
+            ...document.querySelectorAll('.chat-log .bubble:not(.bubble-me)'),
+          ].filter((b) => b.textContent?.startsWith('Noted.')).length;
+          if (replies > 1) w.twice++;
+          if (replies > 0) w.seen = true;
+          else if (w.seen) w.gaps++;
+          requestAnimationFrame(sample);
+        };
         requestAnimationFrame(sample);
-      };
-      requestAnimationFrame(sample);
+      });
+      await page.getByLabel('Message Sirius').fill('hello there');
+      await page.getByRole('button', { name: 'Send' }).click();
+      const reply = page.locator('.chat-log .bubble', { hasText: 'all I can do.' });
+      await expect(reply).toHaveCount(1);
+      await expect(reply.locator('.caret')).toHaveCount(0);
+      await expect(page.getByRole('status', { name: 'Sirius is thinking' })).toHaveCount(0);
+      await page.waitForTimeout(400);
+      const counts = await page.evaluate(() => {
+        const w = window as unknown as { gaps: number; twice: number };
+        return { gaps: w.gaps, twice: w.twice };
+      });
+      expect(counts).toEqual({ gaps: 0, twice: 0 });
     });
-    await page.getByLabel('Message Sirius').fill('hello there');
-    await page.getByRole('button', { name: 'Send' }).click();
-    const reply = page.locator('.chat-log .bubble', { hasText: 'all I can do.' });
-    await expect(reply).toHaveCount(1);
-    await expect(reply.locator('.caret')).toHaveCount(0);
-    await expect(page.getByRole('status', { name: 'Sirius is thinking' })).toHaveCount(0);
-    await page.waitForTimeout(400);
-    expect(await page.evaluate(() => (window as unknown as { gaps: number }).gaps)).toBe(0);
-  });
+  }
 
   test('streams a reply and shows it', async ({ page }) => {
     await open(page);
@@ -393,13 +401,22 @@ test.describe('sirius', () => {
     await expect(page.locator('.task')).toHaveCount(6);
   });
 
-  test('Sirius shows the still wolf while idle', async ({ page }) => {
+  test('the logo draws itself in at launch, then rests still', async ({ page }) => {
     await open(page);
-    await expect(page.locator('.sirius-head .sirius-mark')).toBeVisible();
-    await expect(page.locator('.sirius-head .sirius-mark')).toHaveAttribute(
-      'data-running',
-      'false',
-    );
+    const logo = page.locator('.sirius-head .sirius-logo');
+    await expect(logo).toHaveAttribute('data-state', 'startup');
+    await expect(logo).toHaveAttribute('data-running', 'true');
+    await expect(logo).toHaveAttribute('data-state', 'idle');
+    await expect(logo).toHaveAttribute('data-running', 'false');
+  });
+
+  test('the logo howls when an agent wants you, then rests again', async ({ page }) => {
+    // The fixture's agent asks for permission after 4 s, once startup is over.
+    await open(page, '?fixtures&toastMs=4000');
+    const logo = page.locator('.sirius-head .sirius-logo');
+    await expect(logo).toHaveAttribute('data-state', 'idle');
+    await expect(logo).toHaveAttribute('data-state', 'notify', { timeout: 8000 });
+    await expect(logo).toHaveAttribute('data-state', 'idle');
   });
 
   test('the next launch opens in the last theme, before any data arrives', async ({ page }) => {

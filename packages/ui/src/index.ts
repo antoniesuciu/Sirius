@@ -18,6 +18,7 @@ export {
 } from './PhoneTabs.tsx';
 export { type NewScheduleEvent, SchedulePanel } from './SchedulePanel.tsx';
 export { type AvatarState, SiriusAvatar } from './SiriusAvatar.tsx';
+export { type LogoState } from './SiriusLogo.tsx';
 export { type ChatLine, type PendingFile, SiriusPanel } from './SiriusPanel.tsx';
 export { TodayPanel } from './TodayPanel.tsx';
 export { VoiceOrb } from './VoiceOrb.tsx';

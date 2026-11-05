@@ -8,7 +8,7 @@ import type { PhoneTab, Receipt } from './PhoneTabs.tsx';
 // The wolf is kept in SiriusAvatar.tsx but not shown for now (owner, 2026-11-03). Its states
 // still show as the status line.
 import type { AvatarState } from './SiriusAvatar.tsx';
-import { SiriusMark } from './SiriusMark.tsx';
+import { type LogoState, SiriusLogo } from './SiriusLogo.tsx';
 import { VoiceOrb } from './VoiceOrb.tsx';
 
 export interface ChatLine {
@@ -74,6 +74,10 @@ export interface SiriusPanelProps {
   readLevel?(): number;
   /** The voice animation and the theme it takes its colours from (F40). */
   orb?: OrbStyle;
+  /** The logo's state, which knows more than `avatar`: startup, working, notify, error. */
+  logo?: LogoState;
+  /** A one-shot logo state (startup, notify, error) has played out. */
+  onLogoSettled?(): void;
   theme?: string;
 }
 
@@ -134,11 +138,17 @@ function MyBubble({ line, seen }: { line: ChatLine; seen: Set<string> }) {
   );
 }
 
+function logoFor(avatar: AvatarState): LogoState {
+  return avatar === 'asleep' ? 'sleep' : avatar;
+}
+
 /** A finished reply kept on screen until the stored copy replaces it, so it never blinks. */
 interface Held {
   text: string;
-  /** The newest line when the stream ended; the stored reply is whatever comes after it. */
+  /** The newest line when the stream began: the stored reply cannot be that line or older. */
   after: string | undefined;
+  /** How many lines were mine then; one more means I wrote again and the hold is over. */
+  mine: number;
   typed: boolean;
 }
 
@@ -173,25 +183,34 @@ export function SiriusPanel(props: SiriusPanelProps) {
 
   const newest = props.messages[props.messages.length - 1];
   const [held, setHeld] = useState<Held | null>(null);
+  const mineCount = props.messages.filter((m) => m.mine).length;
   // Set while rendering, not in an effect, so not one frame passes without the reply.
   const [lastStream, setLastStream] = useState(props.streaming);
+  const [streamAfter, setStreamAfter] = useState<string | undefined>(undefined);
   if (props.streaming !== lastStream) {
     setLastStream(props.streaming);
+    if (lastStream === null) setStreamAfter(newest?.id);
     if (props.streaming === null && lastStream) {
-      setHeld({ text: lastStream, after: newest?.id, typed: false });
+      setHeld({ text: lastStream, after: streamAfter, mine: mineCount, typed: false });
     } else if (props.streaming !== null && held) setHeld(null);
   }
-  const stored = held !== null && newest !== undefined && newest.id !== held.after;
+  // The stored copy may already be in when the stream ends (a fast core), or come later.
+  const stored =
+    held !== null &&
+    newest !== undefined &&
+    !newest.mine &&
+    (newest.id !== held.after || newest.text.trim() === held.text.trim());
+  const wroteAgain = held !== null && mineCount > held.mine;
   useEffect(() => {
-    // Let go once the stored reply is in and typing is done, or at once if I wrote something.
-    if (stored && (held?.typed || newest?.mine)) setHeld(null);
-  }, [stored, held?.typed, newest?.mine]);
+    if ((stored && held?.typed) || wroteAgain) setHeld(null);
+  }, [stored, held?.typed, wroteAgain]);
   const onTyped = useCallback(
     () => setHeld((h) => (h && !h.typed ? { ...h, typed: true } : h)),
     [],
   );
-  const liveText = props.streaming ?? held?.text ?? (props.thinking ? '' : null);
-  const shownMessages = stored && !newest?.mine ? props.messages.slice(0, -1) : props.messages;
+  const liveText =
+    props.streaming ?? (wroteAgain ? null : held?.text) ?? (props.thinking ? '' : null);
+  const shownMessages = stored && !wroteAgain ? props.messages.slice(0, -1) : props.messages;
   const seen = useRef(new Set<string>());
   const newChat = () => {
     setHeld(null);
@@ -219,19 +238,18 @@ export function SiriusPanel(props: SiriusPanelProps) {
     ...(props.theme ? { theme: props.theme } : {}),
     ...(props.readLevel ? { readLevel: props.readLevel } : {}),
   };
-  const mark = (size: number, state: AvatarState) =>
+  const mark = (size: number, state: AvatarState, logo: LogoState) =>
     props.orb === 'ring' || props.orb === 'dot' ? (
       <VoiceOrb {...orbProps} state={state} orb={props.orb} size={size} />
     ) : (
-      <SiriusMark
-        state={state}
+      <SiriusLogo
+        state={props.still && logo !== 'sleep' ? 'idle' : logo}
         size={size}
         level={props.level}
-        still={props.still}
-        {...(props.readLevel ? { readLevel: props.readLevel } : {})}
+        {...(props.onLogoSettled ? { onSettled: props.onLogoSettled } : {})}
       />
     );
-  const headOrb = mark(44, props.avatar);
+  const headOrb = mark(44, props.avatar, props.logo ?? logoFor(props.avatar));
   // Large, over the chat, for the whole spoken exchange: it stays up from listening through
   // thinking to speaking, and fades rather than blinking between them.
   const stage = voice.active;
@@ -318,7 +336,11 @@ export function SiriusPanel(props: SiriusPanelProps) {
 
       <div className="chat-area">
         <div className="voice-stage" data-on={stage} aria-hidden="true">
-          {mark(props.compact ? 200 : 180, stage ? props.avatar : 'idle')}
+          {mark(
+            props.compact ? 200 : 180,
+            stage ? props.avatar : 'idle',
+            stage ? logoFor(props.avatar) : 'idle',
+          )}
           {/* What was heard, here and not under the chat, so the chat never moves. */}
           <p className="stage-caption">{stage ? voice.transcript : null}</p>
         </div>

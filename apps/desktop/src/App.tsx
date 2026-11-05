@@ -19,6 +19,7 @@ import {
   Header,
   LearningPanel,
   ListPanel,
+  type LogoState,
   nextStep,
   type PendingFile,
   PersonalPanel,
@@ -199,7 +200,8 @@ export function App({ phone = false }: { phone?: boolean }) {
   const proposals = useProposals().data ?? [];
   const agents = useAgents().data;
   const conversation = useConversation().data;
-  const agentEvents = useAgentEvents().data ?? [];
+  const agentEventData = useAgentEvents().data;
+  const agentEvents = agentEventData ?? [];
   const voice = useVoiceState().data;
   const settings = useSettings().data;
 
@@ -291,6 +293,36 @@ export function App({ phone = false }: { phone?: boolean }) {
           : quiet
             ? 'asleep'
             : 'idle';
+
+  // The logo's one-shot states: it draws itself in at launch, howls when an agent finishes or
+  // wants you, and flickers on an error. Events already there at launch are not replayed.
+  const [flash, setFlash] = useState<'startup' | 'notify' | 'error' | null>('startup');
+  const seenEvents = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!agentEventData) return;
+    const seen = seenEvents.current;
+    seenEvents.current = new Set(agentEventData.map((e) => e.id));
+    if (!seen) return;
+    const fresh = agentEventData.filter((e) => !seen.has(e.id));
+    if (fresh.some((e) => e.kind === 'error')) setFlash('error');
+    else if (fresh.length > 0 && !quiet) setFlash('notify');
+  }, [agentEventData, quiet]);
+  useEffect(() => {
+    if (sendError) setFlash('error');
+  }, [sendError]);
+  const voiceLogo = avatar === 'listening' || avatar === 'thinking' || avatar === 'speaking';
+  const logo: LogoState = voiceLogo
+    ? avatar
+    : (flash ??
+      (avatar === 'asleep'
+        ? 'sleep'
+        : agents?.agents.some((a) => a.status === 'working')
+          ? 'working'
+          : 'idle'));
+  // A conversation interrupts a flash, which must not replay once the conversation ends.
+  useEffect(() => {
+    if (voiceLogo) setFlash(null);
+  }, [voiceLogo]);
 
   // "listening" is reserved for the real microphone, so the idle line never implies it (F33).
   const status = {
@@ -437,6 +469,8 @@ export function App({ phone = false }: { phone?: boolean }) {
       }}
       orb={orb}
       theme={theme}
+      logo={logo}
+      onLogoSettled={() => setFlash(null)}
       {...(tabbed ? { onOpenTab: openTab, compact: true } : {})}
       {...(phoneVoice.recording ? { readLevel: phoneVoice.readLevel } : {})}
     />

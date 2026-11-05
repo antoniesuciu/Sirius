@@ -12,7 +12,7 @@ test('the Sirius wolf is visible and still while idle in all themes', async ({ p
     if (theme === 'paper')
       await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);
     else await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-    const mark = page.locator('.sirius-head .sirius-mark');
+    const mark = page.locator('.sirius-head .sirius-logo');
     await expect(mark).toBeVisible();
     await expect(mark).toHaveAttribute('data-state', 'idle');
     await expect(mark).toHaveAttribute('data-running', 'false');

@@ -87,7 +87,7 @@ test('on Sirius only the chat scrolls, even on a short screen', async ({ page })
   });
   expect(sizes).toEqual({ page: false, section: false, chat: true });
   // The wolf sits at the top left, with the agent switch beside it.
-  const orb = await page.locator('.sirius-head .sirius-mark').boundingBox();
+  const orb = await page.locator('.sirius-head .sirius-logo').boundingBox();
   const agents = await page.getByRole('group', { name: 'Agent' }).boundingBox();
   expect(agents?.x).toBeGreaterThan((orb?.x ?? 0) + (orb?.width ?? 0) - 1);
 });
@@ -179,10 +179,10 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
   await expect(tab(page, 'Sirius')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.sirius-status')).toHaveText('listening');
   // The wolf animates while listening, and a large one comes up over the chat.
-  const orb = page.locator('.sirius-head .sirius-mark');
+  const orb = page.locator('.sirius-head .sirius-logo');
   await expect(orb).toHaveAttribute('data-state', 'listening');
   await expect(orb).toHaveAttribute('data-running', 'true');
-  await expect(page.locator('.voice-stage .sirius-mark')).toBeVisible();
+  await expect(page.locator('.voice-stage .sirius-logo')).toBeVisible();
   if (process.env.SIRIUS_SHOTS)
     await page.screenshot({ path: `${process.env.SIRIUS_SHOTS}/listening.png` });
   await page.waitForTimeout(300);

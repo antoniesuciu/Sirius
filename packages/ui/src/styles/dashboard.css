@@ -1565,7 +1565,8 @@ fieldset.agent-switch {
   font-style: italic;
   color: var(--muted);
 }
-.sirius-mark {
+.sirius-mark,
+.sirius-logo {
   display: block;
   overflow: visible;
   transition: opacity 0.4s ease;
