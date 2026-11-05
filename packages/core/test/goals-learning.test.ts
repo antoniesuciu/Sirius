@@ -41,9 +41,9 @@ describe('learning', () => {
     return { h, first, second, step: first.steps[0]?.id as string };
   };
 
-  test('the first roadmap is current and later ones wait', () => {
+  test('roadmaps progress independently', () => {
     const { first, second } = twoRoadmaps();
-    expect([first.status, second.status]).toEqual(['active', 'later']);
+    expect([first.status, second.status]).toEqual(['active', 'active']);
   });
 
   test('putting a step in Today creates a linked task (F12)', () => {
@@ -69,7 +69,7 @@ describe('learning', () => {
     expect(h.run('list_learning', {})[0]?.steps[0]?.status).toBe('done');
   });
 
-  test('finishing the last step moves the path to the next roadmap', () => {
+  test('finishing a roadmap leaves the other roadmap active', () => {
     const { h, step } = twoRoadmaps();
     h.run('complete_task', { id: h.run('step_to_today', { id: step }).id });
     expect(h.run('list_learning', {}).map((r) => r.status)).toEqual(['done', 'active']);
@@ -84,4 +84,35 @@ describe('learning', () => {
     expect(first?.status).toBe('active');
     expect(first?.steps[0]?.status).toBe('todo');
   });
+});
+
+test('milestone notes persist and completing / reopening keeps linked tasks consistent', () => {
+  const h = harness();
+  const r = h.run('add_roadmap', { title: 'Independent route', steps: [{ title: 'First' }] });
+  const id = r.steps[0]!.id;
+  const task = h.run('step_to_today', { id });
+  h.run('update_roadmap_step', {
+    id,
+    description: 'Read chapter 1',
+    notes: 'Worked exercises 1–4',
+    status: 'done',
+  });
+  expect(h.run('list_learning', {})[0]?.steps[0]).toMatchObject({
+    description: 'Read chapter 1',
+    notes: 'Worked exercises 1–4',
+    status: 'done',
+  });
+  expect(h.run('get_today', {}).tasks.find((t) => t.id === task.id)?.status).toBe('done');
+  h.run('update_roadmap_step', { id, status: 'todo' });
+  expect(h.run('list_learning', {})[0]).toMatchObject({ status: 'active' });
+  expect(h.run('list_learning', {})[0]?.steps[0]).toMatchObject({
+    notes: 'Worked exercises 1–4',
+    status: 'todo',
+    done_at: null,
+  });
+  expect(h.run('get_today', {}).tasks.find((t) => t.id === task.id)?.status).toBe('open');
+  h.run('update_roadmap_step', { id, status: 'done' });
+  h.run('add_roadmap_step', { roadmap_id: r.id, title: 'Second' });
+  expect(h.run('list_learning', {})[0]?.status).toBe('active');
+  expect(() => h.run('update_roadmap_step', { id: 'missing', notes: 'x' })).toThrow();
 });

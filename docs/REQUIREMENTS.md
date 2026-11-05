@@ -38,7 +38,7 @@ Sirius is a small, single-screen desktop dashboard and personal assistant for Ub
 
 **Design principles** (from the original notes, all binding): calm over productivity metrics; minimal over feature-rich; personal over prescriptive; quiet by default; local-first; no obligation to optimize every minute; rest is a valid suggestion.
 
-**Amended 2026-11-03 by the owner (ADR 0011):** Sirius is a direct personal assistant, not a calming presence. Its voice drops reassurance, rest advice and filler. The visual calm stays: leaves, breathing, no scores or streaks.
+**Amended 2026-11-03 by the owner (ADR 0011):** Sirius is a direct personal assistant, not a calming presence. Its voice drops reassurance, rest advice and filler. **2026-11-04 design amendment:** remove falling leaves; keep breathing. Explore a simple canine-and-Sirius-star logo (`docs/design/logos/`), with **Orbit (the wolf/star/arc concept) selected by the owner** for application icons after reviewing Ascent. Launcher icons have a transparent background. The dashboard keeps the original theme-aware voice orb in every state, with a higher-resolution canvas. Desktop “To remember” sits below Sirius; Well-being moves to the right column. Roadmap overview cards are compact; full details stay on the dedicated roadmap page.
 
 ## 2. Scope
 
@@ -69,11 +69,11 @@ Sirius is a small, single-screen desktop dashboard and personal assistant for Ub
 
 ### 3.3 Goals
 - **F9** Each goal has a title, an optional horizon or target date, and ordered milestones. Progress is shown as dots, filled per milestone done; up to 5 visible, then the latest 5.
-- **F10** Goals, milestones, learning roadmaps and steps are created primarily **through Sirius** or an external Claude Code/Codex session via MCP. The v1 UI needs no forms for them beyond inline rename and delete, plus a one-line add field for goals (F34).
+- **F10** Goals, milestones, learning roadmaps and steps are created primarily **through Sirius** or an external Claude Code/Codex session via MCP. Goals have inline rename/delete and a one-line add field (F34). The roadmap page also supports adding and editing learning milestones, descriptions and progress notes (2026-11-04 owner amendment).
 
 ### 3.4 Learning
-- **F11** Roadmaps are ordered. Each has ordered steps with an optional time estimate. The first active roadmap is "current" (filled node with a ring pulse). The vine fill animates to the current position on load.
-- **F12** Selecting a roadmap expands its next step. "Put it in Today" creates a linked task. Completing that task completes the step.
+- **F11** Roadmaps are independent routes, each shown in its own overview card. Selecting one opens a full-page explorer at `?roadmap=<id>`, with a winding route, selectable checkpoint nodes, completed markers and a highlighted current/selected checkpoint. The first unfinished milestone marks "You are here". Finishing one roadmap never starts another. Browser Back returns to the dashboard (2026-11-04 owner amendment).
+- **F12** Each ordered milestone keeps its title, optional time estimate, description, progress notes, completion state and completion date. The explorer supports adding milestones, editing details, saving notes, completing and reopening milestones. "Put it in Today" creates a linked task; task completion/reopening updates its milestone. Completing/reopening in the explorer updates linked tasks too. Notes live in SQLite and use the existing operation/phone queue infrastructure.
 
 ### 3.5 Personal and Well-being
 - **F13** Reminders have a label, a kind (`prayer | wellbeing | custom`), a schedule (time plus weekdays) and an enabled flag. Each one can be snoozed. They fire as quiet native notifications (section 3.7).

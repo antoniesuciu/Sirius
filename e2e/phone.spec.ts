@@ -177,7 +177,7 @@ test('the first visit keeps everything needed to open with no network', async ({
   await pairedPhone(context);
   await openAndKeep(page);
   const kept = await page.evaluate(async () => {
-    const cache = await caches.open('sirius-shell-v2');
+    const cache = await caches.open('sirius-shell-v3');
     return (await cache.keys()).map((request) => new URL(request.url).pathname);
   });
   const needed = await page.evaluate(() => [

@@ -1,79 +1,57 @@
 import type { RoadmapStep, RoadmapView } from '@sirius/contracts';
-import type { CSSProperties } from 'react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { InlineEdit } from './InlineEdit.tsx';
+import type { RoadmapActions } from './RoadmapDetail.tsx';
+import { RoadmapDetail } from './RoadmapDetail.tsx';
 
-export interface LearningPanelProps {
+export interface LearningPanelProps extends RoadmapActions {
   roadmaps: RoadmapView[];
-  onStepToToday(stepId: string): void;
   onRename(id: string, title: string): void;
   onDelete(id: string): void;
 }
-
-/** How far past the current node the vine reaches, so it reads as progress towards the next. */
-const VINE_REACH_PX = 44;
 
 export function nextStep(roadmap: RoadmapView): RoadmapStep | undefined {
   return roadmap.steps.find((s) => s.status === 'todo');
 }
 
-function nextLine(roadmap: RoadmapView, step: RoadmapStep | undefined): string {
-  if (step) {
-    const estimate = step.est_minutes ? ` About ${step.est_minutes} minutes.` : '';
-    return `Next: ${step.title}.${estimate}`;
-  }
-  if (roadmap.status === 'done' || roadmap.steps.length > 0) return 'All done here.';
-  if (roadmap.status === 'later') return 'Not started yet.';
-  return 'No steps yet. Ask Sirius to plan it.';
-}
-
-/** Measures where the vine should stop. Scaling a full-height rail keeps this transform-only. */
-function useVine(currentId: string | undefined, selected: string | null, count: number) {
-  const path = useRef<HTMLDivElement>(null);
-  const [vine, setVine] = useState<CSSProperties>({});
-  useLayoutEffect(() => {
-    const root = path.current;
-    if (!root) return;
-    const railHeight = Math.max(root.offsetHeight - 44, 1);
-    const node = currentId ? root.querySelector<HTMLElement>(`[data-node="${currentId}"]`) : null;
-    const px = Math.min((node?.offsetTop ?? 0) + VINE_REACH_PX, railHeight);
-    setVine({ '--vine-scale': px / railHeight, '--vine-px': `${px}px` } as CSSProperties);
-  }, [currentId, selected, count]);
-
-  return { path, vine };
-}
-
-export function LearningPanel({ roadmaps, onStepToToday, onRename, onDelete }: LearningPanelProps) {
-  const current = roadmaps.find((r) => r.status === 'active');
-  const [selected, setSelected] = useState<string | null>(null);
-  const [touched, setTouched] = useState(false);
-  // Until the user picks something, the current roadmap stays expanded (F12).
-  const open = touched ? selected : (current?.id ?? null);
-  const { path, vine } = useVine(current?.id, open, roadmaps.length);
-
+/** Every roadmap has its own route; no line connects unrelated subjects. */
+export function LearningPanel({ roadmaps, onRename, onDelete, ...actions }: LearningPanelProps) {
+  const [selected, setSelected] = useState<string | null>(() =>
+    new URLSearchParams(location.search).get('roadmap'),
+  );
+  useEffect(() => {
+    const pop = () => setSelected(new URLSearchParams(location.search).get('roadmap'));
+    window.addEventListener('popstate', pop);
+    return () => window.removeEventListener('popstate', pop);
+  }, []);
+  const openRoadmap = (id: string) => {
+    const url = new URL(location.href);
+    url.searchParams.set('roadmap', id);
+    history.pushState({ siriusRoadmap: true }, '', url);
+    setSelected(id);
+  };
+  const closeRoadmap = () => {
+    if (history.state?.siriusRoadmap) history.back();
+    else {
+      const url = new URL(location.href);
+      url.searchParams.delete('roadmap');
+      history.replaceState(null, '', url);
+      setSelected(null);
+    }
+  };
+  const chosen = roadmaps.find((r) => r.id === selected);
   return (
-    <section className="panel rise d2">
+    <section className="panel rise d2 panel-learning">
       <div className="panel-head">
         <h2>Learning</h2>
+        <span className="label">Roadmaps</span>
       </div>
-      <div className="path" ref={path}>
-        <div className="rail" aria-hidden="true" style={vine}>
-          <div className="vfill" />
-          <div className="vtip-anchor">
-            <div className="vtip" />
-          </div>
-        </div>
-        {roadmaps.map((roadmap, i) => {
-          const isCurrent = roadmap.id === current?.id;
-          const isOpen = open === roadmap.id;
+      <div className="roadmap-cards">
+        {roadmaps.map((roadmap) => {
           const step = nextStep(roadmap);
+          const done = roadmap.steps.filter((s) => s.status === 'done').length;
           return (
-            <div
-              className="node pop"
-              key={roadmap.id}
-              data-node={roadmap.id}
-              style={{ animationDelay: `${0.7 + i * 0.35}s` }}
-            >
+            <article className="roadmap-card node" key={roadmap.id}>
               <InlineEdit
                 title={roadmap.title}
                 noun="roadmap"
@@ -82,45 +60,44 @@ export function LearningPanel({ roadmaps, onStepToToday, onRename, onDelete }: L
               >
                 <button
                   type="button"
-                  className="node-button"
-                  aria-expanded={isOpen}
-                  onClick={() => {
-                    setTouched(true);
-                    setSelected(isOpen ? null : roadmap.id);
-                  }}
+                  className="roadmap-open node-button"
+                  aria-haspopup="dialog"
+                  onClick={() => openRoadmap(roadmap.id)}
                 >
-                  <span className="node-mark">
-                    {isCurrent ? (
-                      <span className="node-current">
-                        <span className="ringwave" />
-                        <span className="node-current-dot" />
-                      </span>
-                    ) : (
-                      <span
-                        className={`node-later ${roadmap.status === 'done' ? 'node-done' : ''}`}
-                      />
-                    )}
-                  </span>
-                  <span className="node-text">
-                    <span className="node-title">{roadmap.title}</span>
-                    <span className="node-meta">{roadmap.subtitle ?? ''}</span>
+                  <span className="node-title">{roadmap.title}</span>
+                  <span className="roadmap-count">
+                    {done} / {roadmap.steps.length} milestones <span aria-hidden="true">↗</span>
                   </span>
                 </button>
               </InlineEdit>
-              {isOpen && (
-                <div className="node-next msg">
-                  <span>{nextLine(roadmap, step)}</span>
-                  {step && (
-                    <button type="button" className="pill" onClick={() => onStepToToday(step.id)}>
-                      Put it in Today
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+              <div className="roadmap-summary">
+                <p className="roadmap-next">
+                  {step
+                    ? `Next: ${step.title}.`
+                    : roadmap.steps.length
+                      ? 'All milestones complete.'
+                      : 'No milestones yet. Open to plan your route.'}
+                </p>
+                {step && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => actions.onStepToToday(step.id)}
+                  >
+                    Put it in Today
+                  </button>
+                )}
+              </div>
+            </article>
           );
         })}
+        {roadmaps.length === 0 && (
+          <p className="roadmap-subtitle">Ask Sirius to create a learning roadmap.</p>
+        )}
       </div>
+      {chosen && (
+        <RoadmapDetail key={chosen.id} roadmap={chosen} onClose={closeRoadmap} {...actions} />
+      )}
     </section>
   );
 }

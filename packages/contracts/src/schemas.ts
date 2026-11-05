@@ -157,6 +157,8 @@ export const RoadmapStep = z.object({
   ...Common,
   roadmap_id: Id,
   title: z.string(),
+  description: z.string().default(''),
+  notes: z.string().default(''),
   est_minutes: z.number().int().nullable(),
   position: z.number().int(),
   status: StepStatus,

@@ -64,6 +64,8 @@ export const roadmap_steps = sqliteTable(
     ...common(),
     roadmap_id: text('roadmap_id').notNull(),
     title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    notes: text('notes').notNull().default(''),
     est_minutes: integer('est_minutes'),
     position: integer('position').notNull(),
     status: text('status', { enum: ['todo', 'done'] }).notNull(),

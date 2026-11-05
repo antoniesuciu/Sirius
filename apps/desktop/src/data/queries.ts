@@ -142,6 +142,8 @@ export function useOp<N extends OpName>(name: N, invalidates: OpName[]) {
   });
   return {
     ...mutation,
+    mutateAsync: (input: OpInput<N>) =>
+      mutation.mutateAsync({ op: name, input: input as Record<string, unknown>, key: newKey() }),
     mutate: (input: OpInput<N>, options?: Options) =>
       mutation.mutate(
         { op: name, input: input as Record<string, unknown>, key: newKey() },

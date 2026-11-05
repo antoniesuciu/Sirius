@@ -22,21 +22,13 @@ function allRoadmaps(ctx: OpContext) {
     .all();
 }
 
-/**
- * Finishing a roadmap's last step finishes the roadmap and moves the path on to the
- * next one. Without this the vine would stop forever at a finished roadmap, since
- * no operation changes a roadmap's status directly.
- */
+/** Each roadmap owns its progress; finishing one never starts another. */
 export function completeStep(ctx: OpContext, stepId: string): void {
   const step = ctx.tx.peek('roadmap_steps', stepId);
   if (!step || step.deleted_at !== null) return;
   ctx.tx.update('roadmap_steps', stepId, { status: 'done', done_at: step.done_at ?? ctx.tx.now });
   if (stepsOf(ctx, step.roadmap_id).some((s) => s.status === 'todo')) return;
   ctx.tx.update('roadmaps', step.roadmap_id, { status: 'done' });
-  const list = allRoadmaps(ctx);
-  if (list.some((r) => r.status === 'active')) return;
-  const next = list.find((r) => r.status === 'later');
-  if (next) ctx.tx.update('roadmaps', next.id, { status: 'active' });
 }
 
 export function reopenStep(ctx: OpContext, stepId: string): void {
@@ -53,6 +45,7 @@ export const learningHandlers: Handlers<
   | 'rename_roadmap'
   | 'delete_roadmap'
   | 'add_roadmap_step'
+  | 'update_roadmap_step'
   | 'step_to_today'
   | 'delete_roadmap_step'
 > = {
@@ -65,8 +58,7 @@ export const learningHandlers: Handlers<
     const roadmap = ctx.tx.insert('roadmaps', {
       title,
       subtitle: subtitle ?? null,
-      // The first roadmap becomes current; the rest wait their turn on the path.
-      status: list.some((r) => r.status === 'active') ? 'later' : 'active',
+      status: 'active',
       position: (list.at(-1)?.position ?? -1) + 1,
     });
     const rows = (steps ?? []).map((draft, position) =>
@@ -92,7 +84,8 @@ export const learningHandlers: Handlers<
   },
 
   add_roadmap_step({ roadmap_id, title, est_minutes }, ctx) {
-    ctx.tx.get('roadmaps', roadmap_id);
+    const roadmap = ctx.tx.get('roadmaps', roadmap_id);
+    if (roadmap.status === 'done') ctx.tx.update('roadmaps', roadmap_id, { status: 'active' });
     const top = ctx.tx.db
       .select({ top: max(roadmap_steps.position) })
       .from(roadmap_steps)
@@ -105,6 +98,27 @@ export const learningHandlers: Handlers<
       position: (top?.top ?? -1) + 1,
       status: 'todo',
     });
+  },
+
+  update_roadmap_step({ id, status, ...fields }, ctx) {
+    ctx.tx.get('roadmap_steps', id);
+    if (status) {
+      if (status === 'done') completeStep(ctx, id);
+      else reopenStep(ctx, id);
+      const linked = ctx.tx.db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.roadmap_step_id, id), isNull(tasks.deleted_at)))
+        .all();
+      for (const task of linked) {
+        if (task.status === 'dropped') continue;
+        ctx.tx.update('tasks', task.id, {
+          status: status === 'done' ? 'done' : 'open',
+          completed_at: status === 'done' ? (task.completed_at ?? ctx.tx.now) : null,
+        });
+      }
+    }
+    return ctx.tx.update('roadmap_steps', id, fields);
   },
 
   step_to_today({ id }, ctx) {

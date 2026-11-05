@@ -18,7 +18,6 @@ import {
   GoalsPanel,
   Header,
   LearningPanel,
-  Leaves,
   ListPanel,
   nextStep,
   type PendingFile,
@@ -218,6 +217,8 @@ export function App({ phone = false }: { phone?: boolean }) {
   const deleteGoal = useOp('delete_goal', ['list_goals']);
   const renameRoadmap = useOp('rename_roadmap', ['list_learning']);
   const deleteRoadmap = useOp('delete_roadmap', ['list_learning']);
+  const updateStep = useOp('update_roadmap_step', ['list_learning', 'get_today']);
+  const addStep = useOp('add_roadmap_step', ['list_learning']);
   const stepToToday = useOp('step_to_today', ['get_today']);
   const setReminderEnabled = useOp('set_reminder_enabled', ['list_reminders']);
   const snoozeReminder = useOp('snooze_reminder', ['list_reminders']);
@@ -470,6 +471,8 @@ export function App({ phone = false }: { phone?: boolean }) {
   const learningPanel = (
     <LearningPanel
       roadmaps={roadmaps}
+      onUpdateStep={updateStep.mutateAsync}
+      onAddStep={addStep.mutateAsync}
       onStepToToday={(id) => stepToToday.mutate({ id })}
       onRename={(id, title) => renameRoadmap.mutate({ id, title })}
       onDelete={(id) => deleteRoadmap.mutate({ id })}
@@ -501,7 +504,6 @@ export function App({ phone = false }: { phone?: boolean }) {
           onClose={() => void getCurrentWindow().close()}
         />
       )}
-      {settings?.['ui.leaves'] !== false && <Leaves />}
       <Header
         greeting={today ? greeting(OWNER, hour, openPriorities) : null}
         suggestions={suggestions}
@@ -554,7 +556,7 @@ export function App({ phone = false }: { phone?: boolean }) {
           {/* Sirius first, so the first thing on the screen is someone to talk to. */}
           <div className="col col-3">
             {siriusPanel}
-            {wellbeingPanel}
+            {listPanel}
           </div>
           <div className="col col-1">
             {todayPanel}
@@ -564,7 +566,7 @@ export function App({ phone = false }: { phone?: boolean }) {
           <div className="col col-2">
             {learningPanel}
             {personalPanel}
-            {listPanel}
+            {wellbeingPanel}
           </div>
         </main>
       )}

@@ -19,5 +19,9 @@ export const migrations = [
   {
     "tag": "0004_striped_mandroid",
     "sql": "CREATE TABLE `schedule_events` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\t`deleted_at` integer,\n\t`rev` integer DEFAULT 1 NOT NULL,\n\t`title` text NOT NULL,\n\t`location` text,\n\t`weekdays` integer NOT NULL,\n\t`date` text,\n\t`start_local` text NOT NULL,\n\t`end_local` text,\n\t`starts_on` text,\n\t`ends_on` text\n);\n"
+  },
+  {
+    "tag": "0005_orange_ken_ellis",
+    "sql": "ALTER TABLE `roadmap_steps` ADD `description` text DEFAULT '' NOT NULL;--> statement-breakpoint\nALTER TABLE `roadmap_steps` ADD `notes` text DEFAULT '' NOT NULL;"
   }
 ];

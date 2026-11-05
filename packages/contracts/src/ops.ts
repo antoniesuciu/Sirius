@@ -373,6 +373,20 @@ export const ops = {
     }),
     output: RoadmapStep,
   }),
+  update_roadmap_step: op({
+    class: 'additive',
+    summary:
+      'Update a roadmap milestone, its description, progress notes or completion. Linked tasks follow completion changes.',
+    http: { method: 'post', path: '/steps/{id}/update' },
+    input: z.object({
+      id: Id,
+      title: Title.optional(),
+      description: z.string().max(10000).optional(),
+      notes: z.string().max(20000).optional(),
+      status: z.enum(['todo', 'done']).optional(),
+    }),
+    output: RoadmapStep,
+  }),
   step_to_today: op({
     class: 'additive',
     summary: "Put a roadmap step in Today as a linked task. It's a no-op if it is already there.",

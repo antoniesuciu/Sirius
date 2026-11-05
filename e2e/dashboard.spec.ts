@@ -123,15 +123,52 @@ test.describe('learning', () => {
   test('the current roadmap starts open and puts its step in Today', async ({ page }) => {
     await open(page);
     await expect(page.getByText('Next: Sequences and limits, §2.4.')).toBeVisible();
-    await page.getByRole('button', { name: 'Put it in Today' }).click();
+    await page
+      .locator('.roadmap-card')
+      .filter({ has: page.locator('.node-title', { hasText: /^Real analysis$/ }) })
+      .getByRole('button', { name: 'Put it in Today' })
+      .click();
     await expect(page.locator('.smalls')).toContainText('Sequences and limits, §2.4');
   });
 
-  test('selecting another roadmap swaps what is expanded', async ({ page }) => {
+  test('roadmaps open as independent full pages with selectable checkpoints', async ({ page }) => {
     await open(page);
-    await page.locator('.node-button', { hasText: 'Stochastic calculus' }).click();
-    await expect(page.getByText('Not started yet.')).toBeVisible();
-    await expect(page.getByText('Next: Sequences and limits')).toHaveCount(0);
+    await expect(page.locator('.leaves')).toHaveCount(0);
+    await page.locator('.node-button', { hasText: 'Real analysis' }).click();
+    await expect(page).toHaveURL(/roadmap=/);
+    const route = page.getByRole('dialog');
+    await expect(route).toBeVisible();
+    await expect(route.getByText('You are here: Sequences and limits, §2.4')).toBeVisible();
+    await route
+      .getByRole('button', { name: 'Milestone 3: Series and convergence', exact: true })
+      .click();
+    await expect(
+      route.getByRole('button', { name: 'Milestone 3: Series and convergence', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await route
+      .getByRole('textbox', { name: 'Progress notes', exact: true })
+      .fill('Solved convergence exercises.');
+    await route.getByRole('button', { name: 'Save notes' }).click();
+    await expect(route.getByRole('status')).toHaveText('Saved');
+    await route
+      .getByRole('button', { name: 'Milestone 2: Sequences and limits, §2.4', exact: true })
+      .click();
+    await route
+      .getByRole('button', { name: 'Milestone 3: Series and convergence', exact: true })
+      .click();
+    await expect(route.getByRole('textbox', { name: 'Progress notes', exact: true })).toHaveValue(
+      'Solved convergence exercises.',
+    );
+    await route.getByRole('button', { name: 'Mark complete' }).click();
+    await expect(route.getByRole('button', { name: 'Reopen milestone' })).toBeVisible();
+    await route.getByLabel('Add a milestone', { exact: true }).fill('Integration');
+    await route.getByRole('button', { name: 'Add milestone', exact: true }).click();
+    await expect(
+      route.getByRole('button', { name: 'Milestone 6: Integration', exact: true }),
+    ).toBeVisible();
+    await page.goBack();
+    await expect(route).toHaveCount(0);
+    await expect(page).not.toHaveURL(/roadmap=/);
   });
 
   test('a roadmap is renamed where its title is', async ({ page }) => {
@@ -328,12 +365,10 @@ test.describe('sirius', () => {
     await expect(page.locator('.task')).toHaveCount(6);
   });
 
-  test('Sirius is a still orb while idle', async ({ page }) => {
+  test('Sirius shows the original still orb while idle', async ({ page }) => {
     await open(page);
-    const orb = page.locator('.panel-sirius .voice-orb');
-    await expect(orb).toHaveAttribute('data-state', 'idle');
-    await expect(orb).toBeVisible();
-    await expect(orb).toHaveAttribute('data-running', 'false');
+    await expect(page.locator('.panel-sirius .voice-orb')).toBeVisible();
+    await expect(page.locator('.panel-sirius .voice-orb')).toHaveAttribute('data-running', 'false');
   });
 
   test('asking Sirius changes the theme and the animation (F40)', async ({ page }) => {
@@ -349,7 +384,10 @@ test.describe('sirius', () => {
     const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     expect(background).toBe('rgb(7, 13, 28)');
     await ask('orb ring');
+    await page.getByLabel('Message Sirius').fill('Check selected animation');
+    await page.getByLabel('Message Sirius').press('Enter');
     await expect(page.locator('.panel-sirius .voice-orb')).toHaveAttribute('data-orb', 'ring');
+    await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
     await ask('theme paper');
     await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);
   });
@@ -494,16 +532,16 @@ test.describe('resting (ADR 0004)', () => {
         }).length,
     );
 
-  test('decoration stops when the window loses focus and returns with it', async ({ page }) => {
+  test('the idle dashboard has no decorative loops and tracks window focus', async ({ page }) => {
     await open(page);
     await typed(page);
-    expect(await runningLoops(page)).toBeGreaterThan(0);
+    expect(await runningLoops(page)).toBe(0);
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
     await expect(page.locator('.app')).toHaveClass(/resting/);
     expect(await runningLoops(page)).toBe(0);
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(page.locator('.app')).not.toHaveClass(/resting/);
-    expect(await runningLoops(page)).toBeGreaterThan(0);
+    expect(await runningLoops(page)).toBe(0);
   });
 
   test('breathing keeps going while the window rests', async ({ page }) => {

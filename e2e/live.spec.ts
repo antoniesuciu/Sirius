@@ -151,3 +151,23 @@ test('the calendar feed serves the schedule to a calendar app (F37)', async () =
   expect(text).toContain('RRULE:FREQ=WEEKLY;BYDAY=MO,WE');
   expect((await fetch(`http://127.0.0.1:${LIVE_PORT}/calendar/wrong.ics`)).status).toBe(404);
 });
+
+test('roadmap milestone notes persist after reload', async ({ page }) => {
+  const res = await postToCore('/roadmaps', {
+    title: 'Persistent roadmap',
+    steps: [{ title: 'Checkpoint one' }],
+  });
+  expect(res.ok).toBe(true);
+  const roadmap = (await res.json()) as { id: string };
+  await page.goto(`/?roadmap=${roadmap.id}`);
+  const route = page.getByRole('dialog');
+  await route
+    .getByRole('textbox', { name: 'Progress notes', exact: true })
+    .fill('Documented the proof and exercises.');
+  await route.getByRole('button', { name: 'Save notes' }).click();
+  await expect(route.getByRole('status')).toHaveText('Saved');
+  await page.reload();
+  await expect(route.getByRole('textbox', { name: 'Progress notes', exact: true })).toHaveValue(
+    'Documented the proof and exercises.',
+  );
+});

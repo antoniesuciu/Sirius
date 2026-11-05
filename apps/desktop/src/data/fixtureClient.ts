@@ -105,6 +105,8 @@ function roadmap(
     steps: steps.map(([stepTitle, est], i) => ({
       ...common(),
       roadmap_id: r.id,
+      description: '',
+      notes: '',
       title: stepTitle,
       est_minutes: est,
       position: i,
@@ -152,7 +154,11 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
     ],
     roadmaps: [
       roadmap('Real analysis', 'Abbott · chapter 2 of 8', 'active', [
+        ['The real numbers', 25],
         ['Sequences and limits, §2.4', 30],
+        ['Series and convergence', 40],
+        ['Continuity', 35],
+        ['Differentiation', 45],
       ]),
       roadmap('Probability theory', 'After real analysis', 'later', [
         ['Measure basics, one section', null],
@@ -183,6 +189,13 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
     proposals: [] as Proposal[],
     events: [] as AgentEvent[],
   };
+
+  const first = state.roadmaps[0]?.steps[0];
+  if (first) {
+    first.status = 'done';
+    first.done_at = Date.now();
+    first.notes = 'Reviewed completeness and the least upper bound property.';
+  }
 
   const listeners = new Set<EventHandlers>();
   const emit = (event: SiriusEvent) => {
@@ -432,6 +445,33 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       state.roadmaps = state.roadmaps.filter((r) => r.id !== id);
       changed('roadmaps');
       return { ok: true };
+    },
+    update_roadmap_step: ({ id, ...fields }) => {
+      const step = find(
+        state.roadmaps.flatMap((r) => r.steps),
+        id,
+      );
+      Object.assign(step, fields);
+      if (fields.status) step.done_at = fields.status === 'done' ? Date.now() : null;
+      changed('roadmap_steps');
+      return step;
+    },
+    add_roadmap_step: ({ roadmap_id, title, est_minutes }) => {
+      const r = find(state.roadmaps, roadmap_id);
+      const step = {
+        ...common(),
+        roadmap_id,
+        title,
+        description: '',
+        notes: '',
+        est_minutes: est_minutes ?? null,
+        position: r.steps.length,
+        status: 'todo' as const,
+        done_at: null,
+      };
+      r.steps.push(step);
+      changed('roadmap_steps');
+      return step;
     },
     step_to_today: ({ id }) => {
       const step = state.roadmaps.flatMap((r) => r.steps).find((s) => s.id === id);

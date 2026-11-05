@@ -199,7 +199,7 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
     .toEqual([{ text: 'Added water the basil to today.', lang: 'en-US' }]);
 
   await expect(tab(page, 'Today').locator('.tab-dot')).toBeVisible();
-  // Back to idle: one still frame, and the large orb is gone.
+  // Back to idle: the same orb stays visible without running frames.
   await expect(orb).toHaveAttribute('data-state', 'idle');
   await expect(orb).toHaveAttribute('data-running', 'false');
   await expect(page.locator('.voice-stage')).toHaveCount(0);
