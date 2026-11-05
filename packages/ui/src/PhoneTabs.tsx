@@ -3,6 +3,7 @@
  * panel stacked in one long scroll. The desktop layout does not use any of this.
  */
 import type { EntityName } from '@sirius/contracts';
+import type { ReactNode } from 'react';
 import { MicIcon } from './Icons.tsx';
 
 export type PhoneTab = 'sirius' | 'today' | 'plan' | 'list';
@@ -82,9 +83,11 @@ export interface TabBarProps {
   /** Sending a recording or saying the reply: the mic then stops that instead. */
   micBusy: boolean;
   onMic(): void;
+  /** What the talk button shows: the animated Sirius logo, so it is on every tab. */
+  mark?: ReactNode;
 }
 
-export function TabBar({ active, fresh, onSelect, micOpen, micBusy, onMic }: TabBarProps) {
+export function TabBar({ active, fresh, onSelect, micOpen, micBusy, onMic, mark }: TabBarProps) {
   const tab = (t: (typeof PHONE_TABS)[number]) => (
     <button
       key={t.id}
@@ -104,12 +107,12 @@ export function TabBar({ active, fresh, onSelect, micOpen, micBusy, onMic }: Tab
       <div className="tab-group">{PHONE_TABS.slice(0, 2).map(tab)}</div>
       <button
         type="button"
-        className={`tab-mic ${micOpen ? 'tab-mic-live' : ''}`}
+        className={`tab-mic ${mark ? 'tab-mic-mark' : ''} ${micOpen ? 'tab-mic-live' : ''}`}
         aria-label={micOpen ? 'Stop listening' : micBusy ? 'Stop' : 'Talk to Sirius'}
         aria-pressed={micOpen}
         onClick={onMic}
       >
-        <MicIcon stroke={micOpen ? 'var(--on-ink)' : 'var(--ink)'} />
+        {mark ?? <MicIcon stroke={micOpen ? 'var(--on-ink)' : 'var(--ink)'} />}
       </button>
       <div className="tab-group">{PHONE_TABS.slice(2).map(tab)}</div>
     </nav>

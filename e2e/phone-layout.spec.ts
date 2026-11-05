@@ -183,6 +183,8 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
   await expect(orb).toHaveAttribute('data-state', 'listening');
   await expect(orb).toHaveAttribute('data-running', 'true');
   await expect(page.locator('.voice-stage .sirius-logo')).toBeVisible();
+  // The talk button is the logo, so it listens on every tab.
+  await expect(page.locator('.tab-mic .sirius-logo')).toHaveAttribute('data-state', 'listening');
   if (process.env.SIRIUS_SHOTS)
     await page.screenshot({ path: `${process.env.SIRIUS_SHOTS}/listening.png` });
   await page.waitForTimeout(300);
@@ -199,6 +201,7 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
   // Back to idle: the same orb stays visible without running frames.
   await expect(orb).toHaveAttribute('data-state', 'idle');
   await expect(orb).toHaveAttribute('data-running', 'false');
+  await expect(page.locator('.tab-mic .sirius-logo')).toHaveAttribute('data-state', 'idle');
   // The stage fades away rather than disappearing.
   await expect(page.locator('.voice-stage')).toHaveAttribute('data-on', 'false');
   await expect(page.locator('.voice-stage')).toBeHidden();

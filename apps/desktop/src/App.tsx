@@ -27,6 +27,7 @@ import {
   receiptForIntent,
   receiptsFor,
   SchedulePanel,
+  SiriusLogo,
   SiriusPanel,
   TabBar,
   TodayPanel,
@@ -594,6 +595,7 @@ export function App({ phone = false }: { phone?: boolean }) {
             micOpen={phoneVoice.recording}
             micBusy={phoneVoice.sending || phoneVoice.speaking}
             onMic={onMic}
+            mark={<SiriusLogo state={resting && logo !== 'sleep' ? 'idle' : logo} size={42} />}
           />
         </>
       ) : (

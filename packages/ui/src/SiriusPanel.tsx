@@ -96,10 +96,13 @@ const STATUS_TEXT: Record<AgentStatusValue, string> = {
 function LiveReply({
   text,
   streaming,
+  working,
   onTyped,
 }: {
   text: string;
   streaming: boolean;
+  /** A tool is running mid-reply, so more words are coming. */
+  working: boolean;
   onTyped(): void;
 }) {
   const shown = useSmoothedText(text);
@@ -119,7 +122,8 @@ function LiveReply({
   return (
     <div className="bubble">
       {shown}
-      {(typing || streaming) && <span className="caret" />}
+      {/* Only while letters appear: the CLI often runs on for seconds after its last word. */}
+      {(typing || (streaming && working)) && <span className="caret" />}
     </div>
   );
 }
@@ -367,6 +371,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
               key="live"
               text={liveText}
               streaming={props.streaming !== null}
+              working={props.thinking}
               onTyped={onTyped}
             />
           )}

@@ -100,6 +100,9 @@ export default defineConfig({
         SIRIUS_DATA_DIR: LIVE_DATA_DIR,
         SIRIUS_PORT: String(LIVE_PORT),
         SIRIUS_SEED: 'demo',
+        // A scripted Claude, so chat runs through the real core without a login or quota.
+        SIRIUS_CLAUDE_BIN: `${process.cwd()}/e2e/fake-claude.ts`,
+        SIRIUS_MCP_COMMAND: 'bun',
       },
     },
     {

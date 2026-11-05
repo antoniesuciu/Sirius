@@ -171,3 +171,24 @@ test('roadmap milestone notes persist after reload', async ({ page }) => {
     'Documented the proof and exercises.',
   );
 });
+
+test('a reply from the real core ends cleanly: once, and with no caret left behind', async ({
+  page,
+}) => {
+  await page.goto('/');
+  // Twice, as the owner did: the second turn starts with an identical exchange above it.
+  for (const count of [1, 2]) {
+    await page.getByLabel('Message Sirius').fill('hei');
+    await page.getByLabel('Message Sirius').press('Enter');
+    const reply = page.locator('.chat-log .bubble', { hasText: 'three things today.' });
+    await expect(reply).toHaveCount(count);
+    // The words are all there while the CLI is still finishing: no caret pretends otherwise.
+    await expect(page.getByRole('button', { name: 'Send' })).toBeDisabled();
+    await expect(page.locator('.chat-log .caret')).toHaveCount(0, { timeout: 1500 });
+    await expect(page.getByRole('button', { name: 'Send' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
+    await page.waitForTimeout(1500);
+    await expect(reply).toHaveCount(count);
+    await expect(page.locator('.chat-log .caret')).toHaveCount(0);
+  }
+});
