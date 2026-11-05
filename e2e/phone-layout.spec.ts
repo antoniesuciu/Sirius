@@ -316,3 +316,25 @@ test('screenshots of every theme and animation', async ({ page }) => {
     }
   }
 });
+
+test('the phone opens on the logo drawing itself in, then fades into the app', async ({ page }) => {
+  await page.goto('/?fixtures&phone&toastMs=600000');
+  const launch = page.locator('.launch');
+  await expect(launch).toBeVisible();
+  await expect(launch.locator('.sirius-logo')).toHaveAttribute('data-state', 'startup');
+  // It never blocks a tap while it plays.
+  await page.getByRole('button', { name: 'Plan' }).click();
+  await expect(launch).toHaveCount(0, { timeout: 6000 });
+});
+
+test('with reduced motion the phone opens straight into the app', async ({ browser }) => {
+  const context = await browser.newContext({
+    reducedMotion: 'reduce',
+    viewport: { width: 390, height: 844 },
+  });
+  const page = await context.newPage();
+  await page.goto('/?fixtures&phone&toastMs=600000');
+  await expect(page.locator('.tab-bar')).toBeVisible();
+  await expect(page.locator('.launch')).toHaveCount(0);
+  await context.close();
+});

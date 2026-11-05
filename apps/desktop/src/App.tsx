@@ -298,6 +298,16 @@ export function App({ phone = false }: { phone?: boolean }) {
   // The logo's one-shot states: it draws itself in at launch, howls when an agent finishes or
   // wants you, and flickers on an error. Events already there at launch are not replayed.
   const [flash, setFlash] = useState<'startup' | 'notify' | 'error' | null>('startup');
+  // The phone opens on the logo drawing itself in: Android's own splash can only show a still
+  // icon. It then fades into the app. Taps go through, so it never holds anything up.
+  const [launch, setLaunch] = useState<'drawing' | 'leaving' | null>(() =>
+    phone && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'drawing' : null,
+  );
+  useEffect(() => {
+    if (launch !== 'leaving') return;
+    const done = setTimeout(() => setLaunch(null), 600);
+    return () => clearTimeout(done);
+  }, [launch]);
   const seenEvents = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (!agentEventData) return;
@@ -556,6 +566,11 @@ export function App({ phone = false }: { phone?: boolean }) {
         onToggleQuiet={() => setQuiet.mutate(!quiet)}
         actions={!tabbed}
       />
+      {launch && (
+        <div className="launch" data-leaving={launch === 'leaving'} aria-hidden="true">
+          <SiriusLogo state="startup" size={168} onSettled={() => setLaunch('leaving')} />
+        </div>
+      )}
       {phone && <ConnectionLine />}
       {quiet && <div className="quiet-line msg">Quiet mode until tomorrow. Reminders are off.</div>}
       {tabbed ? (
