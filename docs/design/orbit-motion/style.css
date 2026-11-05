@@ -1,0 +1,50 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+main { --bg: #101116; --panel: #17181f; --ink: #eeedf4; --muted: #9997ac; --line: #2a2b36; --accent: #b3a4f7; min-height: 100vh; padding: 0 max(28px, calc((100vw - 1240px) / 2)); color: var(--ink); background: var(--bg); }
+main[data-light='true'] { --bg: #f4f1eb; --panel: #faf8f4; --ink: #272532; --muted: #716c7f; --line: #ded9e4; --accent: #735cb2; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 30px 0; border-bottom: 1px solid var(--line); }
+a { color: inherit; text-decoration: none; }
+.wordmark { font-size: 23px; font-weight: 600; letter-spacing: -1px; }
+.wordmark span { margin-left: 14px; color: var(--muted); font-size: 12px; letter-spacing: .4px; font-weight: 400; }
+button { background: none; color: inherit; border: 1px solid var(--line); border-radius: 7px; padding: 9px 13px; font-size: 12px; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.intro { padding: 55px 0 33px; }
+.eyebrow { font-size: 10px; letter-spacing: 2.3px; font-weight: 600; color: var(--accent); }
+h1 { font-size: clamp(35px, 4vw, 53px); letter-spacing: -2px; line-height: 1.12; font-weight: 450; margin: 17px 0 19px; }
+h1 em { color: var(--muted); font-family: Georgia, serif; font-weight: 400; }
+.intro > p:last-child { font-size: 13px; color: var(--muted); }
+.workspace { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; min-height: 470px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+.stage-label { position: absolute; left: 24px; top: 23px; color: var(--muted); font-size: 11px; }
+.hero { padding-top: 15px; }
+.orbit-avatar { max-width: 100%; overflow: visible; display: block; }
+.caption { display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 14px; color: var(--muted); }
+.status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.status-dot.needs_input { background: #f3b96a; }
+aside { padding-top: 2px; }
+.state-list { margin: 20px 0 23px; }
+.state-list button { width: 100%; border: none; border-bottom: 1px solid var(--line); border-radius: 0; display: flex; align-items: center; gap: 20px; text-align: left; padding: 15px 12px; }
+.state-list button[aria-pressed='true'] { background: var(--panel); border-radius: 7px; }
+.number { color: var(--accent); font-size: 10px; }
+strong { font-size: 13px; font-weight: 500; display: block; }
+small { font-size: 11px; line-height: 1.5; display: block; color: var(--muted); margin-top: 5px; }
+.arrow { margin-left: auto; color: var(--muted); }
+.toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+.toggles button[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); }
+.audio-control { margin-top: 25px; color: var(--muted); font-size: 11px; }
+.audio-control label { display: flex; align-items: center; gap: 8px; }
+input { accent-color: var(--accent); }
+.slider { margin-top: 15px; }
+.slider input { flex: 1; min-width: 50px; }
+output { width: 30px; }
+.audio-control p { font-size: 10px; line-height: 1.6; }
+.studies { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; padding: 50px 0; }
+article { padding: 20px 15px; border: 1px solid var(--line); border-radius: 10px; }
+article .orbit-avatar { margin: 0 auto 18px; }
+h2 { font-size: 12px; font-weight: 500; }
+article p { font-size: 10px; color: var(--muted); line-height: 1.7; }
+footer { border-top: 1px solid var(--line); padding: 23px 0; color: var(--muted); font-size: 10px; }
+@media (max-width: 760px) { .workspace { grid-template-columns: 1fr; gap: 30px; } .stage { min-height: 420px; } .studies { grid-template-columns: repeat(2, 1fr); } .wordmark span { margin-left: 8px; } }
