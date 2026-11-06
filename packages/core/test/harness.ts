@@ -35,6 +35,8 @@ export function fakeAgent(id: 'claude' | 'codex', scripts: AgentStreamEvent[][] 
 export interface Harness {
   core: Core;
   notified: Notification[];
+  /** Keys whose desktop notification was taken down. */
+  withdrawn: string[];
   events: SiriusEvent[];
   now: { value: number };
   advance(ms: number): void;
@@ -48,12 +50,13 @@ export function harness(
 ): Harness {
   const now = { value: start };
   const notified: Notification[] = [];
+  const withdrawn: string[] = [];
   const events: SiriusEvent[] = [];
   const core = createCore({
     dbPath: ':memory:',
     timeZone: TZ,
     clock: () => now.value,
-    notifier: { notify: (n) => notified.push(n) },
+    notifier: { notify: (n) => notified.push(n), withdraw: (k) => withdrawn.push(k) },
     adapters,
     ...(memoryFile ? { memoryFile } : {}),
   });
@@ -61,6 +64,7 @@ export function harness(
   return {
     core,
     notified,
+    withdrawn,
     events,
     now,
     advance: (ms) => {

@@ -72,20 +72,30 @@ export async function syncScheduled(client: SiriusClient): Promise<number> {
   return planned.length;
 }
 
-/** Agent alerts the laptop raised since the last sync: a permission prompt, a question, an error. */
+/**
+ * Agent alerts the laptop raised since the last sync: a permission prompt, a question, an
+ * error. One notification per agent, replaced by a newer one and taken down once nothing is
+ * waiting, like the laptop's (F25).
+ */
 export async function notifyAgentEvents(client: SiriusClient): Promise<void> {
   const events = await client.call('list_agent_events', {});
   const raw = await SecureStore.getItemAsync(SEEN_KEY).catch(() => null);
   const seen = raw ? new Set<string>(JSON.parse(raw) as string[]) : null;
-  // The first sync only learns what is already there, so old alerts are not replayed.
-  if (seen) {
-    for (const e of events) {
-      if (seen.has(e.id) || e.acknowledged_at !== null || e.kind === 'turn_complete') continue;
-      await Notifications.scheduleNotificationAsync({
-        content: { title: 'Sirius', body: describeAgentEvent(e), data: { tab: 'sirius' } },
-        trigger: null,
-      });
+  const waiting = events.filter((e) => e.acknowledged_at === null && e.kind !== 'turn_complete');
+  for (const source of ['claude', 'codex'] as const) {
+    const latest = waiting.filter((e) => e.source === source).at(-1);
+    const id = `agent:${source}`;
+    if (!latest) {
+      await Notifications.dismissNotificationAsync(id).catch(() => {});
+      continue;
     }
+    // The first sync only learns what is already there, so old alerts are not replayed.
+    if (!seen || seen.has(latest.id)) continue;
+    await Notifications.scheduleNotificationAsync({
+      identifier: id,
+      content: { title: 'Sirius', body: describeAgentEvent(latest), data: { tab: 'sirius' } },
+      trigger: null,
+    });
   }
   const keep = events.map((e) => e.id).slice(-100);
   await SecureStore.setItemAsync(SEEN_KEY, JSON.stringify(keep)).catch(() => {});

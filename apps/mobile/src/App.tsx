@@ -103,7 +103,10 @@ function Main({ client, onForget }: { client: SiriusClient; onForget(): void }) 
     const need = syncFor(event);
     if (need.schedule) void syncScheduled(client).catch(() => {});
     if (need.widget) void refreshWidget().catch(() => {});
-    if (event.type === 'agent') void notifyAgentEvents(client).catch(() => {});
+    // A new alert, or an answered one (its row changes), so the notification follows.
+    if (event.type === 'agent' || (event.type === 'change' && event.entity === 'agent_events')) {
+      void notifyAgentEvents(client).catch(() => {});
+    }
   });
 
   // Back on screen the stream may be dead without knowing it, so reconnect and resync.

@@ -34,9 +34,20 @@ export class Attention {
 
   /** The agent carried on, so whatever it was waiting for has been answered. */
   resolve(input: OpInput<'resolve_agent_events'>): { resolved: number } {
-    return this.store.write('system', (tx) => ({
-      resolved: this.clearWaiting(tx, input.source, input.project ?? null),
-    }));
+    return this.store.write('system', (tx) => {
+      const resolved = this.clearWaiting(tx, input.source, input.project ?? null);
+      if (resolved > 0) tx.afterCommit(() => this.settle(input.source));
+      return { resolved };
+    });
+  }
+
+  /** Takes down the desktop notification once nothing it said is still waiting. */
+  private settle(source: AgentId): void {
+    const pending = this.pending();
+    if (!pending.some((e) => e.source === source && e.kind === 'needs_input')) {
+      this.notifier.withdraw?.(source);
+    }
+    if (pending.length === 0) this.notifier.withdraw?.('attention-queue');
   }
 
   /** A prompt or a tool means working; a stopped turn means not. Kept in memory only. */
@@ -168,9 +179,11 @@ export class Attention {
   }
 
   ack(id: string): AgentEvent {
-    return this.store.write('user', (tx) =>
-      tx.update('agent_events', id, { acknowledged_at: tx.now }),
-    );
+    return this.store.write('user', (tx) => {
+      const event = tx.update('agent_events', id, { acknowledged_at: tx.now });
+      tx.afterCommit(() => this.settle(event.source));
+      return event;
+    });
   }
 
   /** Quiet mode ended: show what arrived during it, as one notification rather than a burst. */
