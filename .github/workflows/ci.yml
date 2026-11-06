@@ -11,18 +11,20 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ hashFiles('bun.lock') }}
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('bun.lock') }}
+      # PDF attachments are read with pdftotext, as on the laptop (F36).
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run typecheck
@@ -37,8 +39,8 @@ jobs:
       run:
         working-directory: services/voice
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
       - run: uv sync
       - run: uv run ruff check src tests
       - run: uv run pytest -q
