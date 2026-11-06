@@ -133,6 +133,17 @@ test('on a 360 px phone the card header stays two lines, even with a long model 
   }
 });
 
+test('roadmap cards fit inside the Learning card (2026-11-06)', async ({ page }) => {
+  await openPhone(page);
+  await tab(page, 'Plan').click();
+  const inner = await page.locator('.roadmap-cards').boundingBox();
+  if (!inner) throw new Error('no roadmap cards');
+  for (const card of await page.locator('.roadmap-card').all()) {
+    const b = await card.boundingBox();
+    expect((b?.x ?? 0) + (b?.width ?? Infinity)).toBeLessThanOrEqual(inner.x + inner.width + 0.5);
+  }
+});
+
 test('a section is there at once when its tab is opened', async ({ page }) => {
   await openPhone(page);
   await tab(page, 'Plan').click();

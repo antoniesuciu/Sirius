@@ -1,6 +1,8 @@
 /* Independent routes and the full-page roadmap explorer. */
 .roadmap-cards {
   display: grid;
+  /* minmax(0, …): otherwise the one-line "Next:" text widens the card past the panel. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 .roadmap-card {
