@@ -446,11 +446,12 @@ test.describe('sirius', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'midnight');
     const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     expect(background).toBe('rgb(7, 13, 28)');
-    await ask('orb ring');
-    await page.getByLabel('Message Sirius').fill('Check selected animation');
-    await page.getByLabel('Message Sirius').press('Enter');
-    await expect(page.locator('.sirius-head .voice-orb')).toHaveAttribute('data-orb', 'ring');
-    await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
+    // The wolf takes its gradient from the theme.
+    const wolfTop = () =>
+      page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue('--sirius-1').trim(),
+      );
+    expect(await wolfTop()).toBe('#6fa0ff');
     await ask('theme paper');
     await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);
   });
@@ -573,11 +574,10 @@ test.describe('non-functional', () => {
 test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce' });
 
-  test('removes leaves, typing and avatar motion', async ({ page }) => {
+  test('removes typing and every other CSS motion', async ({ page }) => {
     await open(page);
     await expect(page.locator('h1')).toContainText('matter today.');
     await expect(page.locator('h1 .caret')).toHaveCount(0);
-    await expect(page.locator('.lc').first()).toBeHidden();
     const running = await page.evaluate(() =>
       document.getAnimations().map((a) => (a as CSSAnimation).animationName),
     );
@@ -589,10 +589,13 @@ test.describe('resting (ADR 0004)', () => {
   const runningLoops = (page: Page) =>
     page.evaluate(
       () =>
-        document.getAnimations().filter((a) => {
-          const name = (a as CSSAnimation).animationName;
-          return ['fall', 'sway', 'ring', 'bob'].includes(name) && a.playState === 'running';
-        }).length,
+        document
+          .getAnimations()
+          .filter(
+            (a) =>
+              a.effect?.getComputedTiming().iterations === Number.POSITIVE_INFINITY &&
+              a.playState === 'running',
+          ).length,
     );
 
   test('the idle dashboard has no decorative loops and tracks window focus', async ({ page }) => {

@@ -256,16 +256,13 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
         'add_goal',
       ]);
     }
-    // "theme midnight", "orb ring": what the real agent does through set_appearance.
-    const look = text.match(/^(theme|orb)\s+([\w-]+)$/i);
-    if (look?.[1] && look[2]) {
-      const value = look[2].toLowerCase();
-      if (look[1].toLowerCase() === 'theme') state.settings['ui.theme'] = value;
-      else state.settings['ui.orb'] = value;
+    // "theme midnight": what the real agent does through set_appearance.
+    const look = text.match(/^theme\s+([\w-]+)$/i);
+    if (look?.[1]) {
+      const value = look[1].toLowerCase();
+      state.settings['ui.theme'] = value;
       changed('settings');
-      return replyWith(turnId, `Switched the ${look[1].toLowerCase()} to ${value}.`, undefined, [
-        'set_appearance',
-      ]);
+      return replyWith(turnId, `Switched the theme to ${value}.`, undefined, ['set_appearance']);
     }
     const learnMatch = text.match(/^learn[:\s]+(.+)/i);
     if (learnMatch?.[1]) {
@@ -384,14 +381,10 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
     }),
     get_voice_state: () => ({ state: 'idle', transcript: null, mic_open: false, level: null }),
     get_settings: () => ({ ...state.settings }),
-    set_appearance: ({ theme, orb }) => {
+    set_appearance: ({ theme }) => {
       if (theme) state.settings['ui.theme'] = theme;
-      if (orb) state.settings['ui.orb'] = orb;
       changed('settings');
-      return {
-        theme: (state.settings['ui.theme'] as 'paper') ?? 'paper',
-        orb: (state.settings['ui.orb'] as 'sirius') ?? 'sirius',
-      };
+      return { theme: (state.settings['ui.theme'] as 'paper') ?? 'paper' };
     },
     voice_ptt: () => {
       throw new ApiError(503, 'voice_unavailable', "Voice isn't running right now.");

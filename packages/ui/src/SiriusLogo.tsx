@@ -572,7 +572,7 @@ export function SiriusLogo({
           <path
             className="l-glow"
             d={ORBIT.star}
-            fill={ink ? 'var(--muted)' : '#cfd5ff'}
+            fill={ink ? 'var(--muted)' : 'var(--sirius-glow)'}
             filter={`url(#${id}-glow)`}
             opacity="0"
           />

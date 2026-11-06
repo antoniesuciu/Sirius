@@ -28,7 +28,6 @@ import {
   describeAgentEvent,
   greeting,
   logicalDate,
-  orbFrom,
   type Proposal,
   type ReminderView,
   type SiriusEvent,
@@ -252,9 +251,8 @@ export function App({ phone = false }: { phone?: boolean }) {
   const [pendingText, setPendingText] = useState<string | null>(null);
 
   const theme = themeFrom(settings);
-  const orb = orbFrom(settings);
   const settingsLoaded = settings !== undefined;
-  // A layout effect, so the orb's own effect reads the new theme's colours, not the old ones.
+  // A layout effect, so the new theme's colours are in place before the wolf next paints.
   useLayoutEffect(() => {
     // Before the settings arrive, index.html has already put up the last theme.
     if (!settingsLoaded) return;
@@ -493,8 +491,6 @@ export function App({ phone = false }: { phone?: boolean }) {
           void client.call('voice_stop', {}).catch(() => {});
         },
       }}
-      orb={orb}
-      theme={theme}
       logo={logo}
       onLogoSettled={() => setFlash(null)}
       {...(tabbed ? { onOpenTab: openTab, compact: true } : {})}

@@ -65,12 +65,6 @@ ul {
   flex-direction: column;
   gap: 30px;
 }
-.leaves {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 3;
-}
 
 /* Header ------------------------------------------------------------------ */
 /* Replaces the system title bar in the desktop app. It stays put when the page scrolls, and
@@ -645,35 +639,6 @@ ul {
   flex-direction: column;
   gap: 2px;
 }
-.rail {
-  position: absolute;
-  left: 10px;
-  top: 22px;
-  bottom: 22px;
-  width: 2px;
-  background: var(--rail);
-}
-.vfill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 2px;
-  height: 100%;
-  background: var(--accent);
-}
-.vtip-anchor {
-  position: absolute;
-  left: -1px;
-  top: 0;
-  width: 16px;
-  height: 9px;
-}
-.vtip {
-  width: 16px;
-  height: 9px;
-  border-radius: 0 100% 0 100%;
-  background: var(--accent);
-}
 .node {
   position: relative;
   z-index: 1;
@@ -690,70 +655,17 @@ ul {
   padding: 10px 0;
   font-size: inherit;
 }
-/* Renaming a roadmap happens where its title is, clear of the vine's dot (22px mark + 18px gap). */
+/* Renaming a roadmap happens where its title is, indented to line up with it. */
 .node > .inline-edit {
   padding: 6px 0 6px 40px;
 }
 .node > .inline-edit input {
   flex-basis: 100%;
 }
-.node-mark {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  margin-top: 3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.node-current {
-  position: relative;
-  width: 14px;
-  height: 14px;
-}
-.node-current-dot {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--ink);
-}
-.node-later {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--panel);
-  border: 1.5px solid var(--ink);
-}
-.node-done {
-  background: var(--ink);
-}
-.node-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
 .node-title {
   font-size: 22px;
   font-weight: 500;
   line-height: 1.2;
-}
-.node-meta {
-  font-size: 16px;
-  color: var(--muted);
-  line-height: 1.35;
-}
-.node-next {
-  margin: 0 0 8px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
-  font-size: 18px;
-  line-height: 1.45;
 }
 
 /* Personal ---------------------------------------------------------------- */
@@ -1516,15 +1428,7 @@ fieldset.agent-switch {
   flex: none;
   min-height: 38px;
 }
-/* The voice orb (F40): a canvas, drawn in the theme's --orb colours. */
-.voice-orb {
-  display: block;
-  flex: none;
-}
-.voice-orb[data-state="asleep"] {
-  opacity: 0.4;
-}
-/* The chat log and, over it while a voice is on, the large orb. */
+/* The chat log and, over it while a voice is on, the large wolf. */
 .chat-area {
   position: relative;
   display: flex;
@@ -1572,26 +1476,13 @@ fieldset.agent-switch {
   font-style: italic;
   color: var(--muted);
 }
-.sirius-mark,
 .sirius-logo {
   display: block;
   overflow: visible;
   transition: opacity 0.4s ease;
 }
-.sirius-mark[data-state="asleep"] {
-  opacity: 0.4;
-}
 .phone-sirius .chat-area {
   flex: 1;
-}
-
-/* The Orb theme's gradient, from the owner's reference. */
-:root[data-theme="orb"] .pill-solid,
-:root[data-theme="orb"] .tab-mic-live:not(.tab-mic-mark),
-:root[data-theme="orb"] .mic[aria-pressed="true"] {
-  background: linear-gradient(100deg, var(--orb-1), var(--orb-2) 45%, var(--orb-4));
-  border-color: transparent;
-  color: #000;
 }
 
 /* The phone's launch screen: the logo draws itself in over the theme, then fades away. */

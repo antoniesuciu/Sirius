@@ -16,7 +16,7 @@
  */
 
 import { z } from 'zod';
-import { OrbStyle, ThemeId } from './appearance.ts';
+import { ThemeId } from './appearance.ts';
 import {
   AddTaskInput,
   AgentEvent,
@@ -543,11 +543,11 @@ export const ops = {
     class: 'system',
     agentTool: true,
     summary:
-      'Change how Sirius looks: the colour theme, the voice animation, or both. Themes: paper, midnight (Midnight Blue), night-owl (Night Owl, Ubuntu font), graphite, sage, ember, orb (black with a blue-to-orange gradient). Animations: sirius (the wolf, the default), ring, dot.',
+      'Change the colour theme, which the wolf takes its colours from. Themes: paper, midnight (Midnight Blue), night-owl (Night Owl, Ubuntu font), graphite, sage, ember.',
     http: { method: 'post', path: '/appearance' },
-    // Neither given just reports the current choice.
-    input: z.object({ theme: ThemeId.optional(), orb: OrbStyle.optional() }),
-    output: z.object({ theme: ThemeId, orb: OrbStyle }),
+    // No theme just reports the current one.
+    input: z.object({ theme: ThemeId.optional() }),
+    output: z.object({ theme: ThemeId }),
   }),
   remember: op({
     class: 'system',

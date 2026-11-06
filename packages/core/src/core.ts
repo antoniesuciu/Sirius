@@ -1,13 +1,6 @@
 /** The composition root: everything the service is, minus the process around it. */
 
-import {
-  type AgentId,
-  logicalDate,
-  ORB_SETTING,
-  orbFrom,
-  THEME_SETTING,
-  themeFrom,
-} from '@sirius/contracts';
+import { type AgentId, logicalDate, THEME_SETTING, themeFrom } from '@sirius/contracts';
 import type { AgentAdapter } from './agents/types.ts';
 import { Attachments } from './attachments.ts';
 import { Backups } from './backups.ts';
@@ -131,11 +124,9 @@ export function createCore(options: CoreOptions): Core {
     post_agent_event: (input) => attention.post(input),
     resolve_agent_events: (input) => attention.resolve(input),
     post_agent_activity: (input) => attention.activity(input),
-    set_appearance: ({ theme, orb }) => {
+    set_appearance: ({ theme }) => {
       if (theme) settings.set(THEME_SETTING, theme);
-      if (orb) settings.set(ORB_SETTING, orb);
-      const all = settings.all();
-      return { theme: themeFrom(all), orb: orbFrom(all) };
+      return { theme: themeFrom(settings.all()) };
     },
     list_agent_events: () => attention.pending(),
     ack_agent_event: ({ id }) => attention.ack(id),

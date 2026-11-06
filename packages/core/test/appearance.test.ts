@@ -1,27 +1,24 @@
 import { describe, expect, test } from 'bun:test';
-import { isAgentTool, THEMES } from '@sirius/contracts';
+import { isAgentTool, THEMES, themeFrom } from '@sirius/contracts';
 import { CLAUDE, harness } from './harness.ts';
 
 describe('appearance (F40)', () => {
-  test('an agent can switch the theme and the animation, and they are kept', () => {
+  test('an agent can switch the theme, and it is kept', () => {
     const h = harness();
-    expect(h.run('set_appearance', {}, CLAUDE)).toEqual({ theme: 'paper', orb: 'sirius' });
-    expect(h.run('set_appearance', { theme: 'midnight' }, CLAUDE)).toEqual({
-      theme: 'midnight',
-      orb: 'sirius',
-    });
-    expect(h.run('set_appearance', { orb: 'ring' }, CLAUDE)).toEqual({
-      theme: 'midnight',
-      orb: 'ring',
-    });
-    expect(h.run('get_settings', {})).toMatchObject({ 'ui.theme': 'midnight', 'ui.orb': 'ring' });
+    expect(h.run('set_appearance', {}, CLAUDE)).toEqual({ theme: 'paper' });
+    expect(h.run('set_appearance', { theme: 'midnight' }, CLAUDE)).toEqual({ theme: 'midnight' });
+    expect(h.run('get_settings', {})).toMatchObject({ 'ui.theme': 'midnight' });
+  });
+
+  test('a retired theme, such as the old Orb, falls back to the default', () => {
+    expect(themeFrom({ 'ui.theme': 'orb' })).toBe('paper');
   });
 
   test('only the themes that exist', () => {
     const h = harness();
     // Refused by the schema, which the HTTP layer reports as invalid_input.
     expect(() => h.run('set_appearance', { theme: 'neon' as never }, CLAUDE)).toThrow();
-    expect(Object.keys(THEMES)).toContain('orb');
+    expect(Object.keys(THEMES)).not.toContain('orb');
   });
 
   test('it is one of the tools agents get', () => {

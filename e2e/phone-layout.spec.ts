@@ -87,9 +87,9 @@ test('on Sirius only the chat scrolls, even on a short screen', async ({ page })
   });
   expect(sizes).toEqual({ page: false, section: false, chat: true });
   // The wolf sits at the top left, with the agent switch beside it.
-  const orb = await page.locator('.sirius-head .sirius-logo').boundingBox();
+  const logo = await page.locator('.sirius-head .sirius-logo').boundingBox();
   const agents = await page.getByRole('group', { name: 'Agent' }).boundingBox();
-  expect(agents?.x).toBeGreaterThan((orb?.x ?? 0) + (orb?.width ?? 0) - 1);
+  expect(agents?.x).toBeGreaterThan((logo?.x ?? 0) + (logo?.width ?? 0) - 1);
 });
 
 test('a new chat is started from the top of the card, not a row of its own', async ({ page }) => {
@@ -190,9 +190,9 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
   await expect(tab(page, 'Sirius')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.sirius-status')).toHaveText('listening');
   // The wolf animates while listening, and a large one comes up over the chat.
-  const orb = page.locator('.sirius-head .sirius-logo');
-  await expect(orb).toHaveAttribute('data-state', 'listening');
-  await expect(orb).toHaveAttribute('data-running', 'true');
+  const logo = page.locator('.sirius-head .sirius-logo');
+  await expect(logo).toHaveAttribute('data-state', 'listening');
+  await expect(logo).toHaveAttribute('data-running', 'true');
   await expect(page.locator('.voice-stage .sirius-logo')).toBeVisible();
   // The talk button is the logo, so it listens on every tab.
   await expect(page.locator('.tab-mic .sirius-logo')).toHaveAttribute('data-state', 'listening');
@@ -209,9 +209,9 @@ test('talking to the phone: it records, the laptop acts, and the phone says the 
     .toEqual([{ text: 'Added water the basil to today.', lang: 'en-US' }]);
 
   await expect(tab(page, 'Today').locator('.tab-dot')).toBeVisible();
-  // Back to idle: the same orb stays visible without running frames.
-  await expect(orb).toHaveAttribute('data-state', 'idle');
-  await expect(orb).toHaveAttribute('data-running', 'false');
+  // Back to idle: the same wolf stays visible without running frames.
+  await expect(logo).toHaveAttribute('data-state', 'idle');
+  await expect(logo).toHaveAttribute('data-running', 'false');
   await expect(page.locator('.tab-mic .sirius-logo')).toHaveAttribute('data-state', 'idle');
   // The stage fades away rather than disappearing.
   await expect(page.locator('.voice-stage')).toHaveAttribute('data-on', 'false');
@@ -302,7 +302,7 @@ test('a tapped notification opens the tab it is about', async ({ page }) => {
   expect(new URL(page.url()).searchParams.has('tab')).toBe(false);
 });
 
-test('screenshots of every theme and animation', async ({ page }) => {
+test('screenshots of every theme', async ({ page }) => {
   test.skip(!process.env.SIRIUS_SHOTS, 'only when asked for');
   test.setTimeout(120_000);
   const dir = process.env.SIRIUS_SHOTS ?? '';
@@ -314,17 +314,13 @@ test('screenshots of every theme and animation', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
     await page.waitForTimeout(900);
   };
-  for (const orb of ['sirius', 'ring', 'dot']) {
-    await say(`orb ${orb}`);
-    for (const theme of ['paper', 'midnight', 'night-owl', 'graphite', 'sage', 'ember', 'orb']) {
-      if (orb !== 'sirius' && !['paper', 'orb'].includes(theme)) continue;
-      await say(`theme ${theme}`);
-      await page.getByRole('button', { name: 'Talk to Sirius' }).click();
-      await page.waitForTimeout(900);
-      await page.screenshot({ path: `${dir}/look-${orb}-${theme}.png` });
-      await page.getByRole('button', { name: 'Stop listening' }).click();
-      await page.waitForTimeout(600);
-    }
+  for (const theme of ['paper', 'midnight', 'night-owl', 'graphite', 'sage', 'ember']) {
+    await say(`theme ${theme}`);
+    await page.getByRole('button', { name: 'Talk to Sirius' }).click();
+    await page.waitForTimeout(900);
+    await page.screenshot({ path: `${dir}/look-${theme}.png` });
+    await page.getByRole('button', { name: 'Stop listening' }).click();
+    await page.waitForTimeout(600);
   }
 });
 

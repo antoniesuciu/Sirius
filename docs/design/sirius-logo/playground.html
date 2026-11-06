@@ -7,9 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#f3ecdf; --fg:#1d1b18; --muted:#7a7266; --line:#d9cfbd; --chip:#ebe2d1; --chip-on:#1d1b18; --chip-on-fg:#f3ecdf; }
-  body[data-bg="white"] { --bg:#ffffff; --line:#e3e3e3; --chip:#f2f2f2; --muted:#777; }
-  body[data-bg="night"] { --bg:#16141d; --fg:#ece6da; --muted:#8f889c; --line:#2d2a38; --chip:#221f2c; --chip-on:#ece6da; --chip-on-fg:#16141d; }
+  :root { --bg:#ebe3d1; --panel:#f4eee1; --fg:#1a1814; --muted:#5f5849; }
+  body { --line:color-mix(in srgb, var(--fg) 14%, transparent); --chip:var(--panel); --chip-on:var(--fg); --chip-on-fg:var(--bg); }
   * { box-sizing:border-box; }
   html, body { margin:0; height:100%; }
   body { background:var(--bg); color:var(--fg); font-family:Inter, system-ui, sans-serif; font-size:14px;
@@ -33,7 +32,7 @@
   .note { color:var(--muted); font-size:12px; text-align:center; }
 </style>
 </head>
-<body data-bg="beige">
+<body>
 <header>
   <h1>Sirius</h1>
   <span class="sub">logo motion playground · GSAP · keys 1–9</span>
@@ -82,10 +81,7 @@
 <div class="controls">
   <div class="row" id="states"></div>
   <div class="row">
-    <span class="label">Background</span>
-    <button data-bg="beige" class="on">Beige</button><button data-bg="white">White</button><button data-bg="night">Night</button>
-    <span class="label" style="margin-left:14px">Colour</span>
-    <button data-pal="gradient" class="on">Gradient</button><button data-pal="ink">Ink</button>
+    <span class="label">Theme</span><span id="themes" style="display:contents"></span>
     <span class="label" style="margin-left:14px">Motion</span>
     <button id="calmBtn">Reduced</button>
   </div>
@@ -407,25 +403,30 @@
     if (i >= 1 && i <= ORDER.length) setState(ORDER[i - 1]);
   });
 
-  const C1 = '#6c7bbe', C2 = '#926bad';
-  let pal = 'gradient';
-  function applyPalette() {
-    const night = document.body.dataset.bg === 'night';
-    const ink = night ? '#ece6da' : '#1d1b18';
-    q('stop0').setAttribute('stop-color', pal === 'ink' ? ink : C1);
-    q('stop1').setAttribute('stop-color', pal === 'ink' ? ink : C2);
-    glow.setAttribute('fill', pal === 'ink' ? (night ? '#ffffff' : '#8f877a') : '#cfd5ff');
+  // Per-theme wolf gradient: [top, bottom, glow]. All stops >= 3:1 against the background.
+  const THEMES = {
+    'Paper':         { bg:'#ebe3d1', panel:'#f4eee1', fg:'#1a1814', muted:'#5f5849', g:['#4f5a2e', '#8a5a36', '#c9b98a'] },
+    'Midnight Blue': { bg:'#070d1c', panel:'#0e1730', fg:'#e6ecfa', muted:'#8b97b8', g:['#6fa0ff', '#a985ff', '#bcd2ff'] },
+    'Night Owl':     { bg:'#011627', panel:'#0b2942', fg:'#d6deeb', muted:'#7e97ac', g:['#82aaff', '#7fdbca', '#c9f3ea'] },
+    'Graphite':      { bg:'#16171a', panel:'#1f2125', fg:'#e8e6e1', muted:'#95918a', g:['#e8d3a2', '#c27d52', '#f6e7c4'] },
+    'Sage':          { bg:'#e1e7da', panel:'#edf1e7', fg:'#1c221b', muted:'#5a6656', g:['#2f4a3a', '#5f7f52', '#b7c9a8'] },
+    'Ember':         { bg:'#140e0b', panel:'#1e1510', fg:'#f0ded0', muted:'#a08b7b', g:['#ffd08a', '#f0603a', '#ffe2b0'] },
+    'Orb':           { bg:'#000000', panel:'#0a0a0c', fg:'#f2f2f5', muted:'#8d8d99', g:['#6f9dff', '#e45c8c', '#c4d4ff'] },
+    'Original':      { bg:'#ffffff', panel:'#f4f4f6', fg:'#1a1814', muted:'#6b6b75', g:['#6c7bbe', '#926bad', '#cfd5ff'] },
+  };
+  const themeRow = q('themes');
+  function applyTheme(name) {
+    const t = THEMES[name], r = document.body.style;
+    r.setProperty('--bg', t.bg); r.setProperty('--panel', t.panel); r.setProperty('--fg', t.fg); r.setProperty('--muted', t.muted);
+    q('stop0').setAttribute('stop-color', t.g[0]); q('stop1').setAttribute('stop-color', t.g[1]);
+    glow.setAttribute('fill', t.g[2]);
+    themeRow.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === name));
   }
-  document.querySelectorAll('[data-bg]').forEach(b => b.tagName === 'BUTTON' && b.addEventListener('click', () => {
-    document.body.dataset.bg = b.dataset.bg;
-    document.querySelectorAll('button[data-bg]').forEach(x => x.classList.toggle('on', x === b));
-    applyPalette();
-  }));
-  document.querySelectorAll('[data-pal]').forEach(b => b.addEventListener('click', () => {
-    pal = b.dataset.pal;
-    document.querySelectorAll('[data-pal]').forEach(x => x.classList.toggle('on', x === b));
-    applyPalette();
-  }));
+  Object.keys(THEMES).forEach(name => {
+    const b = document.createElement('button'); b.textContent = name;
+    b.addEventListener('click', () => applyTheme(name)); themeRow.appendChild(b);
+  });
+  applyTheme('Paper');
   q('calmBtn').addEventListener('click', () => {
     calm = !calm; q('calmBtn').classList.toggle('on', calm); setState(state);
   });

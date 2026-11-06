@@ -5,7 +5,7 @@ test('the Sirius wolf is visible and still while idle in all themes', async ({ p
   test.skip(info.project.name !== 'desktop');
   mkdirSync('docs/design/logos/themes', { recursive: true });
   await page.goto('/?fixtures&toastMs=600000');
-  for (const theme of ['paper', 'midnight', 'night-owl', 'graphite', 'sage', 'ember', 'orb']) {
+  for (const theme of ['paper', 'midnight', 'night-owl', 'graphite', 'sage', 'ember']) {
     await page.getByLabel('Message Sirius').fill(`theme ${theme}`);
     await page.getByLabel('Message Sirius').press('Enter');
     await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
@@ -16,7 +16,6 @@ test('the Sirius wolf is visible and still while idle in all themes', async ({ p
     await expect(mark).toBeVisible();
     await expect(mark).toHaveAttribute('data-state', 'idle');
     await expect(mark).toHaveAttribute('data-running', 'false');
-    await expect(page.locator('.sirius-head .voice-orb')).toHaveCount(0);
     // The wolf takes the theme's voice colours, so it is never left unpainted.
     const ink = await mark
       .locator('stop')
@@ -25,7 +24,7 @@ test('the Sirius wolf is visible and still while idle in all themes', async ({ p
     expect(ink).not.toBe('rgba(0, 0, 0, 0)');
     await page
       .locator('.sirius-head')
-      .screenshot({ path: `docs/design/logos/themes/orb-${theme}.png` });
+      .screenshot({ path: `docs/design/logos/themes/wolf-${theme}.png` });
   }
 });
 
@@ -40,7 +39,6 @@ test('the list sits below Sirius and roadmap summaries stay compact', async ({ p
   }
   await expect(page.locator('h1')).toContainText('matter today.');
   await expect(page.locator('.panel-sirius')).toHaveCSS('opacity', '1');
-  await page.screenshot({ path: 'docs/images/dashboard-orb.png', fullPage: true });
 });
 
 test('the Orbit launcher icon has transparent corners', async ({ page }, info) => {

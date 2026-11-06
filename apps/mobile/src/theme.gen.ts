@@ -12,8 +12,8 @@ export const THEME_COLORS = {
     "bubbleSirius": "#eae1ce",
     "input": "#fbf8f0",
     "onInk": "#f4eee1",
-    "sirius1": "#6c7bbe",
-    "sirius2": "#926bad"
+    "sirius1": "#4f5a2e",
+    "sirius2": "#8a5a36"
   },
   "midnight": {
     "bg": "#070d1c",
@@ -27,8 +27,8 @@ export const THEME_COLORS = {
     "bubbleSirius": "#16213f",
     "input": "#0a1226",
     "onInk": "#070d1c",
-    "sirius1": "#6c7bbe",
-    "sirius2": "#926bad"
+    "sirius1": "#6fa0ff",
+    "sirius2": "#a985ff"
   },
   "night-owl": {
     "bg": "#011627",
@@ -42,8 +42,8 @@ export const THEME_COLORS = {
     "bubbleSirius": "#13344f",
     "input": "#01111d",
     "onInk": "#011627",
-    "sirius1": "#6c7bbe",
-    "sirius2": "#926bad"
+    "sirius1": "#82aaff",
+    "sirius2": "#7fdbca"
   },
   "graphite": {
     "bg": "#16171a",
@@ -57,8 +57,8 @@ export const THEME_COLORS = {
     "bubbleSirius": "#2a2c31",
     "input": "#121316",
     "onInk": "#16171a",
-    "sirius1": "#6c7bbe",
-    "sirius2": "#926bad"
+    "sirius1": "#e8d3a2",
+    "sirius2": "#c27d52"
   },
   "sage": {
     "bg": "#e1e7da",
@@ -72,8 +72,8 @@ export const THEME_COLORS = {
     "bubbleSirius": "#dde5d4",
     "input": "#f6f8f2",
     "onInk": "#edf1e7",
-    "sirius1": "#6c7bbe",
-    "sirius2": "#926bad"
+    "sirius1": "#2f4a3a",
+    "sirius2": "#5f7f52"
   },
   "ember": {
     "bg": "#140e0b",
@@ -87,22 +87,7 @@ export const THEME_COLORS = {
     "bubbleSirius": "#2a1d16",
     "input": "#0f0a08",
     "onInk": "#140e0b",
-    "sirius1": "#6c7bbe",
-    "sirius2": "#926bad"
-  },
-  "orb": {
-    "bg": "#000000",
-    "panel": "#0a0a0c",
-    "panelBorder": "rgba(255, 255, 255, 0.1)",
-    "lineMid": "rgba(255, 255, 255, 0.2)",
-    "ink": "#f2f2f5",
-    "muted": "#8d8d99",
-    "placeholder": "#6c6c78",
-    "accent": "#9b8cff",
-    "bubbleSirius": "#141418",
-    "input": "#050506",
-    "onInk": "#000000",
-    "sirius1": "#6c7bbe",
-    "sirius2": "#926bad"
+    "sirius1": "#ffd08a",
+    "sirius2": "#f0603a"
   }
 } as const;

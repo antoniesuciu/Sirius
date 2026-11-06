@@ -1,15 +1,14 @@
-import type { AgentId, AgentInfo, AgentStatusValue, OrbStyle, Proposal } from '@sirius/contracts';
+import type { AgentId, AgentInfo, AgentStatusValue, Proposal } from '@sirius/contracts';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSmoothedText } from './hooks.ts';
 import { MicIcon, PaperclipIcon, SendIcon, StopIcon } from './Icons.tsx';
 import { ModelPicker } from './ModelPicker.tsx';
 import type { PhoneTab, Receipt } from './PhoneTabs.tsx';
-// The wolf is kept in SiriusAvatar.tsx but not shown for now (owner, 2026-11-03). Its states
-// still show as the status line.
-import type { AvatarState } from './SiriusAvatar.tsx';
 import { type LogoState, SiriusLogo } from './SiriusLogo.tsx';
-import { VoiceOrb } from './VoiceOrb.tsx';
+
+/** What the voice and the chat are doing; the wolf's state and the status line follow it. */
+export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'asleep';
 
 export interface ChatLine {
   id: string;
@@ -70,15 +69,12 @@ export interface SiriusPanelProps {
   onOpenTab?(tab: PhoneTab): void;
   /** On the phone: one short header, so the chat gets the height. */
   compact?: boolean;
-  /** A live loudness 0–1, such as the phone's microphone, read every frame by the orb. */
+  /** A live loudness 0–1, such as the phone's microphone, read every frame by the wolf. */
   readLevel?(): number;
-  /** The voice animation and the theme it takes its colours from (F40). */
-  orb?: OrbStyle;
   /** The logo's state, which knows more than `avatar`: startup, working, notify, error. */
   logo?: LogoState;
   /** A one-shot logo state (startup, notify, error) has played out. */
   onLogoSettled?(): void;
-  theme?: string;
 }
 
 const STATUS_TEXT: Record<AgentStatusValue, string> = {
@@ -235,25 +231,16 @@ export function SiriusPanel(props: SiriusPanelProps) {
     else if (props.busy) props.onCancel();
   };
 
-  const orbProps = {
-    state: props.avatar,
-    level: props.level,
-    ...(props.orb ? { orb: props.orb } : {}),
-    ...(props.theme ? { theme: props.theme } : {}),
-    ...(props.readLevel ? { readLevel: props.readLevel } : {}),
-  };
-  const mark = (size: number, state: AvatarState, logo: LogoState) =>
-    props.orb === 'ring' || props.orb === 'dot' ? (
-      <VoiceOrb {...orbProps} state={state} orb={props.orb} size={size} />
-    ) : (
-      <SiriusLogo
-        state={props.still && logo !== 'sleep' ? 'idle' : logo}
-        size={size}
-        level={props.level}
-        {...(props.onLogoSettled ? { onSettled: props.onLogoSettled } : {})}
-      />
-    );
-  const headOrb = mark(44, props.avatar, props.logo ?? logoFor(props.avatar));
+  const mark = (size: number, logo: LogoState) => (
+    <SiriusLogo
+      state={props.still && logo !== 'sleep' ? 'idle' : logo}
+      size={size}
+      level={props.level}
+      {...(props.readLevel ? { readLevel: props.readLevel } : {})}
+      {...(props.onLogoSettled ? { onSettled: props.onLogoSettled } : {})}
+    />
+  );
+  const headLogo = mark(44, props.logo ?? logoFor(props.avatar));
   // Large, over the chat, for the whole spoken exchange: it stays up from listening through
   // thinking to speaking, and fades rather than blinking between them.
   const stage = voice.active;
@@ -287,7 +274,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
     <section className="panel panel-sirius rise d3" onKeyDown={onKey}>
       {props.compact ? (
         <div className="sirius-head sirius-head-compact">
-          {headOrb}
+          {headLogo}
           <div className="sirius-controls">
             <div className="sirius-controls-top">
               {agentSwitch}
@@ -313,7 +300,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
         <>
           <div className="sirius-head">
             <div className="sirius-identity" data-state={props.avatar}>
-              {headOrb}
+              {headLogo}
               <div className="sirius-name">
                 <span className="sirius-title">Sirius</span>
                 <span className="sirius-status">{props.status}</span>
@@ -340,11 +327,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
 
       <div className="chat-area">
         <div className="voice-stage" data-on={stage} aria-hidden="true">
-          {mark(
-            props.compact ? 200 : 180,
-            stage ? props.avatar : 'idle',
-            stage ? logoFor(props.avatar) : 'idle',
-          )}
+          {mark(props.compact ? 200 : 180, stage ? logoFor(props.avatar) : 'idle')}
           {/* What was heard, here and not under the chat, so the chat never moves. */}
           <p className="stage-caption">{stage ? voice.transcript : null}</p>
         </div>
