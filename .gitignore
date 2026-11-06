@@ -48,3 +48,6 @@ token
 
 # Tauri
 /apps/desktop/src-tauri/gen/
+
+# Release snapshots (zip archives of a tagged version)
+/releases/
