@@ -40,7 +40,7 @@ jobs:
         working-directory: services/voice
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3 # only full version tags are published
       - run: uv sync
       - run: uv run ruff check src tests
       - run: uv run pytest -q
