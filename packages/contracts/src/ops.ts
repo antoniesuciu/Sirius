@@ -576,6 +576,11 @@ export const ops = {
       kind: AgentEventKind,
       project: z.string().trim().max(200).optional(),
       message: z.string().trim().max(500).optional(),
+      /** Desktop app id of the terminal the agent runs in, so the alert can focus it. */
+      terminal: z
+        .string()
+        .regex(/^[\w.-]{1,100}$/)
+        .optional(),
     }),
     output: AgentEvent,
   }),

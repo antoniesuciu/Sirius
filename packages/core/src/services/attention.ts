@@ -14,6 +14,8 @@ import type { Store, Tx } from '../store.ts';
 
 /** A session that has said nothing for this long has stopped, even without a Stop hook. */
 export const ACTIVITY_MS = 15 * 60 * 1000;
+/** How long a "finished" alert stays on the desktop (2026-11-06). */
+export const NEWS_MS = 5000;
 
 export class Attention {
   /** Sessions in any terminal, by agent and folder: when each last showed it was working. */
@@ -118,7 +120,7 @@ export class Attention {
           message,
           acknowledged_at: tx.now,
         });
-        if (!quiet) tx.afterCommit(() => this.notify(event));
+        if (!quiet) tx.afterCommit(() => this.notify(event, input.terminal));
         return event;
       }
 
@@ -144,7 +146,7 @@ export class Attention {
         } else {
           // One pending event, but a new prompt may deserve another announcement.
           const updated = tx.update('agent_events', duplicate.id, { message });
-          if (!quiet) tx.afterCommit(() => this.announce(updated));
+          if (!quiet) tx.afterCommit(() => this.announce(updated, input.terminal));
           return updated;
         }
       }
@@ -155,18 +157,25 @@ export class Attention {
         project,
         message,
       });
-      if (!quiet) tx.afterCommit(() => this.announce(event));
+      if (!quiet) tx.afterCommit(() => this.announce(event, input.terminal));
       return event;
     });
   }
 
-  private notify(event: AgentEvent): void {
-    this.notifier.notify({ key: event.source, title: 'Sirius', body: describeAgentEvent(event) });
+  private notify(event: AgentEvent, app?: string): void {
+    this.notifier.notify({
+      key: event.source,
+      title: 'Sirius',
+      body: describeAgentEvent(event),
+      ...(app ? { app } : {}),
+      // "Finished" is news; only a waiting state should stay until it is answered.
+      ...(event.kind === 'turn_complete' ? { expireMs: NEWS_MS } : {}),
+    });
   }
 
-  private announce(event: AgentEvent): void {
+  private announce(event: AgentEvent, app?: string): void {
     this.bus.publish({ type: 'agent', event });
-    this.notify(event);
+    this.notify(event, app);
   }
 
   pending(): AgentEvent[] {

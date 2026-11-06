@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import { mergeClaudeSettings, mergeCodexConfig, mergeCodexHooks } from '../src/hooks.ts';
-import { fromClaudeHook, fromCodexHook, fromCodexJson, projectFromHook } from '../src/notify.ts';
+import {
+  ancestors,
+  fromClaudeHook,
+  fromCodexHook,
+  fromCodexJson,
+  projectFromHook,
+  terminalApp,
+} from '../src/notify.ts';
 
 const BIN = '/home/x/.local/bin/sirius';
 
@@ -41,6 +48,28 @@ describe('hook input', () => {
       'last-assistant-message': 'Done',
     });
     expect(fromCodexJson(raw)).toEqual({ source: 'codex', kind: 'turn_complete', project: 'lab' });
+  });
+});
+
+describe('terminalApp', () => {
+  test('names the terminal the agent runs under, so a click on the alert can focus it', () => {
+    expect(terminalApp(['claude', 'zsh', 'code', 'code'])).toMatch(
+      /^(code|com\.microsoft\.VSCode)$/,
+    );
+    expect(terminalApp(['claude', 'zsh', 'gnome-terminal-', 'systemd'])).toBe('org.gnome.Terminal');
+    // The nearest terminal wins: GNOME Terminal opened from a VS Code shell.
+    expect(terminalApp(['claude', 'zsh', 'gnome-terminal-', 'zsh', 'code'])).toBe(
+      'org.gnome.Terminal',
+    );
+  });
+
+  test('an agent with no terminal above it, such as one Sirius started, names none', () => {
+    expect(terminalApp(['claude', 'bun', 'systemd'])).toBeUndefined();
+    expect(terminalApp([])).toBeUndefined();
+  });
+
+  test('reads the real process tree on Linux', () => {
+    if (process.platform === 'linux') expect(ancestors(process.pid).length).toBeGreaterThan(0);
   });
 });
 

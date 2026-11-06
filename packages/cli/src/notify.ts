@@ -2,6 +2,7 @@
  * `sirius notify`, called from agent hooks. Hooks must never block or fail an agent, so
  * every path exits 0 and the request gives up quickly when the core is down (spec section 9).
  */
+import { existsSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import type { AgentEventKind, OpInput } from '@sirius/contracts';
 
@@ -68,6 +69,41 @@ export function fromCodexJson(raw: string): AgentEventInput | null {
     kind: 'turn_complete',
     ...(projectOf(data.cwd) ? { project: projectOf(data.cwd) } : {}),
   };
+}
+
+/** Names of this process's ancestors, parent first, from /proc; none where there is no /proc. */
+export function ancestors(pid = process.ppid): string[] {
+  const names: string[] = [];
+  for (let i = 0; i < 32 && pid > 1; i++) {
+    try {
+      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+      // "pid (name) state ppid ...": the name may hold spaces and brackets, so split at the last ')'.
+      const close = stat.lastIndexOf(')');
+      names.push(stat.slice(stat.indexOf('(') + 1, close));
+      pid = Number(stat.slice(close + 2).split(' ')[1]);
+    } catch {
+      break;
+    }
+  }
+  return names;
+}
+
+/**
+ * The desktop app id of the terminal this hook runs in, so clicking the alert focuses it.
+ * Read from the process tree, not the environment: agents started by VS Code or a VS Code
+ * shell inherit TERM_PROGRAM=vscode wherever they run (2026-11-06). No terminal, no id.
+ */
+export function terminalApp(names: string[] = ancestors()): string | undefined {
+  for (const name of names) {
+    // The .deb installs code.desktop; Microsoft's other packages use the reverse-DNS id.
+    if (name === 'code') {
+      return existsSync('/usr/share/applications/code.desktop') ? 'code' : 'com.microsoft.VSCode';
+    }
+    // The kernel cuts names at 15 characters: gnome-terminal-server is "gnome-terminal-".
+    if (name.startsWith('gnome-terminal')) return 'org.gnome.Terminal';
+    if (name === 'terminator') return 'terminator';
+  }
+  return undefined;
 }
 
 /** Reads stdin without ever waiting long: a hook with no input must not hang the agent. */

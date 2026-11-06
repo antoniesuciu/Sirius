@@ -1,11 +1,15 @@
 /** Desktop notifications (F24, F25), behind a seam so the phone can add ntfy later (ADR-9). */
-import { execFile } from 'node:child_process';
+import { type ChildProcess, execFile, spawn } from 'node:child_process';
 
 export interface Notification {
   /** Identifies where this came from. Rate limits apply per key. */
   key: string;
   title: string;
   body: string;
+  /** Desktop app id of the terminal the agent runs in: clicking the alert focuses it. */
+  app?: string;
+  /** News rather than a waiting state: take it down by itself after this long. */
+  expireMs?: number;
 }
 
 export interface Notifier {
@@ -14,64 +18,105 @@ export interface Notifier {
   withdraw?(key: string): void;
 }
 
-/** Normal, because GNOME puts a low urgency notification in the tray with no banner at all. */
-export function notifySendArgs(title: string, body: string): string[] {
-  return ['--app-name=Sirius', '--urgency=normal', '--', title, body];
+/**
+ * Normal, because GNOME puts a low urgency notification in the tray with no banner at all.
+ * `desktop-entry` makes GNOME treat the alert as the terminal's, so a click focuses it.
+ */
+export function notifySendArgs(title: string, body: string, app?: string): string[] {
+  return [
+    '--app-name=Sirius',
+    '--urgency=normal',
+    ...(app ? [`--hint=string:desktop-entry:${app}`] : []),
+    '--',
+    title,
+    body,
+  ];
 }
 
-type Run = (
-  file: string,
-  args: string[],
-  done: (error: Error | null, stdout: string) => void,
-) => void;
-const run: Run = (file, args, done) =>
-  execFile(file, args, (error, stdout) => done(error, String(stdout)));
+type Run = (file: string, args: string[], done: (error: Error | null) => void) => void;
+const run: Run = (file, args, done) => execFile(file, args, (error) => done(error));
+
+export type Start = (args: string[]) => ChildProcess;
+// stdbuf execs notify-send (same pid): into a pipe it would hold the id back until it exits.
+const start: Start = (args) =>
+  spawn('stdbuf', ['-oL', 'notify-send', ...args], { stdio: ['ignore', 'pipe', 'ignore'] });
+
+interface Shown {
+  child: ChildProcess;
+  id?: number;
+  timer?: ReturnType<typeof setTimeout>;
+}
 
 /**
- * One desktop notification per key, kept current: a newer alert replaces the shown one in
- * place, and an answered one is closed, so nothing stale stays in GNOME's list (2026-11-06).
+ * One desktop notification per key, taken down once answered (2026-11-06).
+ *
+ * GNOME 46 ties a notification whose app it recognises (Sirius.desktop, or the terminal's
+ * desktop-entry) to the sender's D-Bus connection and destroys it when the sender leaves,
+ * which a plain notify-send does at once: the id is dead before it can be replaced or closed,
+ * and the banner is orphaned. So each alert's notify-send stays alive (--wait) until it is
+ * answered; killing it, then closing its id, takes the alert down.
+ * shortcut: GNOME keeps one source per app, watching its first sender, so answering one agent
+ * also clears another agent's alert from the same terminal app; fine for one agent at a time.
  */
 export class LibnotifyNotifier implements Notifier {
-  private readonly ids = new Map<string, number>();
+  private readonly shown = new Map<string, Shown>();
 
-  constructor(private readonly exec: Run = run) {}
+  constructor(
+    private readonly startNotify: Start = start,
+    private readonly exec: Run = run,
+  ) {}
 
-  notify({ key, title, body }: Notification): void {
-    const shown = this.ids.get(key);
-    const args = [
-      '--print-id',
-      ...(shown ? [`--replace-id=${shown}`] : []),
-      ...notifySendArgs(title, body),
-    ];
-    this.exec('notify-send', args, (error, stdout) => {
-      // A desktop with no notification daemon must never take the core down.
-      if (error) return console.warn('notify-send failed:', error.message);
-      const id = Number.parseInt(stdout.trim(), 10);
-      if (id > 0) this.ids.set(key, id);
+  notify({ key, title, body, app, expireMs }: Notification): void {
+    this.withdraw(key);
+    const entry: Shown = {
+      child: this.startNotify(['--wait', '--print-id', ...notifySendArgs(title, body, app)]),
+    };
+    this.shown.set(key, entry);
+    const forget = () => {
+      clearTimeout(entry.timer);
+      if (this.shown.get(key) === entry) this.shown.delete(key);
+    };
+    // A desktop with no notification daemon must never take the core down.
+    entry.child.on('error', (error) => {
+      console.warn('notify-send failed:', error.message);
+      forget();
     });
+    entry.child.stdout?.once('data', (chunk) => {
+      const id = Number.parseInt(String(chunk), 10);
+      if (id > 0) entry.id = id;
+    });
+    // Clicked or dismissed: GNOME closed it, so there is nothing left to take down.
+    entry.child.on('exit', forget);
+    if (expireMs)
+      entry.timer = setTimeout(() => this.shown.get(key) === entry && this.withdraw(key), expireMs);
   }
 
   withdraw(key: string): void {
-    const id = this.ids.get(key);
-    if (!id) return;
-    this.ids.delete(key);
-    this.exec(
-      'gdbus',
-      [
-        'call',
-        '--session',
-        '--dest',
-        'org.freedesktop.Notifications',
-        '--object-path',
-        '/org/freedesktop/Notifications',
-        '--method',
-        'org.freedesktop.Notifications.CloseNotification',
-        String(id),
-      ],
-      (error) => {
-        if (error) console.warn('closing a notification failed:', error.message);
-      },
-    );
+    const entry = this.shown.get(key);
+    if (!entry) return;
+    this.shown.delete(key);
+    clearTimeout(entry.timer);
+    // Only once its sender is gone will GNOME's proxy accept a close for the id from us.
+    entry.child.once('exit', () => {
+      if (!entry.id) return;
+      this.exec(
+        'gdbus',
+        [
+          'call',
+          '--session',
+          '--dest',
+          'org.freedesktop.Notifications',
+          '--object-path',
+          '/org/freedesktop/Notifications',
+          '--method',
+          'org.freedesktop.Notifications.CloseNotification',
+          String(entry.id),
+        ],
+        // Usually GNOME already destroyed it along with its sender; nothing to report.
+        () => {},
+      );
+    });
+    entry.child.kill();
   }
 }
 

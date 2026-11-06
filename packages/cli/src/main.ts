@@ -25,6 +25,7 @@ import {
   fromCodexJson,
   projectFromHook,
   readStdin,
+  terminalApp,
 } from './notify.ts';
 
 const HOOK_TIMEOUT_MS = 1000;
@@ -113,7 +114,13 @@ async function notify(args: string[]): Promise<void> {
             ...(values.message ? { message: values.message } : {}),
           };
     }
-    if (input) await client(HOOK_TIMEOUT_MS).call('post_agent_event', input);
+    const terminal = terminalApp();
+    if (input) {
+      await client(HOOK_TIMEOUT_MS).call('post_agent_event', {
+        ...input,
+        ...(terminal ? { terminal } : {}),
+      });
+    }
     if (values.source) await report(AgentId.parse(values.source), input?.project ?? values.project);
   } catch {
     // Deliberately silent. A hook must never fail an agent.
