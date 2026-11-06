@@ -70,9 +70,11 @@ describe('hook upgrades', () => {
     const merged = mergeClaudeSettings(old, BIN);
     const handlers = merged.hooks?.PostToolUse?.flatMap((g) => g.hooks);
     expect(handlers).toContainEqual(mine);
-    expect(handlers?.some((h) => h.command === `${BIN} notify --source claude --resolve`)).toBe(
-      true,
-    );
+    expect(
+      handlers?.some(
+        (h) => h.command === `${BIN} notify --source claude --resolve --activity working`,
+      ),
+    ).toBe(true);
     expect(mergeClaudeSettings(merged, BIN)).toEqual(merged);
     expect(old.hooks?.PostToolUse?.[0]?.hooks[0]?.command).toContain('/old/sirius');
   });
@@ -80,10 +82,30 @@ describe('hook upgrades', () => {
   test('quotes executable paths for shell hooks and TOML', () => {
     const bin = "/home/test user's files/sirius";
     const command = mergeClaudeSettings({}, bin).hooks?.PostToolUse?.[0]?.hooks[0]?.command;
-    expect(command).toBe("'/home/test user'\"'\"'s files/sirius' notify --source claude --resolve");
+    expect(command).toBe(
+      "'/home/test user'\"'\"'s files/sirius' notify --source claude --resolve --activity working",
+    );
     const escaped = '/home/a"b/sirius';
     expect(
       (Bun.TOML.parse(mergeCodexConfig('', escaped).text) as { notify: string[] }).notify,
-    ).toEqual([escaped, 'notify', '--source', 'codex', '--from-codex-json']);
+    ).toEqual([escaped, 'notify', '--source', 'codex', '--activity', 'idle', '--from-codex-json']);
+  });
+});
+
+describe('Codex notify line', () => {
+  test('an existing Sirius line is refreshed, so a moved binary or new flag reaches it', () => {
+    const old =
+      'notify = ["/old/sirius", "notify", "--source", "codex", "--from-codex-json"]\nmodel = "x"\n';
+    const { text, changed, conflict } = mergeCodexConfig(old, BIN);
+    expect({ changed, conflict }).toEqual({ changed: true, conflict: false });
+    expect(text.split('\n')[0]).toContain(`"${BIN}"`);
+    expect(text).toContain('"--activity", "idle"');
+    expect(text).toContain('model = "x"');
+    expect(mergeCodexConfig(text, BIN).changed).toBe(false);
+  });
+
+  test("someone else's notify is left alone", () => {
+    const theirs = 'notify = ["my-notifier"]\n';
+    expect(mergeCodexConfig(theirs, BIN)).toEqual({ text: theirs, changed: false, conflict: true });
   });
 });

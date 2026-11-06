@@ -130,6 +130,7 @@ export function createCore(options: CoreOptions): Core {
     },
     post_agent_event: (input) => attention.post(input),
     resolve_agent_events: (input) => attention.resolve(input),
+    post_agent_activity: (input) => attention.activity(input),
     set_appearance: ({ theme, orb }) => {
       if (theme) settings.set(THEME_SETTING, theme);
       if (orb) settings.set(ORB_SETTING, orb);

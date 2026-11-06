@@ -76,6 +76,8 @@ export function invalidationsFor(event: SiriusEvent): OpName[] {
     case 'agent':
     case 'agent_queue_released':
       return ['list_agent_events', 'get_agents'];
+    case 'agent_activity':
+      return ['get_agents'];
     case 'chat':
       if (event.kind === 'start') return ['get_agents'];
       return event.kind === 'done' || event.kind === 'error'

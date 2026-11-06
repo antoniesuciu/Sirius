@@ -33,6 +33,8 @@ export class Agents {
     else if (this.chat.activeAgent() === id) status = 'working';
     else if (quiet) status = 'resting';
     else if (waiting.has(id)) status = 'waiting';
+    // A session in any terminal, reported by its hooks (sirius notify --activity).
+    else if (this.attention.isWorking(id)) status = 'working';
     return {
       id,
       label: entry.label,

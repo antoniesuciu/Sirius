@@ -68,22 +68,24 @@ export function mergeClaudeSettings(
   );
   // Either one means a permission prompt was answered, so its alert can go (2026-11-03).
   const resolve = `${shellPath(bin)} notify --source claude --resolve`;
+  // A prompt or a tool also says the session is working, in whichever terminal it runs.
+  const going = `${resolve} --activity working`;
   addHook(
     settings,
     'PostToolUseFailure',
-    { matcher: '*', hooks: [{ type: 'command', command: resolve }] },
+    { matcher: '*', hooks: [{ type: 'command', command: going }] },
     'notify --source claude --resolve',
   );
   addHook(
     settings,
     'PostToolUse',
-    { matcher: '*', hooks: [{ type: 'command', command: resolve }] },
+    { matcher: '*', hooks: [{ type: 'command', command: going }] },
     'notify --source claude --resolve',
   );
   addHook(
     settings,
     'UserPromptSubmit',
-    { hooks: [{ type: 'command', command: resolve }] },
+    { hooks: [{ type: 'command', command: going }] },
     'notify --source claude --resolve',
   );
   // A stopped turn clears stale attention even when completion notifications are off.
@@ -94,9 +96,11 @@ export function mergeClaudeSettings(
       hooks: [
         {
           type: 'command',
-          command: options.withStop
-            ? `${shellPath(bin)} notify --source claude --kind turn_complete`
-            : resolve,
+          command: `${
+            options.withStop
+              ? `${shellPath(bin)} notify --source claude --kind turn_complete`
+              : resolve
+          } --activity idle`,
         },
       ],
     },
@@ -116,10 +120,18 @@ export interface CodexMerge {
 
 /** TOML top-level keys must precede the first table, so the line goes at the very top. */
 export function mergeCodexConfig(existing: string, bin: string): CodexMerge {
-  const args = [bin, 'notify', '--source', 'codex', '--from-codex-json'];
+  // A finished turn is also the end of the session's work, for its status line.
+  const args = [bin, 'notify', '--source', 'codex', '--activity', 'idle', '--from-codex-json'];
   const line = `notify = [${args.map((arg) => JSON.stringify(arg)).join(', ')}]`;
-  if (existing.includes('"--from-codex-json"')) {
-    return { text: existing, changed: false, conflict: false };
+  const ours = existing
+    .split('\n')
+    .findIndex((l) => NOTIFY_LINE.test(l) && l.includes('"--from-codex-json"'));
+  if (ours >= 0) {
+    // Ours already: refresh it, so a moved binary or new flags reach existing installs.
+    const lines = existing.split('\n');
+    if (lines[ours] === line) return { text: existing, changed: false, conflict: false };
+    lines[ours] = line;
+    return { text: lines.join('\n'), changed: true, conflict: false };
   }
   if (NOTIFY_LINE.test(existing)) return { text: existing, changed: false, conflict: true };
   return { text: `${line}\n${existing}`, changed: true, conflict: false };
@@ -145,7 +157,7 @@ export function mergeCodexHooks(existing: ClaudeSettings, bin: string): ClaudeSe
     { matcher: '*', hooks: [hook(`${executable} notify --source codex --from-codex-hook`)] },
     'notify --source codex --from-codex-hook',
   );
-  const resolve = `${executable} notify --source codex --resolve`;
+  const resolve = `${executable} notify --source codex --resolve --activity working`;
   addHook(
     settings,
     'PostToolUse',

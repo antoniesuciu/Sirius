@@ -12,7 +12,15 @@ import { agent_events } from '../db/schema.ts';
 import type { Notifier } from '../notifier.ts';
 import type { Store, Tx } from '../store.ts';
 
+/** A session that has said nothing for this long has stopped, even without a Stop hook. */
+export const ACTIVITY_MS = 15 * 60 * 1000;
+
 export class Attention {
+  /** Sessions in any terminal, by agent and folder: when each last showed it was working. */
+  private readonly busy = new Map<string, number>();
+  private readonly reported = new Map<AgentId, boolean>();
+  private expiry: ReturnType<typeof setTimeout> | undefined;
+
   constructor(
     private readonly store: Store,
     private readonly bus: EventBus,
@@ -29,6 +37,38 @@ export class Attention {
     return this.store.write('system', (tx) => ({
       resolved: this.clearWaiting(tx, input.source, input.project ?? null),
     }));
+  }
+
+  /** A prompt or a tool means working; a stopped turn means not. Kept in memory only. */
+  activity(input: OpInput<'post_agent_activity'>): { ok: true } {
+    const key = `${input.source}\u0000${input.project ?? ''}`;
+    if (input.working) this.busy.set(key, this.store.now());
+    else this.busy.delete(key);
+    this.report();
+    clearTimeout(this.expiry);
+    if (this.busy.size > 0) {
+      this.expiry = setTimeout(() => this.report(), ACTIVITY_MS + 1000);
+      this.expiry.unref?.();
+    }
+    return { ok: true };
+  }
+
+  isWorking(source: AgentId): boolean {
+    const now = this.store.now();
+    for (const [key, at] of this.busy) {
+      if (key.startsWith(`${source}\u0000`) && now - at < ACTIVITY_MS) return true;
+    }
+    return false;
+  }
+
+  /** Tells the windows only when an agent's status line would change. */
+  private report(): void {
+    for (const source of ['claude', 'codex'] as const) {
+      const working = this.isWorking(source);
+      if ((this.reported.get(source) ?? false) === working) continue;
+      this.reported.set(source, working);
+      this.bus.publish({ type: 'agent_activity', source, working });
+    }
   }
 
   /** Marks earlier "needs you" events for this agent and project as no longer true. */

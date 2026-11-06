@@ -70,8 +70,20 @@ async function notify(args: string[]): Promise<void> {
         'from-codex-json': { type: 'boolean' },
         'from-codex-hook': { type: 'boolean' },
         resolve: { type: 'boolean' },
+        // working or idle: the session's status line, from a hook in any terminal.
+        activity: { type: 'string' },
       },
     });
+    const activity =
+      values.activity === 'working' || values.activity === 'idle' ? values.activity : null;
+    const report = async (source: AgentId, project: string | undefined) => {
+      if (!activity) return;
+      await client(HOOK_TIMEOUT_MS).call('post_agent_activity', {
+        source,
+        working: activity === 'working',
+        ...(project ? { project } : {}),
+      });
+    };
     if (values.resolve) {
       // The agent went on, so a permission it asked for has been answered: clear the alert.
       const source = AgentId.parse(values.source);
@@ -81,6 +93,7 @@ async function notify(args: string[]): Promise<void> {
         source,
         ...(project ? { project } : {}),
       });
+      await report(source, project);
       return;
     }
     let input: OpInput<'post_agent_event'> | null;
@@ -101,6 +114,7 @@ async function notify(args: string[]): Promise<void> {
           };
     }
     if (input) await client(HOOK_TIMEOUT_MS).call('post_agent_event', input);
+    if (values.source) await report(AgentId.parse(values.source), input?.project ?? values.project);
   } catch {
     // Deliberately silent. A hook must never fail an agent.
   }

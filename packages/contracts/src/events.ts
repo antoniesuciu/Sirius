@@ -71,6 +71,13 @@ export const AgentAttentionEvent = z.object({
   event: AgentEvent,
 });
 
+/** An agent session in some terminal started or stopped working (F23): the status line. */
+export const AgentActivityEvent = z.object({
+  type: z.literal('agent_activity'),
+  source: AgentId,
+  working: z.boolean(),
+});
+
 export const QueueReleasedEvent = z.object({
   type: z.literal('agent_queue_released'),
   events: z.array(AgentEvent),
@@ -108,6 +115,7 @@ export const SiriusEvent = z.union([
   ChangeEvent,
   ChatEvent,
   AgentAttentionEvent,
+  AgentActivityEvent,
   QueueReleasedEvent,
   VoiceEvent,
   VoiceReplyEvent,

@@ -66,7 +66,8 @@ describe('mergeClaudeSettings', () => {
 
   test('an answered permission clears its alert: after any tool, or on the next prompt', () => {
     const hooks = mergeClaudeSettings({}, BIN).hooks;
-    const resolve = `${BIN} notify --source claude --resolve`;
+    // Both also mark the session working, for its status line in any terminal.
+    const resolve = `${BIN} notify --source claude --resolve --activity working`;
     expect(hooks?.PostToolUse).toEqual([
       { matcher: '*', hooks: [{ type: 'command', command: resolve }] },
     ]);
@@ -119,7 +120,7 @@ describe('mergeCodexConfig', () => {
     expect(changed).toBe(true);
     expect(text.indexOf('notify')).toBeLessThan(text.indexOf('[tui]'));
     expect(text.split('\n')[0]).toBe(
-      `notify = ["${BIN}", "notify", "--source", "codex", "--from-codex-json"]`,
+      `notify = ["${BIN}", "notify", "--source", "codex", "--activity", "idle", "--from-codex-json"]`,
     );
   });
 
@@ -153,10 +154,10 @@ describe('Codex hooks', () => {
       ],
     });
     expect(hooks?.PostToolUse?.[0]?.hooks[0]?.command).toBe(
-      `${BIN} notify --source codex --resolve`,
+      `${BIN} notify --source codex --resolve --activity working`,
     );
     expect(hooks?.UserPromptSubmit?.[0]?.hooks[0]?.command).toBe(
-      `${BIN} notify --source codex --resolve`,
+      `${BIN} notify --source codex --resolve --activity working`,
     );
     expect(mergeCodexHooks(mergeCodexHooks({}, BIN), BIN)).toEqual(mergeCodexHooks({}, BIN));
   });

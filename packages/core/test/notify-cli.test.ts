@@ -55,6 +55,16 @@ test('real hook CLI posts, queues, and clears attention through authenticated HT
     await invoke(resolve, { ...permission, hook_event_name: 'PostToolUse' });
     expect(h.run('list_agent_events', {})).toEqual([]);
 
+    // A session in another terminal: a prompt marks it working, its Stop hook idle.
+    const claude = () => h.run('get_agents', {}).agents.find((a) => a.id === 'claude')?.status;
+    await invoke([...resolve, '--activity', 'working'], {
+      hook_event_name: 'UserPromptSubmit',
+      cwd: '/x/lab',
+    });
+    expect(claude()).toBe('working');
+    await invoke([...resolve, '--activity', 'idle'], { hook_event_name: 'Stop', cwd: '/x/lab' });
+    expect(claude()).not.toBe('working');
+
     await invoke(post, { notification_type: 'idle_prompt', cwd: '/x/lab' });
     await invoke(['--source', 'codex', '--from-codex-json', '{"type":"unknown"}'], {});
     expect(h.run('list_agent_events', {})).toEqual([]);

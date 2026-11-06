@@ -590,6 +590,18 @@ export const ops = {
     }),
     output: z.object({ resolved: z.number().int() }),
   }),
+  post_agent_activity: op({
+    class: 'system',
+    summary:
+      'An agent session in any terminal is working (a prompt or a tool) or has stopped. Shown as its status.',
+    http: { method: 'post', path: '/agent-activity' },
+    input: z.object({
+      source: AgentId,
+      project: z.string().trim().max(200).optional(),
+      working: z.boolean(),
+    }),
+    output: Ok,
+  }),
   list_agent_events: op({
     class: 'system',
     summary: 'Agent events that have not been acknowledged.',
