@@ -19,6 +19,7 @@ working from its own copy while the laptop is away.
 ## Contents
 
 - [Features](#features)
+- [Screens](#screens)
 - [How it works](#how-it-works)
 - [Requirements](#requirements)
 - [Install](#install)
@@ -36,21 +37,37 @@ working from its own copy while the laptop is away.
 
 | Area | What it does |
 |---|---|
-| **Sirius** | A chat with Claude or Codex, switched with one tap, through the official CLIs. One conversation lasts until you start a new one, and it carries over when you switch agents. A memory file keeps lasting facts across sessions. |
+| **Sirius** | A chat with Claude or Codex, switched with one tap, through the official CLIs. One conversation lasts until you start a new one, and it carries over when you switch agents. Pick the model under the switch: Claude's, or four Codex presets, each with its own reasoning effort. A memory file keeps lasting facts across sessions. |
 | **Today** | Two or three priorities plus small tasks. Unfinished tasks move quietly to the next day at 04:00. |
 | **Schedule** | Fixed commitments such as lectures, the gym or shifts: weekly on chosen days within a term, or once. Kept apart from tasks, with a reminder 10 minutes before. Sirius can add them for you, and your phone's calendar can show them. |
 | **Goals** | A few goals, with milestone dots instead of percentages. You can add them by hand or ask Sirius. |
-| **Learning** | Roadmaps drawn as a growing vine. "Put it in Today" turns the next step into a task. Attach a syllabus PDF or Markdown file in the chat, and Sirius turns it into a roadmap. |
+| **Learning** | Independent roadmaps, each with its milestones and its own page of checkpoints, descriptions and progress notes. "Put it in Today" turns the next step into a task. Attach a syllabus PDF or Markdown file in the chat, and Sirius turns it into a roadmap. |
 | **To remember** | A plain list for things to buy or remember, with no day or time attached. |
 | **Personal and Well-being** | Prayer and reflection reminders, a breathing exercise and stretch nudges. |
-| **Agent attention** | A toast and a desktop notification when Claude Code or Codex is blocked on a permission prompt or a question. |
+| **Agent attention** | A toast and a desktop notification when Claude Code or Codex, in any terminal, is blocked on a permission prompt or a question. It clears itself once you answer. Clicking it brings up the terminal or VS Code the agent runs in, also from a distrobox container; with the focus extension, that agent's own window. The Sirius card shows which sessions are working or idle. |
 | **Voice** | Push-to-talk with **Ctrl+Alt+Space**, in English and Romanian. Common commands such as "add milk to my list" or "ce urmează" are handled on the laptop without an agent turn, and anything else goes to the agent. |
-| **Looks** | Seven themes and three voice animations; ask Sirius ("switch to midnight", "use the ring"). The orb ripples with the voice while it listens and speaks. |
+| **Looks** | Six themes; ask Sirius ("switch to midnight", "something darker"). The Sirius wolf takes each theme's colours and reacts to what happens: it draws itself in at launch, listens, thinks and speaks with the voice, works while an agent runs, howls when one finishes or wants you, and sleeps in quiet mode. |
 | **Phone** | An installable web app over Tailscale, with its own layout: Today, Sirius, Plan and List behind a bottom bar, and a mic that sends your voice to the laptop and says the answer on the phone. It keeps an offline copy, queues the changes you make while away, and sends each one exactly once when the laptop is back. |
 | **Android app** | The same phone app in a native shell, which adds reminders scheduled on the phone (they fire with the laptop off), agent alerts, a Today widget and background sync. No Google account, no Firebase, built locally for free. |
 
 Agents never change several things at once, or delete anything, without you confirming a
 proposal card. Single changes an agent makes can be undone for 30 seconds.
+
+## Screens
+
+The desktop in the Midnight theme, after two requests to Sirius; then the phone's Sirius and Plan
+tabs. All screenshots use the built-in demo data (`?fixtures`), and
+`bun run build:ui && SIRIUS_README_SHOTS=1 bunx playwright test readme-shots` takes them
+again.
+
+<p align="center">
+  <img src="docs/images/desktop-midnight.png" alt="The dashboard in the Midnight theme, with a short chat" width="100%">
+</p>
+<p align="center">
+  <img src="docs/images/phone-sirius.png" alt="The phone's Sirius tab after adding a goal" width="30%">
+  &nbsp;
+  <img src="docs/images/phone-plan.png" alt="The phone's Plan tab with goals and roadmaps" width="30%">
+</p>
 
 ## How it works
 
