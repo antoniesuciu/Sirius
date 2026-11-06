@@ -1,0 +1,3 @@
+[install]
+# React Native autolinking and Gradle expect a plain node_modules tree.
+linker = "hoisted"

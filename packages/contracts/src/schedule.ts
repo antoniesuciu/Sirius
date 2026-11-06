@@ -24,3 +24,6 @@ export function describeWeekdays(mask: number): string {
   if (mask === 31) return 'weekdays';
   return WEEKDAY_NAMES.filter((_, i) => mask & (1 << i)).join(', ');
 }
+
+/** Minutes before a schedule event that it is announced, the same on the laptop and the phone. */
+export const REMIND_BEFORE_MIN = 10;

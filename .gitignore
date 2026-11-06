@@ -51,3 +51,6 @@ token
 
 # Release snapshots (zip archives of a tagged version)
 /releases/
+
+# Agent worktrees (each is its own checkout)
+/.worktrees/

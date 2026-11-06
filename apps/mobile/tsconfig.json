@@ -1,0 +1,16 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@sirius/contracts": ["../../packages/contracts/src/index.ts"],
+      "@sirius/client": ["../../packages/client/src/index.ts"],
+      "@tanstack/react-query": ["./node_modules/@tanstack/react-query"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "**/*.test.ts"]
+}

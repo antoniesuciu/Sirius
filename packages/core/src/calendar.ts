@@ -7,14 +7,15 @@
 import {
   addDays,
   logicalDate,
+  REMIND_BEFORE_MIN,
   type ScheduleEvent,
   weekdayOf,
   zonedInstant,
 } from '@sirius/contracts';
 
 const BYDAY = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
-/** Matches the desktop notification, so phone and laptop remind at the same moment. */
-export const REMIND_BEFORE_MIN = 10;
+
+export { REMIND_BEFORE_MIN };
 
 function escape(text: string): string {
   return text

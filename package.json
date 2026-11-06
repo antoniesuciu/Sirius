@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "apps/*",
+    "apps/desktop",
     "packages/*"
   ],
   "scripts": {
@@ -20,7 +20,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test packages/contracts packages/client packages/core packages/mcp packages/cli apps/desktop/src",
     "test:e2e": "playwright test",
-    "bench": "bun run bench/api.ts"
+    "bench": "bun run bench/api.ts",
+    "typecheck:mobile": "tsc --noEmit -p apps/mobile",
+    "test:mobile": "bun test --cwd apps/mobile src"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",
