@@ -1,4 +1,5 @@
-"""Regenerates the Android app's icons and widget preview from the desktop icon (one source)."""
+"""Regenerates the Android notification icon and widget preview. Launcher icon and splash:
+scripts/mobile-icon.ts."""
 from PIL import Image, ImageDraw, ImageFont
 
 SRC = 'apps/desktop/src-tauri/icons/icon.png'
@@ -17,10 +18,6 @@ def placed(size, scale, ground):
     return canvas
 
 
-placed(1024, 0.72, PAPER).save(OUT + 'icon.png')
-# Adaptive icons crop to a circle or squircle: keep the art inside the central 66%.
-placed(1024, 0.58, (0, 0, 0, 0)).save(OUT + 'android-icon-foreground.png')
-placed(1024, 0.8, (0, 0, 0, 0)).save(OUT + 'splash-icon.png')
 # Android draws notification icons from alpha only, in white.
 mono = placed(96, 0.9, (0, 0, 0, 0))
 white = Image.new('RGBA', mono.size, (255, 255, 255, 0))
@@ -44,4 +41,4 @@ for i, (task, done) in enumerate([('Derive the covariance update', False), ('Ten
     d.ellipse(box, outline=INK, width=3, fill=INK if done else None)
     d.text((82, y), task, font=small, fill=MUTED if done else INK)
 preview.save(OUT + 'widget-preview/today.png')
-print('icons and widget preview written')
+print('notification icon and widget preview written')

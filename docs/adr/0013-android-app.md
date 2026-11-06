@@ -1,6 +1,7 @@
 # ADR 0013: a native Android app, with notifications and a widget, without Firebase
 
-Status: accepted, 2026-11-06. Asked for by the owner: a native phone app with push notifications
+Status: accepted, 2026-11-06. Its native views are replaced by ADR 0014 (the web phone app in
+a native shell); everything else here stands. Asked for by the owner: a native phone app with push notifications
 and a widget; Android first, iPhone later; nothing that costs money.
 
 Decision:

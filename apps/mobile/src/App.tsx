@@ -1,18 +1,34 @@
 /**
- * Sirius for Android: the laptop stays the server (ADR 0010); this app is its native face.
- * Same four tabs as the web phone app, the same data layer (packages/client).
+ * Sirius for Android: the laptop stays the server (ADR 0010). The screen is the web phone app,
+ * served by the laptop, so it looks, moves and speaks exactly as it does in a browser
+ * (ADR 0014). Around it the shell does what a browser tab cannot: notifications on the phone,
+ * the Today widget, background sync and on-time reminders, all from the same data layer.
  */
-import { ClientContext, registerQueuedOps, setReachable, useLive } from '@sirius/client';
-import { greeting, type SiriusClient, type SiriusEvent } from '@sirius/contracts';
+import {
+  ClientContext,
+  registerQueuedOps,
+  setReachable,
+  useLive,
+  useSettings,
+} from '@sirius/client';
+import type { SiriusClient, SiriusEvent } from '@sirius/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
+import * as Speech from 'expo-speech';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { startBackgroundSync } from './background.ts';
-import { type Connection, clientFor, loadConnection, saveConnection } from './connection.ts';
-import { Logo } from './Logo.tsx';
+import {
+  type Connection,
+  clientFor,
+  FIXTURES,
+  loadConnection,
+  saveConnection,
+} from './connection.ts';
 import {
   allowExactAlarms,
   exactAlarmsAllowed,
@@ -21,53 +37,65 @@ import {
   syncScheduled,
 } from './notifications.ts';
 import { Pair } from './Pair.tsx';
-import { List } from './screens/List.tsx';
-import { Plan } from './screens/Plan.tsx';
-import { Sirius } from './screens/Sirius.tsx';
-import { Today } from './screens/Today.tsx';
 import { THEME_COLORS } from './theme.gen.ts';
-import { type Colors, isLight, useColors } from './theme.ts';
-import { TextButton } from './ui.tsx';
+import { isLight, useColors } from './theme.ts';
+import {
+  bridgeScript,
+  onLaptop,
+  openTabScript,
+  parseFromPage,
+  spokenScript,
+  webUrl,
+} from './web.ts';
 import { refreshWidget } from './widget/handler.tsx';
 
-type Tab = 'today' | 'sirius' | 'plan' | 'list';
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: 'today', label: 'Today' },
-  { id: 'sirius', label: 'Sirius' },
-  { id: 'plan', label: 'Plan' },
-  { id: 'list', label: 'List' },
-];
-const OWNER = 'Antonie';
+// The splash stays up until the page has painted, so it hands straight over to the logo
+// drawing itself in. Called here, not in a component, or it can run too late.
+void SplashScreen.preventAutoHideAsync().catch(() => {});
+/** The splash's ground (app.json), until the page and the settings say which theme it is. */
+const GROUND = '#16171A';
+/** Never keep the splash up longer than this, even when the laptop is slow to answer. */
+const SPLASH_MAX_MS = 5000;
+const TABS = ['today', 'sirius', 'plan', 'list'];
+
+const tabOf = (response: Notifications.NotificationResponse | null): string | undefined => {
+  const tab = response?.notification.request.content.data?.tab;
+  return typeof tab === 'string' && TABS.includes(tab) ? tab : undefined;
+};
 
 export default function App() {
   const [connection, setConnection] = useState<Connection | null | undefined>(undefined);
   useEffect(() => {
     void loadConnection().then(setConnection);
   }, []);
-  const colors = THEME_COLORS.paper;
+  useEffect(() => {
+    if (connection === null) SplashScreen.hide();
+  }, [connection]);
+  const save = (c: Connection | null) => {
+    void saveConnection(c);
+    setConnection(c);
+  };
   return (
     <SafeAreaProvider>
       {connection === undefined ? null : connection === null ? (
-        <SafeAreaView style={[s.fill, { backgroundColor: colors.bg }]}>
-          <Pair
-            colors={colors}
-            onPaired={(c) => {
-              void saveConnection(c);
-              setConnection(c);
-            }}
-          />
+        <SafeAreaView style={[s.fill, { backgroundColor: THEME_COLORS.graphite.bg }]}>
+          <StatusBar style="light" />
+          <Pair colors={THEME_COLORS.graphite} onPaired={save} />
         </SafeAreaView>
       ) : (
-        <Connected
-          connection={connection}
-          onForget={() => void saveConnection(null).then(() => setConnection(null))}
-        />
+        <Connected key={connection.token} connection={connection} onConnection={save} />
       )}
     </SafeAreaProvider>
   );
 }
 
-function Connected({ connection, onForget }: { connection: Connection; onForget(): void }) {
+function Connected({
+  connection,
+  onConnection,
+}: {
+  connection: Connection;
+  onConnection(c: Connection | null): void;
+}) {
   const client = useMemo(() => clientFor(connection), [connection]);
   const qc = useMemo(() => {
     const q = new QueryClient({
@@ -79,7 +107,7 @@ function Connected({ connection, onForget }: { connection: Connection; onForget(
   return (
     <QueryClientProvider client={qc}>
       <ClientContext.Provider value={client}>
-        <Main client={client} onForget={onForget} />
+        <Main client={client} connection={connection} onConnection={onConnection} />
       </ClientContext.Provider>
     </QueryClientProvider>
   );
@@ -94,10 +122,27 @@ function syncFor(event: SiriusEvent): { schedule: boolean; widget: boolean } {
   };
 }
 
-function Main({ client, onForget }: { client: SiriusClient; onForget(): void }) {
+function Main({
+  client,
+  connection,
+  onConnection,
+}: {
+  client: SiriusClient;
+  connection: Connection;
+  onConnection(c: Connection | null): void;
+}) {
   const colors = useColors();
-  const [tab, setTab] = useState<Tab>('today');
+  const themed = useSettings().data !== undefined;
+  const insets = useSafeAreaInsets();
+  // The typings default P to undefined, and `Props & undefined` is never: name it.
+  const web = useRef<WebView<object>>(null);
   const [lateAlarms, setLateAlarms] = useState(false);
+  const [failed, setFailed] = useState(false);
+  // A notification that opened the app picks the first tab; later taps go to the open page.
+  const [source] = useState(() => ({
+    uri: webUrl(connection.address, tabOf(Notifications.getLastNotificationResponse())),
+  }));
+  const bridge = useMemo(() => bridgeScript(connection.token), [connection.token]);
 
   const live = useLive((event) => {
     const need = syncFor(event);
@@ -127,136 +172,151 @@ function Main({ client, onForget }: { client: SiriusClient; onForget(): void }) 
       await refreshWidget().catch(() => {});
       await startBackgroundSync().catch(() => {});
     })();
-    // A tapped notification opens the tab it is about.
     const sub = Notifications.addNotificationResponseReceivedListener((r) => {
-      const asked = r.notification.request.content.data?.tab;
-      if (TABS.some((t) => t.id === asked)) setTab(asked as Tab);
+      const tab = tabOf(r);
+      if (tab) web.current?.injectJavaScript(openTabScript(tab));
     });
-    return () => sub.remove();
+    const giveUp = setTimeout(() => SplashScreen.hide(), SPLASH_MAX_MS);
+    return () => {
+      sub.remove();
+      clearTimeout(giveUp);
+    };
   }, [client]);
 
-  const hour = new Date().getHours();
-  return (
-    <SafeAreaView style={[s.fill, { backgroundColor: colors.bg }]} edges={['top', 'left', 'right']}>
-      <StatusBar style={isLight(colors.bg) ? 'dark' : 'light'} />
-      <View style={s.header}>
-        <Text style={[s.greeting, { color: colors.ink }]}>
-          {greeting(OWNER, hour, 0).split('.')[0]}.
+  const canGoBack = useRef(false);
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!canGoBack.current) return false;
+      web.current?.goBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, []);
+
+  const onMessage = (event: WebViewMessageEvent) => {
+    const m = parseFromPage(event.nativeEvent.data);
+    if (!m) return;
+    if (m.type === 'speak') {
+      const answer = (ok: boolean) => web.current?.injectJavaScript(spokenScript(m.id, ok));
+      Speech.speak(m.text, {
+        ...(m.lang ? { language: m.lang } : {}),
+        onDone: () => answer(true),
+        onStopped: () => answer(false),
+        onError: () => answer(false),
+      });
+    } else if (m.type === 'cancel') {
+      void Speech.stop();
+    } else if (m.token === null) {
+      // The laptop no longer knows this phone: pair again, natively, for the shell as well.
+      onConnection(null);
+    } else if (m.token !== connection.token) {
+      onConnection({ ...connection, token: m.token });
+    }
+  };
+
+  // Until the settings arrive, the splash's ground, so no other theme flashes past.
+  const ground = themed ? colors.bg : GROUND;
+  const bar = themed ? colors.panel : GROUND;
+  if (connection.address === FIXTURES) {
+    return (
+      <View style={[s.fill, s.centre, { backgroundColor: ground }]}>
+        <Text style={[s.message, { color: colors.ink }]}>
+          The phone app is the laptop's page. Pair with a laptop to use it.
         </Text>
-        <TextButton label="Unpair" onPress={onForget} colors={colors} />
+        <TextLink label="Pair" onPress={() => onConnection(null)} color={colors.accent} />
       </View>
-      {tab === 'sirius' ? (
-        <View style={[s.fill, s.pad]}>
-          <Sirius colors={colors} live={live} />
+    );
+  }
+  return (
+    <View style={[s.fill, { backgroundColor: ground, paddingTop: insets.top }]}>
+      <StatusBar style={isLight(ground) ? 'dark' : 'light'} />
+      {lateAlarms && (
+        <View style={[s.offer, { borderColor: colors.lineMid }]}>
+          <Text style={[s.offerText, { color: colors.ink }]}>
+            Reminders may come a few minutes late.
+          </Text>
+          <TextLink
+            label="Allow on time"
+            color={colors.accent}
+            onPress={() =>
+              void allowExactAlarms().then(async () => setLateAlarms(!(await exactAlarmsAllowed())))
+            }
+          />
+          <TextLink label="Not now" color={colors.muted} onPress={() => setLateAlarms(false)} />
         </View>
-      ) : (
-        <ScrollView
-          style={s.fill}
-          contentContainerStyle={[s.pad, s.scroll]}
-          keyboardShouldPersistTaps="handled"
-        >
-          {tab === 'today' && lateAlarms && (
-            <View style={[s.offer, { borderColor: colors.lineMid }]}>
-              <Text style={[s.offerText, { color: colors.ink }]}>
-                Reminders may come a few minutes late.
-              </Text>
-              <TextButton
-                label="Allow on time"
-                onPress={() =>
-                  void allowExactAlarms().then(async () =>
-                    setLateAlarms(!(await exactAlarmsAllowed())),
-                  )
-                }
-                colors={colors}
-              />
-            </View>
-          )}
-          {tab === 'today' && <Today colors={colors} />}
-          {tab === 'plan' && <Plan colors={colors} />}
-          {tab === 'list' && <List colors={colors} />}
-        </ScrollView>
       )}
-      <TabBar tab={tab} onTab={setTab} colors={colors} />
-    </SafeAreaView>
+      {failed ? (
+        <View style={[s.fill, s.centre]}>
+          <Text style={[s.message, { color: colors.ink }]}>
+            I can't reach the laptop just now. Is it awake and on Tailscale?
+          </Text>
+          <TextLink
+            label="Try again"
+            color={colors.accent}
+            onPress={() => {
+              setFailed(false);
+              web.current?.reload();
+            }}
+          />
+        </View>
+      ) : null}
+      <WebView<object>
+        ref={web}
+        source={source}
+        style={[s.fill, { backgroundColor: ground }, failed && s.hidden]}
+        injectedJavaScriptBeforeContentLoaded={bridge}
+        onMessage={onMessage}
+        onLoadEnd={() => SplashScreen.hide()}
+        onError={() => {
+          setFailed(true);
+          SplashScreen.hide();
+        }}
+        onNavigationStateChange={(nav) => {
+          canGoBack.current = nav.canGoBack;
+        }}
+        // Links away from the laptop open in the browser, not over the app.
+        onShouldStartLoadWithRequest={(request) => {
+          if (onLaptop(request.url, connection.address) || request.url.startsWith('about:')) {
+            return true;
+          }
+          void Linking.openURL(request.url);
+          return false;
+        }}
+        // The OS asks for the microphone once; then push-to-talk works as in Chrome.
+        mediaCapturePermissionGrantType="grant"
+        mediaPlaybackRequiresUserAction={false}
+        allowsInlineMediaPlayback
+        domStorageEnabled
+        setSupportMultipleWindows={false}
+        overScrollMode="never"
+        webviewDebuggingEnabled={__DEV__}
+      />
+      <View style={{ height: insets.bottom, backgroundColor: bar }} />
+    </View>
   );
 }
 
-function TabBar({ tab, onTab, colors }: { tab: Tab; onTab(t: Tab): void; colors: Colors }) {
-  const item = (t: (typeof TABS)[number]) => (
-    <Pressable
-      key={t.id}
-      style={s.tab}
-      onPress={() => onTab(t.id)}
-      accessibilityRole="tab"
-      accessibilityState={{ selected: tab === t.id }}
-    >
-      <Text style={[s.tabText, { color: colors.ink, fontWeight: tab === t.id ? '600' : '400' }]}>
-        {t.label}
-      </Text>
-    </Pressable>
-  );
+function TextLink({ label, color, onPress }: { label: string; color: string; onPress(): void }) {
   return (
-    <SafeAreaView
-      edges={['bottom']}
-      style={[s.bar, { backgroundColor: colors.panel, borderColor: colors.panelBorder }]}
-    >
-      {TABS.slice(0, 2).map(item)}
-      <Pressable
-        style={[
-          s.mark,
-          {
-            backgroundColor: colors.panel,
-            borderColor: tab === 'sirius' ? colors.accent : colors.ink,
-          },
-        ]}
-        onPress={() => onTab('sirius')}
-        accessibilityRole="button"
-        accessibilityLabel="Talk to Sirius"
-      >
-        <Logo size={40} colors={colors} />
-      </Pressable>
-      {TABS.slice(2).map(item)}
-    </SafeAreaView>
+    <Pressable onPress={onPress} accessibilityRole="button" hitSlop={8}>
+      <Text style={[s.link, { color }]}>{label}</Text>
+    </Pressable>
   );
 }
 
 const s = StyleSheet.create({
   fill: { flex: 1 },
-  pad: { paddingHorizontal: 16, paddingBottom: 16 },
-  scroll: { gap: 16 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  greeting: { fontFamily: 'serif', fontSize: 28, flex: 1 },
+  hidden: { display: 'none' },
+  centre: { alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
+  message: { fontFamily: 'serif', fontSize: 18, textAlign: 'center' },
+  link: { fontFamily: 'serif', fontSize: 16, fontWeight: '600' },
   offer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  offerText: { flex: 1, fontFamily: 'serif', fontSize: 16 },
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    borderTopWidth: 1,
-    paddingTop: 6,
-  },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-  tabText: { fontFamily: 'serif', fontSize: 17 },
-  mark: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -18,
-  },
+  offerText: { flex: 1, fontFamily: 'serif', fontSize: 15 },
 });

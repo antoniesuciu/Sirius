@@ -9,12 +9,16 @@
     "android": {
       "package": "app.sirius.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#EBE3D1",
-        "foregroundImage": "./assets/android-icon-foreground.png"
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#16171A"
       },
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "predictiveBackGestureEnabled": false,
       "blockedPermissions": [
@@ -30,6 +34,15 @@
       ]
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#16171A",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain"
+        }
+      ],
       "expo-background-task",
       "expo-secure-store",
       [
@@ -57,11 +70,6 @@
           ]
         }
       ]
-    ],
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#EBE3D1"
-    }
+    ]
   }
 }
