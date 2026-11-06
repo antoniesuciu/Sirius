@@ -64,8 +64,22 @@ describe('terminalApp', () => {
   });
 
   test('an agent with no terminal above it, such as one Sirius started, names none', () => {
-    expect(terminalApp(['claude', 'bun', 'systemd'])).toBeUndefined();
-    expect(terminalApp([])).toBeUndefined();
+    expect(terminalApp(['claude', 'bun', 'systemd'], {})).toBeUndefined();
+    expect(terminalApp([], {})).toBeUndefined();
+  });
+
+  test('a cut tree, as in a distrobox container, falls back to the terminal markers', () => {
+    const box = ['codex', 'zsh', 'sh', 'containerd-shim'];
+    expect(terminalApp(box, { GNOME_TERMINAL_SCREEN: '/org/gnome/Terminal/screen/1' })).toBe(
+      'org.gnome.Terminal',
+    );
+    expect(terminalApp(box, { TERM_PROGRAM: 'vscode', GNOME_TERMINAL_SCREEN: '/x' })).toMatch(
+      /^(code|com\.microsoft\.VSCode)$/,
+    );
+    // The tree still wins over an inherited marker.
+    expect(terminalApp(['zsh', 'gnome-terminal-'], { TERM_PROGRAM: 'vscode' })).toBe(
+      'org.gnome.Terminal',
+    );
   });
 
   test('reads the real process tree on Linux', () => {

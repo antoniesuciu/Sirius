@@ -88,21 +88,32 @@ export function ancestors(pid = process.ppid): string[] {
   return names;
 }
 
+// The .deb installs code.desktop; Microsoft's other packages use the reverse-DNS id.
+const vscodeId = () =>
+  existsSync('/usr/share/applications/code.desktop') ? 'code' : 'com.microsoft.VSCode';
+
 /**
  * The desktop app id of the terminal this hook runs in, so clicking the alert focuses it.
- * Read from the process tree, not the environment: agents started by VS Code or a VS Code
- * shell inherit TERM_PROGRAM=vscode wherever they run (2026-11-06). No terminal, no id.
+ * The process tree comes first: agents started by VS Code or a VS Code shell inherit
+ * TERM_PROGRAM=vscode wherever they run (2026-11-06). The environment is only the fallback for
+ * a tree that is cut: an agent in a container (distrobox, under containerd-shim) or in a shell
+ * orphaned to systemd. Without an id GNOME files the alert as Sirius's, so a click opens Sirius.
  */
-export function terminalApp(names: string[] = ancestors()): string | undefined {
+export function terminalApp(
+  names: string[] = ancestors(),
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
   for (const name of names) {
-    // The .deb installs code.desktop; Microsoft's other packages use the reverse-DNS id.
-    if (name === 'code') {
-      return existsSync('/usr/share/applications/code.desktop') ? 'code' : 'com.microsoft.VSCode';
-    }
+    if (name === 'code') return vscodeId();
     // The kernel cuts names at 15 characters: gnome-terminal-server is "gnome-terminal-".
     if (name.startsWith('gnome-terminal')) return 'org.gnome.Terminal';
     if (name === 'terminator') return 'terminator';
   }
+  // VS Code started from a terminal is likelier than the reverse, so its marker wins.
+  if (env.TERM_PROGRAM === 'vscode') return vscodeId();
+  if (env.TERMINATOR_UUID) return 'terminator';
+  if (env.GNOME_TERMINAL_SCREEN) return 'org.gnome.Terminal';
+  // Agents Sirius starts inherit the core's environment, which has none of these.
   return undefined;
 }
 
