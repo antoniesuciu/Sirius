@@ -29,9 +29,15 @@ export function onLaptop(url: string, address: string): boolean {
  * Runs before the page's own scripts. It signs the page in with the shell's token, reports a
  * token the page gets by pairing again, and stands in for speechSynthesis: Android's WebView
  * has none, so speech goes to the phone's own voice through the shell.
+ *
+ * It also sizes the space under the tab bar. The page fills the screen down to the bottom edge,
+ * so the bar reaches into Android's gesture area: a tab's lower 12px is empty, so it can sit
+ * over the gesture line while the labels stay above it (2026-11-06).
  */
-export function bridgeScript(token: string): string {
+export function bridgeScript(token: string, bottomInset = 0): string {
+  const tabPad = Math.max(6, Math.round(bottomInset) - 12);
   return `(function () {
+  try { document.documentElement.style.setProperty('--shell-tab-pad', '${tabPad}px'); } catch (e) {}
   var KEY = ${JSON.stringify(TOKEN_KEY)};
   var post = function (m) { window.ReactNativeWebView.postMessage(JSON.stringify(m)); };
   var setItem = Storage.prototype.setItem;

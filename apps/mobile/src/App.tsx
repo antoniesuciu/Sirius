@@ -142,7 +142,10 @@ function Main({
   const [source] = useState(() => ({
     uri: webUrl(connection.address, tabOf(Notifications.getLastNotificationResponse())),
   }));
-  const bridge = useMemo(() => bridgeScript(connection.token), [connection.token]);
+  const bridge = useMemo(
+    () => bridgeScript(connection.token, insets.bottom),
+    [connection.token, insets.bottom],
+  );
 
   const live = useLive((event) => {
     const need = syncFor(event);
@@ -216,7 +219,6 @@ function Main({
 
   // Until the settings arrive, the splash's ground, so no other theme flashes past.
   const ground = themed ? colors.bg : GROUND;
-  const bar = themed ? colors.panel : GROUND;
   if (connection.address === FIXTURES) {
     return (
       <View style={[s.fill, s.centre, { backgroundColor: ground }]}>
@@ -291,7 +293,6 @@ function Main({
         overScrollMode="never"
         webviewDebuggingEnabled={__DEV__}
       />
-      <View style={{ height: insets.bottom, backgroundColor: bar }} />
     </View>
   );
 }

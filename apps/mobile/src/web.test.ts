@@ -27,19 +27,34 @@ function page() {
   }
   const localStorage = new Storage();
   const sessionStorage = new Storage();
+  const style = new Map<string, string>();
+  const document = {
+    documentElement: { style: { setProperty: (k: string, v: string) => style.set(k, v) } },
+  };
   // As in a browser, the page's global object is its window.
   const window = createContext({
     ReactNativeWebView: { postMessage: (m: string) => posted.push(JSON.parse(m)) },
     Storage,
     localStorage,
     sessionStorage,
+    document,
   }) as Record<string, unknown>;
   window.window = window;
   const run = (code: string) => runInContext(code, window);
-  return { posted, window, localStorage, sessionStorage, run };
+  return { posted, window, localStorage, sessionStorage, style, run };
 }
 
 describe('the bridge between the laptop page and the shell', () => {
+  test('the tab bar reaches into the gesture area instead of stopping above it', () => {
+    const p = page();
+    p.run(bridgeScript('tok-1', 30));
+    // The tabs' empty lower 12px may sit over the gesture area; their labels stay above it.
+    expect(p.style.get('--shell-tab-pad')).toBe('18px');
+    const flat = page();
+    flat.run(bridgeScript('tok-1', 0));
+    expect(flat.style.get('--shell-tab-pad')).toBe('6px');
+  });
+
   test('signs the page in with the shell token, before its own scripts run', () => {
     const p = page();
     p.run(bridgeScript('tok-1'));
