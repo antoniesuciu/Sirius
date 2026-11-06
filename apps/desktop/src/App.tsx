@@ -1,4 +1,27 @@
 import {
+  useAddTask,
+  useAddToList,
+  useAgentEvents,
+  useAgents,
+  useClient,
+  useConversation,
+  useDropTask,
+  useGoals,
+  useLearning,
+  useList,
+  useLive,
+  useOp,
+  useProposals,
+  useReminders,
+  useSchedule,
+  useSetQuiet,
+  useSettings,
+  useTickListItem,
+  useToday,
+  useToggleTask,
+  useVoiceState,
+} from '@sirius/client';
+import {
   type AgentId,
   agentCatalog,
   buildSuggestions,
@@ -15,6 +38,7 @@ import {
   AgentToast,
   type AvatarState,
   type ChatLine,
+  CLOCK_RESYNC_EVENT,
   GoalsPanel,
   Header,
   LearningPanel,
@@ -42,29 +66,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ConnectionLine } from './ConnectionLine.tsx';
 import { browserVoiceSupported, usePhoneVoice } from './data/browserVoice.ts';
 import { useOpenTabRequests, usePhonePush } from './data/phonePush.ts';
-import {
-  useAddTask,
-  useAddToList,
-  useAgentEvents,
-  useAgents,
-  useClient,
-  useConversation,
-  useDropTask,
-  useGoals,
-  useLearning,
-  useList,
-  useOp,
-  useProposals,
-  useReminders,
-  useSchedule,
-  useSetQuiet,
-  useSettings,
-  useTickListItem,
-  useToday,
-  useToggleTask,
-  useVoiceState,
-} from './data/queries.ts';
-import { useLive } from './data/useLive.ts';
 
 const OWNER = 'Antonie';
 const SNOOZE_MS = 60 * 60 * 1000;
@@ -184,7 +185,21 @@ export function App({ phone = false }: { phone?: boolean }) {
       setFresh((now) => (now.has(where) ? now : new Set(now).add(where)));
     }
   };
-  const live = useLive(listen);
+  const live = useLive(listen, () => window.dispatchEvent(new Event(CLOCK_RESYNC_EVENT)));
+  // Back on screen, the stream may be dead without knowing it: a phone that slept drops its
+  // connection silently, and the 60 s silence check would be the first to notice.
+  const { reconnect } = live;
+  useEffect(() => {
+    const retry = () => {
+      if (document.visibilityState === 'visible') reconnect();
+    };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+    };
+  }, [reconnect]);
 
   // "Start breathing" said to the phone should show the breathing, which lives under Today.
   const breathing = live.breathingSignal;

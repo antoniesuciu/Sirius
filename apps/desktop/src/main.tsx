@@ -1,4 +1,5 @@
 import '@sirius/ui/styles.css';
+import { ClientContext, registerQueuedOps, reportRefusal, setReachable } from '@sirius/client';
 import { isUnreachable } from '@sirius/contracts';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,8 +8,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import { connect } from './data/connect.ts';
-import { ClientContext, registerQueuedOps } from './data/queries.ts';
-import { reportRefusal, setReachable } from './data/sync.ts';
 import { Pair } from './Pair.tsx';
 
 /** A phone keeps what it last saw for this long, then starts fresh. */

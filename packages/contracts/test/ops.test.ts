@@ -112,6 +112,21 @@ describe('readSseStream', () => {
     await readSseStream(streamOf(frame.slice(0, 7), frame.slice(7)), (e) => seen.push(e));
     expect(seen).toEqual([done]);
   });
+  test('keeps a letter whole when its bytes are split between chunks', async () => {
+    const event: SiriusEvent = { type: 'chat', kind: 'text', turn_id: 't', delta: 'Udă florile' };
+    const bytes = new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
+    const cut = bytes.indexOf(0xc4) + 1; // inside the two bytes of "ă"
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(bytes.slice(0, cut));
+        c.enqueue(bytes.slice(cut));
+        c.close();
+      },
+    });
+    const seen: SiriusEvent[] = [];
+    await readSseStream(body, (e) => seen.push(e));
+    expect(seen).toEqual([event]);
+  });
   test('skips heartbeats and malformed frames without stopping', async () => {
     const seen: SiriusEvent[] = [];
     const frame = `data: ${JSON.stringify(done)}\n\n`;

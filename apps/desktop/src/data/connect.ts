@@ -1,6 +1,6 @@
+import { createFixtureClient } from '@sirius/client';
 import { createHttpClient, type SiriusClient } from '@sirius/contracts';
 import { invoke } from '@tauri-apps/api/core';
-import { createFixtureClient } from './fixtureClient.ts';
 
 interface CoreConnection {
   url: string;

@@ -1,7 +1,6 @@
+import { clearRefusals, lastSeen, OP_MUTATION, refusalStore } from '@sirius/client';
 import { onlineManager, useMutationState } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
-import { OP_MUTATION } from './data/queries.ts';
-import { clearRefusals, lastSeen, refusalStore } from './data/sync.ts';
 
 function when(at: number): string {
   const date = new Date(at);

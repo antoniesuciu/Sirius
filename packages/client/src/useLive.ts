@@ -1,5 +1,4 @@
 import { type ChangeEvent, isUndoableChange, type SiriusEvent } from '@sirius/contracts';
-import { CLOCK_RESYNC_EVENT } from '@sirius/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { invalidationsFor, useClient } from './queries.ts';
@@ -17,16 +16,24 @@ export interface LiveState {
   breathingSignal: number;
   undoable: ChangeEvent | null;
   clearUndo(): void;
+  /** Reconnect at once, such as when the app comes back on screen. */
+  reconnect(): void;
 }
 
 /**
  * Owns the SSE subscription: cache invalidation plus the state only events carry. `listen` also
  * sees every event, for the phone's voice and tab dots; it may change on every render.
  */
-export function useLive(listen?: (event: SiriusEvent) => void): LiveState {
+export function useLive(
+  listen?: (event: SiriusEvent) => void,
+  /** After every (re)connect, once the cache is invalidated: the clock resyncs here. */
+  onConnected?: () => void,
+): LiveState {
   const client = useClient();
   const listener = useRef(listen);
   listener.current = listen;
+  const connectedHook = useRef(onConnected);
+  connectedHook.current = onConnected;
   const qc = useQueryClient();
   const [streaming, setStreaming] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
@@ -37,21 +44,6 @@ export function useLive(listen?: (event: SiriusEvent) => void): LiveState {
   // Bumped to reconnect at once, rather than after a backoff of up to 30 s.
   const [attempt, setAttempt] = useState(0);
   const connected = useRef(false);
-
-  useEffect(() => {
-    // Coming back on screen, the stream may be dead without knowing it: a phone that slept
-    // drops its connection silently, and the 60 s silence check would be the first to notice.
-    // So reconnect, which also refetches everything.
-    const retry = () => {
-      if (document.visibilityState === 'visible') setAttempt((n) => n + 1);
-    };
-    window.addEventListener('online', retry);
-    document.addEventListener('visibilitychange', retry);
-    return () => {
-      window.removeEventListener('online', retry);
-      document.removeEventListener('visibilitychange', retry);
-    };
-  }, []);
 
   useEffect(() => {
     const onChat = (event: Extract<SiriusEvent, { type: 'chat' }>) => {
@@ -109,7 +101,7 @@ export function useLive(listen?: (event: SiriusEvent) => void): LiveState {
         setStreaming(null);
         // Anything may have changed while disconnected, and the machine may have slept.
         void qc.invalidateQueries();
-        window.dispatchEvent(new Event(CLOCK_RESYNC_EVENT));
+        connectedHook.current?.();
       },
     });
     // `attempt` is a dependency only so that bumping it reconnects at once.
@@ -124,5 +116,6 @@ export function useLive(listen?: (event: SiriusEvent) => void): LiveState {
     breathingSignal,
     undoable,
     clearUndo: () => setUndoable(null),
+    reconnect: () => setAttempt((n) => n + 1),
   };
 }

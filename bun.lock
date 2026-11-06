@@ -19,6 +19,7 @@
       "name": "@sirius/desktop",
       "version": "0.1.0",
       "dependencies": {
+        "@sirius/client": "workspace:*",
         "@sirius/contracts": "workspace:*",
         "@sirius/ui": "workspace:*",
         "@tanstack/query-sync-storage-persister": "5.105.1",
@@ -44,6 +45,21 @@
       },
       "dependencies": {
         "@sirius/contracts": "workspace:*",
+      },
+    },
+    "packages/client": {
+      "name": "@sirius/client",
+      "version": "0.1.0",
+      "dependencies": {
+        "@sirius/contracts": "workspace:*",
+        "@tanstack/react-query": "^5.105.1",
+      },
+      "devDependencies": {
+        "@types/react": "^19",
+        "react": "^19.3.1",
+      },
+      "peerDependencies": {
+        "react": "^19.0.0",
       },
     },
     "packages/contracts": {
@@ -239,6 +255,8 @@
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
 
     "@sirius/cli": ["@sirius/cli@workspace:packages/cli"],
+
+    "@sirius/client": ["@sirius/client@workspace:packages/client"],
 
     "@sirius/contracts": ["@sirius/contracts@workspace:packages/contracts"],
 

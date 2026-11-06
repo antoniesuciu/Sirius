@@ -264,15 +264,15 @@ export async function readSseStream(
   /** Called on any bytes, including the core's pings, so a caller can tell a live stream. */
   onActivity?: () => void,
 ): Promise<void> {
-  const reader = body
-    .pipeThrough(new TextDecoderStream() as unknown as TransformStream<Uint8Array, string>)
-    .getReader();
+  // A plain TextDecoder in stream mode, not TextDecoderStream: React Native has only this.
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
   let buffer = '';
   for (;;) {
     const { done, value } = await reader.read();
     if (done) return;
     onActivity?.();
-    buffer += value;
+    buffer += decoder.decode(value, { stream: true });
     for (;;) {
       const end = buffer.indexOf('\n\n');
       if (end < 0) break;
