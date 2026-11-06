@@ -18,7 +18,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "bun test packages/contracts packages/client packages/core packages/mcp packages/cli apps/desktop/src",
+    "test": "bun test packages/contracts packages/client packages/core packages/mcp packages/cli apps/desktop/src apps/gnome-extension",
     "test:e2e": "playwright test",
     "bench": "bun run bench/api.ts",
     "typecheck:mobile": "tsc --noEmit -p apps/mobile",

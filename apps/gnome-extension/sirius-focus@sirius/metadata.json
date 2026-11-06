@@ -1,0 +1,6 @@
+{
+  "uuid": "sirius-focus@sirius",
+  "name": "Sirius focus",
+  "description": "Lets Sirius raise the window an agent alert is about. It can only focus windows.",
+  "shell-version": ["46"]
+}

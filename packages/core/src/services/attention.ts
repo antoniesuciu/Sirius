@@ -168,6 +168,7 @@ export class Attention {
       title: 'Sirius',
       body: describeAgentEvent(event),
       ...(app ? { app } : {}),
+      ...(event.project ? { folder: event.project } : {}),
       // "Finished" is news; only a waiting state should stay until it is answered.
       ...(event.kind === 'turn_complete' ? { expireMs: NEWS_MS } : {}),
     });

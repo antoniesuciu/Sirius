@@ -6,6 +6,8 @@
 #   scripts/install.sh --with-hooks  also merge agent hooks (backs up the originals first)
 #   scripts/install.sh --with-desktop  also build the .deb and print the install command
 #   scripts/install.sh --with-voice  also set up push-to-talk voice (downloads about 3 GB)
+#   scripts/install.sh --with-focus  also install the GNOME Shell extension that lets an alert's
+#                                    click raise the agent's own window (ADR 0015)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -13,13 +15,14 @@ BIN="$HOME/.local/bin"
 CONFIG="$HOME/.config/sirius"
 UNITS="$HOME/.config/systemd/user"
 
-with_mcp=false with_hooks=false with_desktop=false with_voice=false
+with_mcp=false with_hooks=false with_desktop=false with_voice=false with_focus=false
 for arg in "$@"; do
   case "$arg" in
     --with-mcp) with_mcp=true ;;
     --with-hooks) with_hooks=true ;;
     --with-desktop) with_desktop=true ;;
     --with-voice) with_voice=true ;;
+    --with-focus) with_focus=true ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -90,6 +93,21 @@ if $with_mcp; then
 fi
 
 $with_hooks && "$BIN/sirius" setup-hooks --apply
+
+if $with_focus; then
+  uuid=sirius-focus@sirius
+  EXT="$HOME/.local/share/gnome-shell/extensions/$uuid"
+  rm -rf "$EXT.new" && cp -r "apps/gnome-extension/$uuid" "$EXT.new"
+  rm -rf "$EXT" && mv "$EXT.new" "$EXT"
+  # The running shell only knows extensions it found at login, so enable it by setting.
+  enabled=$(gsettings get org.gnome.shell enabled-extensions)
+  case "$enabled" in
+    *"'$uuid'"*) ;;
+    "@as []") gsettings set org.gnome.shell enabled-extensions "['$uuid']" ;;
+    *) gsettings set org.gnome.shell enabled-extensions "${enabled%]}, '$uuid']" ;;
+  esac
+  echo "Focus extension installed: log out and back in once for GNOME to load it."
+fi
 
 if $with_voice; then
   DATA="$HOME/.local/share/sirius"

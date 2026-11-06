@@ -1,5 +1,5 @@
 /** Desktop notifications (F24, F25), behind a seam so the phone can add ntfy later (ADR-9). */
-import { type ChildProcess, execFile, spawn } from 'node:child_process';
+import { type ChildProcess, execFile, execFileSync, spawn } from 'node:child_process';
 
 export interface Notification {
   /** Identifies where this came from. Rate limits apply per key. */
@@ -8,6 +8,8 @@ export interface Notification {
   body: string;
   /** Desktop app id of the terminal the agent runs in: clicking the alert focuses it. */
   app?: string;
+  /** The agent's folder, as window titles show it: a click raises that window of `app`. */
+  folder?: string;
   /** News rather than a waiting state: take it down by itself after this long. */
   expireMs?: number;
 }
@@ -41,6 +43,46 @@ export type Start = (args: string[]) => ChildProcess;
 const start: Start = (args) =>
   spawn('stdbuf', ['-oL', 'notify-send', ...args], { stdio: ['ignore', 'pipe', 'ignore'] });
 
+/** The sirius-focus GNOME Shell extension (ADR 0015): only the shell may raise a window. */
+export interface WindowFocus {
+  available(): boolean;
+  /** Raise `app`'s most recent window whose title names `folder` ('' = any of its windows). */
+  activate(app: string, folder: string): Promise<boolean>;
+}
+
+const FOCUS = ['--session', '--dest', 'org.gnome.Shell', '--object-path', '/org/sirius/Focus'];
+
+/**
+ * Through gdbus, like the close call. Once the extension answers it is taken as there for the
+ * life of the core; until then each alert asks again, so a login that loads it is picked up.
+ */
+export function gdbusFocus(): WindowFocus {
+  let there = false;
+  return {
+    available() {
+      if (there) return there;
+      try {
+        // Rare (one alert per agent per window, F25) and short, so a blocking probe is fine.
+        // A path with nothing on it still introspects cleanly, so look for the interface.
+        there = execFileSync('gdbus', ['introspect', ...FOCUS], {
+          encoding: 'utf8',
+          timeout: 500,
+        }).includes('org.sirius.Focus');
+      } catch {}
+      return there;
+    },
+    activate: (app, folder) =>
+      new Promise((resolve) =>
+        execFile(
+          'gdbus',
+          ['call', ...FOCUS, '--method', 'org.sirius.Focus.Activate', app, folder],
+          { timeout: 2000 },
+          (error, out) => resolve(!error && out.includes('true')),
+        ),
+      ),
+  };
+}
+
 interface Shown {
   child: ChildProcess;
   id?: number;
@@ -64,12 +106,21 @@ export class LibnotifyNotifier implements Notifier {
   constructor(
     private readonly startNotify: Start = start,
     private readonly exec: Run = run,
+    private readonly focus: WindowFocus = gdbusFocus(),
   ) {}
 
-  notify({ key, title, body, app, expireMs }: Notification): void {
+  notify({ key, title, body, app, folder, expireMs }: Notification): void {
     this.withdraw(key);
+    // A default action makes GNOME hand the click to us instead of activating the app itself,
+    // so it is only added when the extension can do better (ADR 0015).
+    const raise = app && folder && this.focus.available() ? { app, folder } : undefined;
     const entry: Shown = {
-      child: this.startNotify(['--wait', '--print-id', ...notifySendArgs(title, body, app)]),
+      child: this.startNotify([
+        '--wait',
+        '--print-id',
+        ...(raise ? ['--action=default=Open'] : []),
+        ...notifySendArgs(title, body, app),
+      ]),
     };
     this.shown.set(key, entry);
     const forget = () => {
@@ -81,9 +132,17 @@ export class LibnotifyNotifier implements Notifier {
       console.warn('notify-send failed:', error.message);
       forget();
     });
-    entry.child.stdout?.once('data', (chunk) => {
-      const id = Number.parseInt(String(chunk), 10);
-      if (id > 0) entry.id = id;
+    // Its id first, then the name of a clicked action.
+    entry.child.stdout?.on('data', (chunk) => {
+      for (const line of String(chunk).split('\n')) {
+        const id = Number.parseInt(line, 10);
+        if (!entry.id && id > 0) entry.id = id;
+        else if (line === 'default' && raise) {
+          void this.focus
+            .activate(raise.app, raise.folder)
+            .then((found) => found || this.focus.activate(raise.app, ''));
+        }
+      }
     });
     // Clicked or dismissed: GNOME closed it, so there is nothing left to take down.
     entry.child.on('exit', forget);

@@ -163,6 +163,19 @@ function commandWorks(bin: string, args: string[]): boolean {
   }
 }
 
+/** Whether GNOME Shell has loaded sirius-focus (ADR 0015). An empty path introspects fine too. */
+function focusExtension(): boolean {
+  try {
+    const args = ['introspect', '--session', '--dest', 'org.gnome.Shell'];
+    return execFileSync('gdbus', [...args, '--object-path', '/org/sirius/Focus'], {
+      encoding: 'utf8',
+      timeout: 2000,
+    }).includes('org.sirius.Focus');
+  } catch {
+    return false;
+  }
+}
+
 async function doctor(): Promise<void> {
   const line = (ok: boolean, text: string) => console.log(`${ok ? 'ok  ' : 'no  '} ${text}`);
   const healthy = await fetch(`${coreUrl}/v1/health`, { signal: AbortSignal.timeout(1000) }).then(
@@ -174,6 +187,8 @@ async function doctor(): Promise<void> {
   line(commandWorks('claude', ['--version']), 'claude CLI');
   line(commandWorks('codex', ['--version']), 'codex CLI');
   line(commandWorks('notify-send', ['--version']), 'notify-send');
+  const focus = focusExtension();
+  line(focus, `focus extension${focus ? '' : ' (scripts/install.sh --with-focus, then log in)'}`);
   line(
     existsSync(join(dirname(process.execPath), 'sirius-mcp')) ||
       existsSync(join(homedir(), '.local/bin/sirius-mcp')),

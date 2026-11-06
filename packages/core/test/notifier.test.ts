@@ -8,17 +8,30 @@ import { harness } from './harness.ts';
  * Stand-ins for notify-send --wait and gdbus: each started notify-send prints its id and
  * lives until killed, as the real one does until GNOME closes the notification.
  */
-function fakeDesktop() {
+function fakeDesktop({ extension = false, windows = ['lab'] } = {}) {
   const started: string[][] = [];
   const closed: string[] = [];
+  const raised: string[][] = [];
   const alive = new Set<number>();
+  const stdouts: EventEmitter[] = [];
   let next = 41;
+  // The sirius-focus extension: raises a window whose title names the folder ('' = any).
+  const focus = {
+    available: () => extension,
+    activate: async (app: string, folder: string) => {
+      raised.push([app, folder]);
+      return folder === '' || windows.includes(folder);
+    },
+  };
+  /** The user clicks the nth alert: notify-send prints the action's name. */
+  const click = (n: number) => stdouts[n]?.emit('data', 'default\n');
   const startNotify = (args: string[]) => {
     started.push(args);
     const id = ++next;
     alive.add(id);
     const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; kill(): boolean };
     child.stdout = new EventEmitter();
+    stdouts.push(child.stdout);
     child.kill = () => {
       alive.delete(id);
       child.emit('exit');
@@ -31,10 +44,65 @@ function fakeDesktop() {
     if (file === 'gdbus') closed.push(args.at(-1) ?? '');
     done(null);
   };
-  return { started, closed, alive, n: new LibnotifyNotifier(startNotify, exec) };
+  return {
+    started,
+    closed,
+    alive,
+    raised,
+    click,
+    n: new LibnotifyNotifier(startNotify, exec, focus),
+  };
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe('a click raises the window the agent runs in (ADR 0015)', () => {
+  const alert = { key: 'codex', title: 'Sirius', body: 'Codex is waiting.' };
+  const vscode = { ...alert, app: 'com.microsoft.VSCode', folder: 'lab' };
+
+  test('with the extension, clicking raises that folder’s window, not the app’s latest', async () => {
+    const { started, raised, click, n } = fakeDesktop({ extension: true });
+    n.notify(vscode);
+    expect(started[0]).toContain('--action=default=Open');
+    await tick();
+    click(0);
+    await tick();
+    expect(raised).toEqual([['com.microsoft.VSCode', 'lab']]);
+  });
+
+  test('no window names the folder: the app’s latest window, as before', async () => {
+    const { raised, click, n } = fakeDesktop({ extension: true, windows: [] });
+    n.notify(vscode);
+    await tick();
+    click(0);
+    await tick();
+    expect(raised).toEqual([
+      ['com.microsoft.VSCode', 'lab'],
+      ['com.microsoft.VSCode', ''],
+    ]);
+  });
+
+  test('without the extension, or with nothing to raise, GNOME handles the click as before', () => {
+    for (const [extension, notification] of [
+      [false, vscode],
+      [true, alert],
+      [true, { ...alert, app: 'com.microsoft.VSCode' }],
+    ] as const) {
+      const { started, n } = fakeDesktop({ extension });
+      n.notify(notification);
+      expect(started[0]?.some((a) => a.startsWith('--action'))).toBe(false);
+    }
+  });
+
+  test('an answered alert with a click action still closes by its id, raising nothing', async () => {
+    const { closed, n, raised } = fakeDesktop({ extension: true });
+    n.notify(vscode);
+    await tick();
+    n.withdraw('codex');
+    expect(closed).toEqual(['42']);
+    expect(raised).toEqual([]);
+  });
+});
 
 describe('desktop notifications stay current (2026-11-06)', () => {
   test('each alert keeps its notify-send alive, so GNOME does not orphan it', () => {
@@ -131,6 +199,8 @@ describe('alerts are taken down when they stop being true', () => {
     const h = harness();
     h.run('post_agent_event', { ...prompt, terminal: 'com.microsoft.VSCode' });
     expect(h.notified[0]?.app).toBe('com.microsoft.VSCode');
+    // The folder names the window: a click raises that one, not the app's latest (ADR 0015).
+    expect(h.notified[0]?.folder).toBe('lab');
     expect(h.notified[0]?.expireMs).toBeUndefined();
     h.run('post_agent_event', { source: 'codex', kind: 'turn_complete', project: 'lab' });
     expect(h.notified[1]?.expireMs).toBe(5000);
