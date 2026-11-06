@@ -7,8 +7,8 @@ personal reminders and a short list of things to remember. The assistant in it r
 **Claude Code** and **Codex** command-line tools on your own subscriptions. It also tells you
 when one of those agents, running elsewhere on the machine, is waiting for you. Speech
 recognition and speech synthesis run on the laptop. A paired Android phone shows the same
-dashboard over a private Tailscale link, and keeps working from its own copy while the laptop
-is away.
+dashboard over a private Tailscale link, in Chrome or in the Sirius Android app, and keeps
+working from its own copy while the laptop is away.
 
 <p align="center">
   <img src="docs/images/desktop.png" alt="The Sirius dashboard on a laptop" width="72%">
@@ -23,6 +23,7 @@ is away.
 - [Requirements](#requirements)
 - [Install](#install)
 - [Pair a phone](#pair-a-phone)
+- [The Android app](#the-android-app)
 - [Everyday use](#everyday-use)
 - [Configuration](#configuration)
 - [Where your data lives](#where-your-data-lives)
@@ -46,6 +47,7 @@ is away.
 | **Voice** | Push-to-talk with **Ctrl+Alt+Space**, in English and Romanian. Common commands such as "add milk to my list" or "ce urmează" are handled on the laptop without an agent turn, and anything else goes to the agent. |
 | **Looks** | Seven themes and three voice animations; ask Sirius ("switch to midnight", "use the ring"). The orb ripples with the voice while it listens and speaks. |
 | **Phone** | An installable web app over Tailscale, with its own layout: Today, Sirius, Plan and List behind a bottom bar, and a mic that sends your voice to the laptop and says the answer on the phone. It keeps an offline copy, queues the changes you make while away, and sends each one exactly once when the laptop is back. |
+| **Android app** | The same phone app in a native shell, which adds reminders scheduled on the phone (they fire with the laptop off), agent alerts, a Today widget and background sync. No Google account, no Firebase, built locally for free. |
 
 Agents never change several things at once, or delete anything, without you confirming a
 proposal card. Single changes an agent makes can be undone for 30 seconds.
@@ -139,6 +141,24 @@ For the schedule in your phone's own calendar, with its widget and alarms that r
 laptop off, run `sirius calendar` and subscribe to the address it prints with
 [ICSx⁵](https://icsx5.bitfire.at/), a free, open-source Android app.
 
+## The Android app
+
+Instead of installing the page from Chrome, you can use the Sirius app. Its screen is the same
+web phone app, served by the laptop, so a UI change reaches the phone with no new APK. Around
+it, the app schedules reminders and schedule alerts on the phone itself, so they ring with the
+laptop off, turns agent alerts into notifications, refreshes in the background about every
+15 minutes, and adds a **Sirius: Today** home-screen widget.
+
+```bash
+scripts/android-build.sh    # writes releases/sirius-android-<version>.apk
+```
+
+The first build downloads JDK 17, the Android SDK and Gradle's dependencies into `.cache/`
+(a few GB). Copy the APK to the phone, install it, and pair with `sirius pair` as above, typing
+the address and code into the app. The full steps, including the battery setting MagicOS needs,
+are in [apps/mobile/README.md](apps/mobile/README.md); the reasoning is in ADR 0013 and 0014.
+If browser notifications are on in Chrome too, turn them off there, or reminders arrive twice.
+
 ## Everyday use
 
 | | |
@@ -206,12 +226,15 @@ bun run dev                  # core with live reload, plus the Vite dev server
 | `bun run test` | Unit and integration tests for the core, contracts, MCP server and CLI (`bun test`) |
 | `bun run test:e2e` | Playwright on desktop, phone, a real local core, a remote-mode core and a paired phone |
 | `bun run typecheck` / `bun run lint` | TypeScript 7 strict / Biome |
+| `bun run test:mobile` / `bun run typecheck:mobile` | The Android app's notification planner and page bridge / its types |
 | `cd services/voice && uv run pytest` | Voice service tests |
 | `cd apps/desktop/src-tauri && cargo test` | Desktop shell tests |
 | `bun bench/agents.ts` | The real Claude and Codex flows plus the isolation canary. This spends subscription quota. |
 
 ```
 apps/desktop        Tauri shell and the React app (also served to the phone)
+apps/mobile         The Android app: a native shell around the phone page (Expo, own install)
+packages/client     Data layer shared by both apps: queries, live updates, offline queue, fixtures
 packages/contracts  Op registry, schemas, typed client, 04:00 calendar logic
 packages/core       The service: store, ops, scheduler, chat, HTTP, phones
 packages/mcp        The stdio MCP server agents use
@@ -232,9 +255,10 @@ phone. Known limits:
 
 - **Memory:** the desktop app uses about 294 MB against a 200 MB target, because of WebKitGTK.
   ADR 0004 explains why Tauri stays.
-- **Phone gaps:** phone push-to-talk is not wired up yet. Notifications reach the phone only
-  through ntfy, set up by you, and only while the laptop is on; schedule alarms come from the
-  phone's own calendar instead.
+- **Android app:** built on the laptop and signed with React Native's debug key, so it installs
+  by hand, not from a store. Its screen needs the laptop (or the page's last cached copy);
+  agent alerts with the app closed arrive at the next background sync, up to about 15 minutes
+  late, unless ntfy is set up. No iPhone app yet: it needs the paid Apple Developer Program.
 - **Remote mode** (Docker, Cloudflare, ntfy) is built and tested locally, but has never been
   deployed. The container also has no agent CLIs.
 - **Wake word:** "Hey Sirius" is planned for M9.
