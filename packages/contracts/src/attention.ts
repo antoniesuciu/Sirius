@@ -11,6 +11,9 @@ export function describeAgentEvent(
   const where = event.project ? ` in the ${event.project} folder` : '';
   switch (event.kind) {
     case 'needs_input': {
+      if (/has a question for you/i.test(event.message ?? '')) {
+        return `${name} has a question for you${where}.`;
+      }
       const what = /permission|approv/i.test(event.message ?? '') ? 'an approval' : 'you';
       return `${name} is waiting for ${what}${where}.`;
     }

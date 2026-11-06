@@ -55,6 +55,7 @@ export class Attention {
     return this.store.write('system', (tx) => {
       const project = input.project ?? null;
       const message = input.message ?? null;
+      const quiet = this.isQuiet(tx);
 
       // "Finished" is news, not a waiting state, so it never sticks around as a toast.
       if (input.kind === 'turn_complete') {
@@ -66,7 +67,7 @@ export class Attention {
           message,
           acknowledged_at: tx.now,
         });
-        if (!this.isQuiet(tx)) tx.afterCommit(() => this.notify(event));
+        if (!quiet) tx.afterCommit(() => this.notify(event));
         return event;
       }
 
@@ -83,10 +84,18 @@ export class Attention {
         )
         .get();
       if (duplicate) {
-        // One event, but a new prompt: without this, an unanswered toast silences the project.
-        const updated = tx.update('agent_events', duplicate.id, { message });
-        if (!this.isQuiet(tx)) tx.afterCommit(() => this.announce(updated));
-        return updated;
+        const quietSince = tx.peek('day_state', logicalDate(tx.now, this.timeZone))?.quiet_since;
+        if (quiet && quietSince != null && duplicate.created_at < quietSince) {
+          // This is new attention during quiet mode. Retire the earlier event and
+          // queue a fresh one, even when the message is identical. Otherwise the
+          // old created_at puts it outside releaseSince's window forever.
+          tx.update('agent_events', duplicate.id, { acknowledged_at: tx.now });
+        } else {
+          // One pending event, but a new prompt may deserve another announcement.
+          const updated = tx.update('agent_events', duplicate.id, { message });
+          if (!quiet) tx.afterCommit(() => this.announce(updated));
+          return updated;
+        }
       }
 
       const event = tx.insert('agent_events', {
@@ -95,7 +104,7 @@ export class Attention {
         project,
         message,
       });
-      if (!this.isQuiet(tx)) tx.afterCommit(() => this.announce(event));
+      if (!quiet) tx.afterCommit(() => this.announce(event));
       return event;
     });
   }

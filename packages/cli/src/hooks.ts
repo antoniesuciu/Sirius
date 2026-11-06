@@ -1,8 +1,8 @@
 /** `sirius setup-hooks`: wires agents to `sirius notify` (spec section 9). */
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-/** Only when Claude is blocked on you. An idle session is not news (owner, 2026-11-03). */
-const NOTIFICATION_MATCHER = 'permission_prompt|elicitation_dialog';
+/** Permissions use PermissionRequest: Notification waits until the user has been away. */
+const NOTIFICATION_MATCHER = 'elicitation_dialog';
 
 interface CommandHook {
   type: 'command';
@@ -21,11 +21,20 @@ interface ClaudeSettings {
 
 function addHook(settings: ClaudeSettings, event: string, group: HookGroup, marker: string): void {
   settings.hooks ??= {};
-  const groups = (settings.hooks[event] ??= []);
-  const ours = groups.find((g) => g.hooks?.some((h) => h.command?.includes(marker)));
-  if (!ours) groups.push(group);
-  // Ours already: bring its matcher up to date, so a narrower one reaches existing installs.
-  else if (group.matcher) ours.matcher = group.matcher;
+  // Replace our definitions, including old paths and options. A mixed group keeps its
+  // original matcher and other handlers; narrowing ours must not narrow theirs.
+  const groups: HookGroup[] = [];
+  for (const current of settings.hooks[event] ?? []) {
+    const hooks = current.hooks.filter((h) => !h.command?.includes(marker));
+    if (hooks.length) groups.push({ ...current, hooks });
+  }
+  groups.push(group);
+  settings.hooks[event] = groups;
+}
+
+/** Hook commands are shell strings; ordinary executable paths stay readable. */
+function shellPath(path: string): string {
+  return /^[\w/.-]+$/.test(path) ? path : `'${path.replaceAll("'", "'\"'\"'")}'`;
 }
 
 /** Adds Sirius's hooks, keeping everything already there. Safe to run twice. */
@@ -35,17 +44,36 @@ export function mergeClaudeSettings(
   options: { withStop?: boolean } = {},
 ): ClaudeSettings {
   const settings = structuredClone(existing);
+  const command = `${shellPath(bin)} notify --source claude --kind needs_input`;
+  addHook(
+    settings,
+    'PermissionRequest',
+    { matcher: '*', hooks: [{ type: 'command', command }] },
+    'notify --source claude --kind needs_input',
+  );
+  addHook(
+    settings,
+    'PreToolUse',
+    { matcher: 'AskUserQuestion', hooks: [{ type: 'command', command }] },
+    'notify --source claude --kind needs_input',
+  );
   addHook(
     settings,
     'Notification',
     {
       matcher: NOTIFICATION_MATCHER,
-      hooks: [{ type: 'command', command: `${bin} notify --source claude --kind needs_input` }],
+      hooks: [{ type: 'command', command }],
     },
     'notify --source claude --kind needs_input',
   );
   // Either one means a permission prompt was answered, so its alert can go (2026-11-03).
-  const resolve = `${bin} notify --source claude --resolve`;
+  const resolve = `${shellPath(bin)} notify --source claude --resolve`;
+  addHook(
+    settings,
+    'PostToolUseFailure',
+    { matcher: '*', hooks: [{ type: 'command', command: resolve }] },
+    'notify --source claude --resolve',
+  );
   addHook(
     settings,
     'PostToolUse',
@@ -58,16 +86,22 @@ export function mergeClaudeSettings(
     { hooks: [{ type: 'command', command: resolve }] },
     'notify --source claude --resolve',
   );
-  if (options.withStop) {
-    addHook(
-      settings,
-      'Stop',
-      {
-        hooks: [{ type: 'command', command: `${bin} notify --source claude --kind turn_complete` }],
-      },
-      'notify --source claude --kind turn_complete',
-    );
-  }
+  // A stopped turn clears stale attention even when completion notifications are off.
+  addHook(
+    settings,
+    'Stop',
+    {
+      hooks: [
+        {
+          type: 'command',
+          command: options.withStop
+            ? `${shellPath(bin)} notify --source claude --kind turn_complete`
+            : resolve,
+        },
+      ],
+    },
+    'notify --source claude',
+  );
   return settings;
 }
 
@@ -82,7 +116,8 @@ export interface CodexMerge {
 
 /** TOML top-level keys must precede the first table, so the line goes at the very top. */
 export function mergeCodexConfig(existing: string, bin: string): CodexMerge {
-  const line = `notify = ["${bin}", "notify", "--source", "codex", "--from-codex-json"]`;
+  const args = [bin, 'notify', '--source', 'codex', '--from-codex-json'];
+  const line = `notify = [${args.map((arg) => JSON.stringify(arg)).join(', ')}]`;
   if (existing.includes('"--from-codex-json"')) {
     return { text: existing, changed: false, conflict: false };
   }
@@ -97,6 +132,7 @@ export function mergeCodexConfig(existing: string, bin: string): CodexMerge {
  */
 export function mergeCodexHooks(existing: ClaudeSettings, bin: string): ClaudeSettings {
   const settings = structuredClone(existing);
+  const executable = shellPath(bin);
   const hook = (command: string) => ({
     type: 'command' as const,
     command,
@@ -106,10 +142,10 @@ export function mergeCodexHooks(existing: ClaudeSettings, bin: string): ClaudeSe
   addHook(
     settings,
     'PermissionRequest',
-    { matcher: '*', hooks: [hook(`${bin} notify --source codex --from-codex-hook`)] },
+    { matcher: '*', hooks: [hook(`${executable} notify --source codex --from-codex-hook`)] },
     'notify --source codex --from-codex-hook',
   );
-  const resolve = `${bin} notify --source codex --resolve`;
+  const resolve = `${executable} notify --source codex --resolve`;
   addHook(
     settings,
     'PostToolUse',

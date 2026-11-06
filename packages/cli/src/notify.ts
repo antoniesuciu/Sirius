@@ -3,7 +3,7 @@
  * every path exits 0 and the request gives up quickly when the core is down (spec section 9).
  */
 import { basename } from 'node:path';
-import type { AgentEventKind, AgentId, OpInput } from '@sirius/contracts';
+import type { AgentEventKind, OpInput } from '@sirius/contracts';
 
 type AgentEventInput = OpInput<'post_agent_event'>;
 
@@ -11,15 +11,31 @@ const projectOf = (cwd: unknown) => (typeof cwd === 'string' && cwd ? basename(c
 
 /** Claude Code sends the hook input as JSON on stdin. Null means not worth an alert. */
 export function fromClaudeHook(raw: string, kind: AgentEventKind): AgentEventInput | null {
-  const data = JSON.parse(raw) as { cwd?: string; message?: string; notification_type?: string };
+  const data = JSON.parse(raw) as {
+    cwd?: string;
+    message?: string;
+    notification_type?: string;
+    hook_event_name?: string;
+    tool_name?: string;
+  };
   // An idle session is not waiting on anything. Older hook setups still send these.
   if (data.notification_type === 'idle_prompt') return null;
-  if (/waiting for your input/i.test(data.message ?? '')) return null;
+  if (
+    !data.notification_type &&
+    (!data.hook_event_name || data.hook_event_name === 'Notification') &&
+    /waiting for your input/i.test(data.message ?? '')
+  )
+    return null;
+  let message = data.message;
+  if (data.hook_event_name === 'PermissionRequest') message = 'Claude Code needs your approval';
+  if (data.hook_event_name === 'PreToolUse' && data.tool_name === 'AskUserQuestion') {
+    message = 'Claude Code has a question for you';
+  }
   return {
     source: 'claude',
     kind,
     ...(projectOf(data.cwd) ? { project: projectOf(data.cwd) } : {}),
-    ...(data.message ? { message: data.message.slice(0, 500) } : {}),
+    ...(message ? { message: message.slice(0, 500) } : {}),
   };
 }
 
@@ -44,11 +60,12 @@ export function fromCodexHook(raw: string): AgentEventInput {
 }
 
 /** Codex passes one JSON argument. `agent-turn-complete` is the only documented type. */
-export function fromCodexJson(raw: string): AgentEventInput {
+export function fromCodexJson(raw: string): AgentEventInput | null {
   const data = JSON.parse(raw) as { type?: string; cwd?: string };
+  if (data.type !== 'agent-turn-complete') return null;
   return {
     source: 'codex',
-    kind: data.type === 'agent-turn-complete' ? 'turn_complete' : 'needs_input',
+    kind: 'turn_complete',
     ...(projectOf(data.cwd) ? { project: projectOf(data.cwd) } : {}),
   };
 }
@@ -60,6 +77,18 @@ export async function readStdin(timeoutMs = 500): Promise<string> {
   const read = (async () => {
     for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
   })();
-  await Promise.race([read, Bun.sleep(timeoutMs)]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      read,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    // A timed-out async iterator still holds stdin open unless it is destroyed.
+    process.stdin.destroy();
+  }
   return Buffer.concat(chunks).toString('utf8');
 }

@@ -58,10 +58,9 @@ describe('mergeClaudeSettings', () => {
     expect(merged.hooks?.Notification?.[0]?.hooks[0]?.command).toBe('mine');
   });
 
-  test('uses the documented matcher and needs_input', () => {
-    const group = mergeClaudeSettings({}, BIN).hooks?.Notification?.[0];
-    expect(group?.matcher).toContain('permission_prompt');
-    expect(group?.matcher).not.toContain('idle_prompt');
+  test('uses the immediate permission hook and needs_input', () => {
+    const group = mergeClaudeSettings({}, BIN).hooks?.PermissionRequest?.[0];
+    expect(group?.matcher).toBe('*');
     expect(group?.hooks[0]?.command).toBe(`${BIN} notify --source claude --kind needs_input`);
   });
 
@@ -74,9 +73,11 @@ describe('mergeClaudeSettings', () => {
     expect(hooks?.UserPromptSubmit).toEqual([{ hooks: [{ type: 'command', command: resolve }] }]);
   });
 
-  test('the Stop hook is off unless asked for', () => {
-    expect(mergeClaudeSettings({}, BIN).hooks?.Stop).toBeUndefined();
-    expect(mergeClaudeSettings({}, BIN, { withStop: true }).hooks?.Stop?.length).toBe(1);
+  test('Stop clears attention silently unless completion alerts are requested', () => {
+    expect(mergeClaudeSettings({}, BIN).hooks?.Stop?.[0]?.hooks[0]?.command).toContain('--resolve');
+    expect(
+      mergeClaudeSettings({}, BIN, { withStop: true }).hooks?.Stop?.[0]?.hooks[0]?.command,
+    ).toContain('--kind turn_complete');
   });
 
   test('an existing Sirius hook gets the narrower matcher', () => {
@@ -97,7 +98,7 @@ describe('mergeClaudeSettings', () => {
     };
     const groups = mergeClaudeSettings(old, BIN).hooks?.Notification ?? [];
     expect(groups).toHaveLength(1);
-    expect(groups[0]?.matcher).toBe('permission_prompt|elicitation_dialog');
+    expect(groups[0]?.matcher).toBe('elicitation_dialog');
   });
 
   test('running twice adds nothing', () => {
