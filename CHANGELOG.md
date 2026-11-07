@@ -184,3 +184,5 @@
 - Goals: "A step closer" marks today as worked on, without adding a milestone. Roadmaps: a task
   from "Put it in Today" logs a day worked on the step when ticked (F12).
 - Black Night theme (the former Orb, renamed, with the wolf's gradient).
+- **Sirius: Today (small)**, a row shorter; a Today widget about two rows high tightens its header.
+- Schedule: an entry with no end time counts as an hour long before it leaves today's list.

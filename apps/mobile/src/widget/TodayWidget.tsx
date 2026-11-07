@@ -17,12 +17,15 @@ export function TodayWidget({
   list,
   colors,
   theme,
+  compact = false,
   note,
 }: {
   tasks: WidgetTask[];
   list: WidgetItem[];
   colors: Colors;
   theme: string;
+  /** About two rows high: a smaller header and tighter rows, so more of the list shows. */
+  compact?: boolean;
   note?: string;
 }) {
   const fonts = fontsFor(theme);
@@ -45,7 +48,7 @@ export function TodayWidget({
         width: 'match_parent',
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 6,
+        paddingVertical: compact ? 4 : 6,
       }}
     >
       <TextWidget text={mark} style={{ fontSize: 17, color: ink, marginRight: 10 }} />
@@ -64,7 +67,7 @@ export function TodayWidget({
         width: 'match_parent',
         backgroundColor: colors.panel as Hex,
         borderRadius: 20,
-        padding: 14,
+        padding: compact ? 10 : 14,
         flexDirection: 'column',
       }}
       accessibilityLabel="Sirius, today"
@@ -75,7 +78,7 @@ export function TodayWidget({
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 6,
+          marginBottom: compact ? 2 : 6,
         }}
       >
         <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -85,12 +88,15 @@ export function TodayWidget({
             accessibilityLabel="Talk to Sirius"
             style={{ marginRight: 10 }}
           >
-            <SvgWidget svg={wolfSvg(colors)} style={{ height: 52, width: 52 }} />
+            <SvgWidget
+              svg={wolfSvg(colors)}
+              style={{ height: compact ? 38 : 52, width: compact ? 38 : 52 }}
+            />
           </FlexWidget>
           <TextWidget
             text="Today"
             clickAction="OPEN_APP"
-            style={{ fontSize: 24, fontFamily: fonts.title, color: ink }}
+            style={{ fontSize: compact ? 20 : 24, fontFamily: fonts.title, color: ink }}
           />
         </FlexWidget>
         <TextWidget

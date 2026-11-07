@@ -49,20 +49,24 @@ export function fontsFor(theme: string): { text: string; title: string } {
 
 /**
  * Every widget draw rebuilds its images and reloads its list, which flickers, so a draw that
- * would look the same as the last one is skipped. `forget` makes the next draw happen.
+ * would look the same as that widget's last one is skipped. `forget` makes its next draw happen.
  */
 export function onlyChanges() {
-  let shown: string | undefined;
+  const shown = new Map<number, string>();
   return {
-    draw(look: unknown, paint: () => unknown): boolean {
+    draw(widgetId: number, look: unknown, paint: () => unknown): boolean {
       const key = JSON.stringify(look);
-      if (key === shown) return false;
-      shown = key;
+      if (shown.get(widgetId) === key) return false;
+      shown.set(widgetId, key);
       paint();
       return true;
     },
-    forget() {
-      shown = undefined;
+    forget(widgetId: number) {
+      shown.delete(widgetId);
     },
   };
 }
+
+/** Below this height (dp), about two rows of home screen, the widget tightens its header. */
+export const compactBelow = 170;
+export const isCompact = (heightDp: number) => heightDp < compactBelow;

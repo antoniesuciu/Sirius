@@ -15,7 +15,7 @@ widget, background sync and on-time reminders.
    time** if it appears: without the exact-alarm permission Android may deliver a reminder
    minutes late.
 5. Add the widgets: long-press the home screen, Widgets, then **Sirius: Today** (tasks and
-   things to remember) and **Sirius: Talk** (the wolf, which opens Sirius listening).
+   things to remember; **Sirius: Today (small)** is a row shorter) and **Sirius: Talk** (the wolf, which opens Sirius listening).
 6. On Honor/MagicOS: Settings, Battery, App launch, Sirius, **Manage manually**, all three on.
    Otherwise MagicOS stops the background sync (see dontkillmyapp.com/huawei).
 

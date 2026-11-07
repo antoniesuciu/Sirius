@@ -169,12 +169,14 @@ Instead of installing the page from Chrome, you can use the Sirius app. Its scre
 web phone app, served by the laptop, so a UI change reaches the phone with no new APK. Around
 it, the app schedules reminders and schedule alerts on the phone itself, so they ring with the
 laptop off, turns agent alerts into notifications, refreshes in the background about every
-15 minutes, and adds two home-screen widgets:
+15 minutes, and adds three home-screen widgets:
 
 - **Sirius: Today**: today's tasks, then the things to remember, in one list that scrolls.
   Tap a task to tick or untick it and an item to tick it off; the tick shows at once and the
   laptop's answer confirms it. Tap the wolf to talk, or the title to open the app without the
   microphone. It uses the theme's colours and fonts.
+- **Sirius: Today (small)**: the same, a row shorter. Any Today widget resized to about two
+  rows tightens its header so more of the list shows.
 - **Sirius: Talk**: just the wolf, one cell and resizable. A tap opens Sirius already listening.
 
 Both open the app through the `sirius://listen` link. The widgets show the laptop's data when it

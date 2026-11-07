@@ -79,6 +79,18 @@
               "resizeMode": "horizontal|vertical"
             },
             {
+              "name": "TodaySmall",
+              "label": "Sirius: Today (small)",
+              "description": "Today's tasks and the things to remember, a row shorter",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "previewImage": "./assets/widget-preview/today-small.png",
+              "updatePeriodMillis": 1800000,
+              "resizeMode": "horizontal|vertical"
+            },
+            {
               "name": "Wolf",
               "label": "Sirius: Talk",
               "description": "The wolf: tap to talk to Sirius",

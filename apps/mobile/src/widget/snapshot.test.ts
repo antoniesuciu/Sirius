@@ -62,14 +62,22 @@ describe('widget draws', () => {
     const today = onlyChanges();
     let draws = 0;
     const paint = () => draws++;
-    today.draw([snap(), false], paint); // the instant tick
-    today.draw([snap(), false], paint); // the laptop agrees
-    today.draw([snap(), false], paint); // the app heard the change
+    today.draw(1, [snap(), false], paint); // the instant tick
+    today.draw(1, [snap(), false], paint); // the laptop agrees
+    today.draw(1, [snap(), false], paint); // the app heard the change
     expect(draws).toBe(1);
-    today.draw([snap(), true], paint); // the laptop went away
+    today.draw(1, [snap(), true], paint); // the laptop went away
     expect(draws).toBe(2);
-    today.forget();
-    today.draw([snap(), true], paint);
+    today.forget(1);
+    today.draw(1, [snap(), true], paint);
     expect(draws).toBe(3);
+  });
+
+  test('each widget keeps its own last draw', () => {
+    const today = onlyChanges();
+    let draws = 0;
+    today.draw(1, [snap()], () => draws++);
+    today.draw(2, [snap()], () => draws++); // a second widget still gets the tick
+    expect(draws).toBe(2);
   });
 });

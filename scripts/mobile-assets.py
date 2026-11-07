@@ -46,6 +46,19 @@ for i, (task, done) in enumerate(rows):
     d.text((82, y), task, font=small, fill=MUTED if done else INK)
 preview.save(OUT + 'widget-preview/today.png')
 
+# The small Today: the same widget, a row shorter, with its tighter header.
+w2, h2 = 500, 240
+small_preview = Image.new('RGBA', (w2, h2), (0, 0, 0, 0))
+d2 = ImageDraw.Draw(small_preview)
+d2.rounded_rectangle((0, 0, w2 - 1, h2 - 1), 40, fill=PANEL)
+d2.text((28, 16), 'Today', font=big, fill=INK)
+d2.text((w2 - 140, 28), '2 open', font=small, fill=MUTED)
+for i, (task, done) in enumerate([('Derive the covariance update', False), ('Ten pages of Abbott', True)]):
+    y = 82 + i * 64
+    d2.ellipse((30, y + 6, 62, y + 38), outline=INK, width=3, fill=INK if done else None)
+    d2.text((82, y), task, font=small, fill=MUTED if done else INK)
+small_preview.save(OUT + 'widget-preview/today-small.png')
+
 # The one-cell wolf widget: the logo on the panel, as the home screen shows it.
 wolf = Image.new('RGBA', (180, 180), (0, 0, 0, 0))
 ImageDraw.Draw(wolf).ellipse((0, 0, 179, 179), fill=PANEL)
