@@ -201,7 +201,7 @@ export class Chat {
       ...(documents.length > 0 ? [documentSection(documents)] : []),
       ...(changed.length > 0
         ? [
-            `Since your last reply, they did this on the dashboard themselves:\n${changed.map((c) => `- ${c}`).join('\n')}`,
+            `Since your last reply, they did this on the dashboard themselves (background, so you do not report stale state; do not bring it up unless their message is about it):\n${changed.map((c) => `- ${c}`).join('\n')}`,
           ]
         : []),
     ];
