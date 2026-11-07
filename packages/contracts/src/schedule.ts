@@ -28,14 +28,25 @@ export function describeWeekdays(mask: number): string {
 /** Minutes before a schedule event that it is announced, the same on the laptop and the phone. */
 export const REMIND_BEFORE_MIN = 10;
 
+/** An entry with no end time is taken to last this long. */
+const DEFAULT_LENGTH_MIN = 60;
+
+const minutes = (hhmm: string) => {
+  const [h = 0, m = 0] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
+
 /**
- * Whether an occurrence still belongs on screen at `now`: until its end, or its start when it
- * has none. Only `today` (the logical day, which runs to 04:00) can be over; before 04:00 the
- * clock reads as 24:00 and later, so last evening's entries do not come back after midnight.
+ * Whether an occurrence still belongs on screen at `now`: until its end, or an hour after its
+ * start when it has none. Only `today` (the logical day, which runs to 04:00) can be over;
+ * before 04:00 the clock counts on past 24:00, so last evening's entries do not come back.
  */
 export function notOver(occurrence: ScheduleOccurrence, today: string, now: Date): boolean {
   if (occurrence.date !== today) return true;
-  const hours = now.getHours() + (now.getHours() < ROLLOVER_HOUR ? 24 : 0);
-  const time = `${String(hours).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  return (occurrence.end_local ?? occurrence.start_local) > time;
+  const clock =
+    (now.getHours() + (now.getHours() < ROLLOVER_HOUR ? 24 : 0)) * 60 + now.getMinutes();
+  const end = occurrence.end_local
+    ? minutes(occurrence.end_local)
+    : minutes(occurrence.start_local) + DEFAULT_LENGTH_MIN;
+  return end > clock;
 }

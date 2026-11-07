@@ -19,9 +19,12 @@ describe('a schedule entry goes once it is over', () => {
     expect(notOver(at(today, '10:00', '12:00'), today, clock('12:00'))).toBe(false);
   });
 
-  test('without an end, it goes once it has started', () => {
-    expect(notOver(at(today, '18:00'), today, clock('17:59'))).toBe(true);
-    expect(notOver(at(today, '18:00'), today, clock('18:00'))).toBe(false);
+  test('without an end, it lasts an hour', () => {
+    expect(notOver(at(today, '18:00'), today, clock('18:59'))).toBe(true);
+    expect(notOver(at(today, '18:00'), today, clock('19:00'))).toBe(false);
+    // 23:30 runs to 00:30, still the same logical day.
+    expect(notOver(at(today, '23:30'), today, new Date('2026-11-07T00:15:00'))).toBe(true);
+    expect(notOver(at(today, '23:30'), today, new Date('2026-11-07T00:30:00'))).toBe(false);
   });
 
   test('other days are never over yet', () => {
