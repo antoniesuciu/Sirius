@@ -31,6 +31,11 @@ export const THEMES = {
     ground: '#e1e7da',
   },
   ember: { label: 'Ember', note: 'Near-black warm brown with an orange glow.', ground: '#140e0b' },
+  'black-night': {
+    label: 'Black Night',
+    note: 'Pure black, sans type, a blue-to-orange gradient.',
+    ground: '#000000',
+  },
 } as const;
 
 export type ThemeId = keyof typeof THEMES;

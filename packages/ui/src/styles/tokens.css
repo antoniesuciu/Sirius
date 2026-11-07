@@ -144,3 +144,27 @@
   --sirius-glow: #ffe2b0;
   color-scheme: dark;
 }
+
+:root[data-theme="black-night"] {
+  --bg: #000000;
+  --panel: #0a0a0c;
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --line-soft: rgba(255, 255, 255, 0.26);
+  --line-mid: rgba(255, 255, 255, 0.2);
+  --rail: rgba(255, 255, 255, 0.12);
+  --ink: #f2f2f5;
+  --ink-2: #c9c9d1;
+  --muted: #8d8d99;
+  --placeholder: #6c6c78;
+  --accent: #9b8cff;
+  --bubble-sirius: #141418;
+  --input: #050506;
+  --on-ink: #000000;
+  --on-ink-soft: rgba(0, 0, 0, 0.6);
+  --shadow: rgba(0, 0, 0, 0.6);
+  --sirius-1: #6f9dff;
+  --sirius-2: #e45c8c;
+  --sirius-glow: #c4d4ff;
+  --font: Inter, Ubuntu, "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}

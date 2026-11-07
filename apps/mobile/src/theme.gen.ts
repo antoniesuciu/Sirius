@@ -89,5 +89,20 @@ export const THEME_COLORS = {
     "onInk": "#140e0b",
     "sirius1": "#ffd08a",
     "sirius2": "#f0603a"
+  },
+  "black-night": {
+    "bg": "#000000",
+    "panel": "#0a0a0c",
+    "panelBorder": "rgba(255, 255, 255, 0.1)",
+    "lineMid": "rgba(255, 255, 255, 0.2)",
+    "ink": "#f2f2f5",
+    "muted": "#8d8d99",
+    "placeholder": "#6c6c78",
+    "accent": "#9b8cff",
+    "bubbleSirius": "#141418",
+    "input": "#050506",
+    "onInk": "#000000",
+    "sirius1": "#6f9dff",
+    "sirius2": "#e45c8c"
   }
 } as const;

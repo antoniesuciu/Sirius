@@ -5,7 +5,15 @@ test('the Sirius wolf is visible and still while idle in all themes', async ({ p
   test.skip(info.project.name !== 'desktop');
   mkdirSync('docs/design/logos/themes', { recursive: true });
   await page.goto('/?fixtures&toastMs=600000');
-  for (const theme of ['paper', 'midnight', 'night-owl', 'graphite', 'sage', 'ember']) {
+  for (const theme of [
+    'paper',
+    'midnight',
+    'night-owl',
+    'graphite',
+    'sage',
+    'ember',
+    'black-night',
+  ]) {
     await page.getByLabel('Message Sirius').fill(`theme ${theme}`);
     await page.getByLabel('Message Sirius').press('Enter');
     await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();

@@ -18,7 +18,7 @@ describe('appearance (F40)', () => {
     const h = harness();
     // Refused by the schema, which the HTTP layer reports as invalid_input.
     expect(() => h.run('set_appearance', { theme: 'neon' as never }, CLAUDE)).toThrow();
-    expect(Object.keys(THEMES)).not.toContain('orb');
+    expect(Object.keys(THEMES)).toContain('black-night');
   });
 
   test('it is one of the tools agents get', () => {
