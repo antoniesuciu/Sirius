@@ -31,6 +31,7 @@ working from its own copy while the laptop is away.
 - [Privacy and safety](#privacy-and-safety)
 - [Development](#development)
 - [Status and known limits](#status-and-known-limits)
+- [What's next](#whats-next)
 - [Documentation](#documentation)
 
 ## Features
@@ -38,17 +39,17 @@ working from its own copy while the laptop is away.
 | Area | What it does |
 |---|---|
 | **Sirius** | A chat with Claude or Codex, switched with one tap, through the official CLIs. One conversation lasts until you start a new one, and it carries over when you switch agents. Pick the model under the switch: Claude's, or four Codex presets, each with its own reasoning effort. A memory file keeps lasting facts across sessions. |
-| **Today** | Two or three priorities plus small tasks. Unfinished tasks move quietly to the next day at 04:00. |
+| **Today** | Two or three priorities plus small tasks. Unfinished tasks move quietly to the next day at 04:00. When only small things are left, the greeting says so: "Something is waiting for you." |
 | **Schedule** | Fixed commitments such as lectures, the gym or shifts: weekly on chosen days within a term, or once. Kept apart from tasks, with a reminder 10 minutes before. Sirius can add them for you, and your phone's calendar can show them. |
-| **Goals** | A few goals, with milestone dots instead of percentages. You can add them by hand or ask Sirius. |
-| **Learning** | Independent roadmaps, each with its milestones and its own page of checkpoints, descriptions and progress notes. "Put it in Today" turns the next step into a task. Attach a syllabus PDF or Markdown file in the chat, and Sirius turns it into a roadmap. |
+| **Goals** | A few goals, with milestone dots instead of percentages. "A step closer" marks today as a day you worked on the goal, without adding a milestone. You can add goals by hand or ask Sirius. |
+| **Learning** | Independent roadmaps, each with its milestones and its own page of checkpoints, descriptions and progress notes. "Put it in Today" turns the next step into a task; ticking that task logs a day worked on the step and leaves the step open until you finish it. Attach a syllabus PDF or Markdown file in the chat, and Sirius turns it into a roadmap. |
 | **To remember** | A plain list for things to buy or remember, with no day or time attached. |
 | **Personal and Well-being** | Prayer and reflection reminders, a breathing exercise and stretch nudges. |
 | **Agent attention** | A toast and a desktop notification when Claude Code or Codex, in any terminal, is blocked on a permission prompt or a question. It clears itself once you answer. Clicking it brings up the terminal or VS Code the agent runs in, also from a distrobox container; with the focus extension, that agent's own window. The Sirius card shows which sessions are working or idle. |
 | **Voice** | Push-to-talk with **Ctrl+Alt+Space**, in English and Romanian. Common commands such as "add milk to my list" or "ce urmează" are handled on the laptop without an agent turn, and anything else goes to the agent. |
-| **Looks** | Six themes; ask Sirius ("switch to midnight", "something darker"). The Sirius wolf takes each theme's colours and reacts to what happens: it draws itself in at launch, listens, thinks and speaks with the voice, works while an agent runs, howls when one finishes or wants you, and sleeps in quiet mode. |
-| **Phone** | An installable web app over Tailscale, with its own layout: Today, Sirius, Plan and List behind a bottom bar, and a mic that sends your voice to the laptop and says the answer on the phone. It keeps an offline copy, queues the changes you make while away, and sends each one exactly once when the laptop is back. |
-| **Android app** | The same phone app in a native shell, which adds reminders scheduled on the phone (they fire with the laptop off), agent alerts, a Today widget and background sync. No Google account, no Firebase, built locally for free. |
+| **Looks** | Seven themes, among them Black Night (black with the wolf's blue-to-orange gradient); ask Sirius ("switch to midnight", "something darker"). The Sirius wolf takes each theme's colours and reacts to what happens: it draws itself in at launch, listens, thinks and speaks with the voice, works while an agent runs, howls when one finishes or wants you, and sleeps in quiet mode. |
+| **Phone** | An installable web app over Tailscale, with its own layout: Today, Sirius, Plan and List behind a bottom bar, and a mic that sends your voice to the laptop, stops by itself once you go quiet, and says the answer on the phone. It keeps an offline copy, opens from it within about three seconds when the laptop does not answer, queues the changes you make while away, and sends each one exactly once when the laptop is back. |
+| **Android app** | The same phone app in a native shell, which adds reminders scheduled on the phone (they fire with the laptop off), agent alerts, home-screen widgets and background sync. No Google account, no Firebase, built locally for free. |
 
 Agents never change several things at once, or delete anything, without you confirming a
 proposal card. Single changes an agent makes can be undone for 30 seconds.
@@ -168,7 +169,19 @@ Instead of installing the page from Chrome, you can use the Sirius app. Its scre
 web phone app, served by the laptop, so a UI change reaches the phone with no new APK. Around
 it, the app schedules reminders and schedule alerts on the phone itself, so they ring with the
 laptop off, turns agent alerts into notifications, refreshes in the background about every
-15 minutes, and adds a **Sirius: Today** home-screen widget.
+15 minutes, and adds two home-screen widgets:
+
+- **Sirius: Today**: today's tasks, then the things to remember, in one list that scrolls.
+  Tap a task to tick or untick it and an item to tick it off; the tick shows at once and the
+  laptop's answer confirms it. Tap the wolf to talk, or the title to open the app without the
+  microphone. It uses the theme's colours and fonts.
+- **Sirius: Talk**: just the wolf, one cell and resizable. A tap opens Sirius already listening.
+
+Both open the app through the `sirius://listen` link. The widgets show the laptop's data when it
+answers and the last saved copy when it does not, marked "Laptop away"; a tick made while the
+laptop is away is put back rather than queued. Home-screen widgets cannot animate, so the wolf
+there is still; it moves once the app is open. If the app's page ever goes blank after the phone
+has been away, the app reloads it by itself.
 
 ```bash
 scripts/android-build.sh    # writes releases/sirius-android-<version>.apk
@@ -279,10 +292,28 @@ phone. Known limits:
 - **Android app:** built on the laptop and signed with React Native's debug key, so it installs
   by hand, not from a store. Its screen needs the laptop (or the page's last cached copy);
   agent alerts with the app closed arrive at the next background sync, up to about 15 minutes
-  late, unless ntfy is set up. No iPhone app yet: it needs the paid Apple Developer Program.
+  late, unless ntfy is set up. Widget ticks are not queued while the laptop is away. No iPhone
+  app yet: it needs the paid Apple Developer Program.
 - **Remote mode** (Docker, Cloudflare, ntfy) is built and tested locally, but has never been
   deployed. The container also has no agent CLIs.
-- **Wake word:** "Hey Sirius" is planned for M9.
+- **Wake word:** not built yet; see below.
+
+## What's next
+
+In rough order:
+
+1. **Wake word.** "Hey Sirius" on the laptop, so you can talk without the shortcut (M9 in
+   [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)). Listening for it must stay within the idle
+   budget of ADR 0004. It also means a microphone that is always open, so the promise under
+   [Privacy and safety](#privacy-and-safety) changes from "only while you speak" to "audio
+   stays in memory on the laptop".
+2. **Your own voices.** Voices are fixed in `deployment.env` at install. Next: a voice setting
+   at runtime, an upload from the app, and the voice service reloading it without a reinstall.
+3. **Instant phone alerts with the app closed.** Today they wait for the next background sync.
+   A self-hosted ntfy server would make them instant with no Google services and no cost.
+4. **iPhone.** The Expo app is written to work on iOS, but installing it needs the Apple
+   Developer Program ($99 a year) and a Mac or a cloud build. Not planned until that is worth
+   paying for.
 
 ## Documentation
 

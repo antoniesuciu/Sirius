@@ -164,3 +164,23 @@
   (Ubuntu font), Graphite, Sage, Ember and Orb (black with a blue-to-orange gradient, from the
   owner's reference); a dot-matrix sphere, a ring with arcs running round it, or a dot. A large
   orb comes up over the chat while a voice is on. Icons, leaves and shadows follow the theme.
+
+## Phone polish (2026-11-07)
+
+- Widgets: **Sirius: Today** now lists today's tasks and the things to remember in one list
+  that scrolls, in the theme's own fonts (it used Android's default font before), with a larger
+  wolf that opens Sirius listening. New one-cell **Sirius: Talk** widget, just the wolf. A tick
+  shows at once and redraws only when the laptop's answer differs, so the widget no longer
+  reloads two or three times per tap.
+- `sirius://listen` opens the app on the Sirius tab with the microphone on, whether the app was
+  open or not.
+- The phone's microphone stops by itself 1.5 s after you stop speaking.
+- Offline: the phone opens its saved copy within 3 s when the laptop does not answer (the page
+  used to wait forever over Tailscale), and the copy's files are found again (`Vary` made the
+  cache miss them). The app reloads its page when Android has killed it in the background.
+- Chat: replies no longer hang after the last word. The turn ends on the CLI's result line, and
+  the core sends a small extra chunk after each event because the desktop's WebKitGTK holds the
+  last one back.
+- Goals: "A step closer" marks today as worked on, without adding a milestone. Roadmaps: a task
+  from "Put it in Today" logs a day worked on the step when ticked (F12).
+- Black Night theme (the former Orb, renamed, with the wolf's gradient).
