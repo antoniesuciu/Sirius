@@ -19,12 +19,14 @@ working from its own copy while the laptop is away.
 ## Contents
 
 - [Features](#features)
+- [Themes](#themes)
 - [Screens](#screens)
 - [How it works](#how-it-works)
 - [Requirements](#requirements)
 - [Install](#install)
 - [Pair a phone](#pair-a-phone)
 - [The Android app](#the-android-app)
+- [The GNOME extension](#the-gnome-extension)
 - [Everyday use](#everyday-use)
 - [Configuration](#configuration)
 - [Where your data lives](#where-your-data-lives)
@@ -32,6 +34,7 @@ working from its own copy while the laptop is away.
 - [Development](#development)
 - [Status and known limits](#status-and-known-limits)
 - [What's next](#whats-next)
+- [How it was built](#how-it-was-built)
 - [Documentation](#documentation)
 
 ## Features
@@ -53,6 +56,24 @@ working from its own copy while the laptop is away.
 
 Agents never change several things at once, or delete anything, without you confirming a
 proposal card. Single changes an agent makes can be undone for 30 seconds.
+
+## Themes
+
+Seven themes, each with its own colours, type and wolf. Switch by asking Sirius ("switch to
+graphite", "something darker", "the blue one"); the desktop, the phone and the widgets follow.
+
+| Theme | Looks | Type |
+|---|---|---|
+| **Paper** | Warm cream with an olive accent. The original. | Newsreader (serif) |
+| **Midnight Blue** | Deep blue-black with a strong blue accent. | Newsreader |
+| **Night Owl** | VS Code's Night Owl palette. | Ubuntu |
+| **Graphite** | Neutral dark grey with a gold accent. | Newsreader |
+| **Sage** | Light green-grey paper with a deep green accent. | Newsreader |
+| **Ember** | Near-black warm brown with an orange glow. | Newsreader |
+| **Black Night** | Pure black with a blue-to-orange gradient. | Inter (sans) |
+
+The themes are CSS tokens in `packages/ui/src/styles/tokens.css`; `scripts/mobile-themes.ts`
+turns them into the Android app's colours, so there is one source for both.
 
 ## Screens
 
@@ -195,6 +216,44 @@ the address and code into the app. The full steps, including the battery setting
 are in [apps/mobile/README.md](apps/mobile/README.md); the reasoning is in ADR 0013 and 0014.
 If browser notifications are on in Chrome too, turn them off there, or reminders arrive twice.
 
+## The GNOME extension
+
+The small piece that makes agent alerts feel magic. You have three VS Code windows open and a
+Codex session in `ros2_ws` stops to ask for approval. The alert says so, and clicking it brings
+up **that** window, the one with `ros2_ws` in it, even if the session runs inside a distrobox
+container and even if you used another VS Code window last.
+
+Why it needs an extension: on Wayland, no ordinary program may raise another program's window.
+GNOME only lets an alert activate an *app*, which then shows whichever of its windows was used
+last. Only code running inside GNOME Shell can pick one window. So Sirius ships a GNOME Shell
+extension, `apps/gnome-extension/sirius-focus@sirius`, 51 lines of JavaScript:
+
+```
+ agent waits ──► sirius notify ──► sirius-core ──► alert with a click action
+                                                         │ you click
+                                                         ▼
+          GNOME Shell ◄── D-Bus: org.sirius.Focus.Activate("code", "ros2_ws")
+          raises the most recently used VS Code window whose title names ros2_ws
+```
+
+- **One method, which can only focus.** Any program on your session bus could call it, so it
+  reads nothing out: no window list, no titles, just "found" or "not found".
+- **Exact folder matching.** `ws` does not match `ros2_ws`, and `Documents` does not match a
+  terminal at `~/Documents/sirius` (`names.js`, with tests). It works with VS Code's titles and
+  GNOME Terminal's `user@host:~/path` titles.
+- **Nothing breaks without it.** The core adds the click action only when the extension
+  answers; otherwise alerts behave as before and raise the app's latest window.
+
+Install it with `scripts/install.sh --with-focus`, then log out and in once, since GNOME loads new
+extensions at login. To try it by hand:
+
+```bash
+gdbus call --session --dest org.gnome.Shell --object-path /org/sirius/Focus \
+  --method org.sirius.Focus.Activate code sirius
+```
+
+The reasoning is in ADR 0015. It targets GNOME Shell 46, the version on Ubuntu 24.04.
+
 ## Everyday use
 
 | | |
@@ -316,6 +375,24 @@ In rough order:
 4. **iPhone.** The Expo app is written to work on iOS, but installing it needs the Apple
    Developer Program ($99 a year) and a Mac or a cloud build. Not planned until that is worth
    paying for.
+
+## How it was built
+
+Sirius was written by its owner with AI coding agents, the same two it runs: **Claude Code** and
+**Codex**, working one at a time on the repository. A few tools made that work across many
+sessions:
+
+- **[Matt Pocock's agent skills](https://github.com/mattpocock/skills)**: reusable instructions
+  for test-driven development, diagnosing hard bugs, domain modelling and ADRs, code review and
+  writing for agents. They keep each change small, tested and recorded.
+- **[claude-mem](https://github.com/thedotmack/claude-mem)**: memory across Claude Code
+  sessions. It records what each session found and decided, so the next one can search it
+  instead of rediscovering it. Its recall is treated as a hint and checked against the code.
+- **An Obsidian vault** shared by both agents: a project overview, the current state and the
+  architecture decisions, kept short and linking to the repository's own documents, which stay
+  the source of truth.
+- **This repository's own records**: `docs/REQUIREMENTS.md`, the ADRs in `docs/adr/` and
+  `AGENTS.md` files, so either agent can pick up where the other stopped.
 
 ## Documentation
 
