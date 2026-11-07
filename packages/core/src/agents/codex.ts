@@ -147,6 +147,8 @@ export function createCodexAdapter(options: AdapterOptions): AgentAdapter {
         if (!event) continue;
         ended ||= event.type === 'done' || event.type === 'error';
         yield event;
+        // As in claude.ts: do not hold the chat while the CLI exits after its answer.
+        if (event.type === 'done') return;
       }
       const { code, stderr, spawnError } = await finished;
       if (!ended && !turn.signal.aborted) {

@@ -24,7 +24,7 @@ const options: AdapterOptions = {
 const turn = { prompt: 'hi', model: 'm', signal: new AbortController().signal };
 
 /** A stand-in CLI: records its argv and prints a canned stream. */
-function fakeCli(lines: string[], exit = 0): { bin: string; argv: () => string[] } {
+function fakeCli(lines: string[], exit = 0, linger = 0): { bin: string; argv: () => string[] } {
   const dir = mkdtempSync(join(tmpdir(), 'sirius-cli-'));
   const out = join(dir, 'stream');
   const argvFile = join(dir, 'argv');
@@ -32,7 +32,7 @@ function fakeCli(lines: string[], exit = 0): { bin: string; argv: () => string[]
   const bin = join(dir, 'cli');
   writeFileSync(
     bin,
-    `#!/bin/sh\nfor a in "$@"; do printf '%s\\0' "$a"; done > ${argvFile}\ncat ${out}\nexit ${exit}\n`,
+    `#!/bin/sh\nfor a in "$@"; do printf '%s\\0' "$a"; done > ${argvFile}\ncat ${out}\nsleep ${linger}\nexit ${exit}\n`,
   );
   chmodSync(bin, 0o755);
   return { bin, argv: () => readFileSync(argvFile, 'utf8').split('\0').slice(0, -1) };
@@ -149,6 +149,14 @@ describe('claude adapter', () => {
     const events = await collect(adapter.run({ ...turn, prompt: nasty }));
     expect(events.map((e) => e.type)).toEqual(['text', 'done']);
     expect(cli.argv()[1]).toBe(nasty);
+  });
+
+  test('the turn ends at the result, not when the CLI gets round to exiting', async () => {
+    const cli = fakeCli(fixture('claude-text-turn.jsonl'), 0, 5);
+    const adapter = createClaudeAdapter({ ...options, bin: cli.bin });
+    const started = Date.now();
+    expect((await collect(adapter.run(turn))).map((e) => e.type)).toEqual(['text', 'done']);
+    expect(Date.now() - started).toBeLessThan(2000);
   });
 
   test('a process that dies without a result reports an error', async () => {

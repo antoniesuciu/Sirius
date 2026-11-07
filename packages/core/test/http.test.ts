@@ -113,6 +113,20 @@ test('SSE streams a change as it happens', async () => {
   expect(await seen).toMatchObject({ type: 'change', entity: 'tasks', op: 'create', rev: 1 });
 });
 
+test('SSE follows each event with a comment, so WebKitGTK hands the event over at once', async () => {
+  const { request, post } = setup();
+  const res = await request('/events');
+  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  await post('/tasks', { title: 'live' });
+  // The desktop app's WebKit keeps the last chunk until another one arrives.
+  while (!/data: .*\n\n:\n\n/.test(text)) {
+    text += decoder.decode((await reader.read()).value, { stream: true });
+  }
+  await reader.cancel();
+});
+
 test('CORS allows the Tauri origin and refuses others', async () => {
   const { app } = setup();
   const preflight = (origin: string) =>

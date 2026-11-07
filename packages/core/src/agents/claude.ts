@@ -118,6 +118,9 @@ export function createClaudeAdapter(options: AdapterOptions): AgentAdapter {
           stop.abort(); // Nothing after a failure is worth reading, or paying for.
           return;
         }
+        // The answer is complete; the CLI can take another second to exit, and the chat
+        // would stay locked for it. It is left to finish saving its session on its own.
+        if (event.type === 'done') return;
       }
       const { code, stderr, spawnError } = await finished;
       if (!ended && !turn.signal.aborted) {

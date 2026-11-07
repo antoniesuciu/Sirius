@@ -40,6 +40,7 @@ const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 const TRANSCRIBE_TIMEOUT_MS = 30_000;
 
 const HEARTBEAT_MS = 25_000;
+const NUDGE_MS = 50;
 const LAPTOP_ONLY = new Set(['/v1/phones/pairing', '/v1/phones/forget']);
 const UI_ORIGINS = ['tauri://localhost', 'http://tauri.localhost', 'http://localhost:5173'];
 
@@ -67,14 +68,20 @@ function eventStream(core: Core, attach: () => () => void): Response {
     start(controller) {
       const write = (text: string) => controller.enqueue(encoder.encode(text));
       write(': connected\n\n');
-      const unsubscribe = core.bus.subscribe((event: SiriusEvent) =>
-        write(`data: ${JSON.stringify(event)}\n\n`),
-      );
+      // WebKitGTK (the desktop app) holds back the last chunk it received until another one
+      // comes, so a lone `done` waited for the next ping. A comment just after lets it through.
+      let nudge: ReturnType<typeof setTimeout> | undefined;
+      const unsubscribe = core.bus.subscribe((event: SiriusEvent) => {
+        write(`data: ${JSON.stringify(event)}\n\n`);
+        clearTimeout(nudge);
+        nudge = setTimeout(() => write(':\n\n'), NUDGE_MS);
+      });
       const heartbeat = setInterval(() => write(': ping\n\n'), HEARTBEAT_MS);
       const detach = attach();
       stop = () => {
         unsubscribe();
         clearInterval(heartbeat);
+        clearTimeout(nudge);
         detach();
       };
     },
