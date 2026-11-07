@@ -90,6 +90,19 @@ test('a wrong code says so and keeps the phone out', async ({ page }) => {
   expect(reply.status()).toBe(401);
 });
 
+test('a laptop that never answers, as one asleep behind Tailscale, still opens the copy', async ({
+  page,
+  context,
+}) => {
+  await pairedPhone(context);
+  await openAndKeep(page);
+  // Dropped packets: no refusal, no reply, for the page as well as the API.
+  await context.route('**/*', () => {});
+  await page.reload({ waitUntil: 'commit' });
+  await page.locator('.tab-bar .tab', { hasText: 'Today' }).click({ timeout: 15_000 });
+  await expect(page.locator('.task', { hasText: 'Ten pages of Abbott' })).toBeVisible();
+});
+
 test('with the laptop away, the phone shows its copy and keeps changes for later', async ({
   page,
   context,

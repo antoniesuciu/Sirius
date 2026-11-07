@@ -178,6 +178,15 @@ test('a reply links to what it changed, and that section says something is new',
   await expect(tab(page, 'Plan').locator('.tab-dot')).toHaveCount(0);
 });
 
+test('the home-screen wolf opens the conversation already listening', async ({ page }) => {
+  await page.goto('/?fixtures&phone&toastMs=600000&tab=listen');
+  await expect(tab(page, 'Sirius')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.sirius-status')).toHaveText('listening');
+  // Asked once: the address is cleaned up, so a reload does not listen again.
+  expect(new URL(page.url()).searchParams.get('tab')).toBeNull();
+  await page.getByRole('button', { name: 'Stop listening' }).click();
+});
+
 test('talking to the phone: it records, the laptop acts, and the phone says the answer', async ({
   page,
 }) => {
@@ -314,7 +323,15 @@ test('screenshots of every theme', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
     await page.waitForTimeout(900);
   };
-  for (const theme of ['paper', 'midnight', 'night-owl', 'graphite', 'sage', 'ember']) {
+  for (const theme of [
+    'paper',
+    'midnight',
+    'night-owl',
+    'graphite',
+    'sage',
+    'ember',
+    'black-night',
+  ]) {
     await say(`theme ${theme}`);
     await page.getByRole('button', { name: 'Talk to Sirius' }).click();
     await page.waitForTimeout(900);

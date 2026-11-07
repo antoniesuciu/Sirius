@@ -41,9 +41,11 @@ import { THEME_COLORS } from './theme.gen.ts';
 import { isLight, useColors } from './theme.ts';
 import {
   bridgeScript,
+  isListenUrl,
   onLaptop,
   openTabScript,
   parseFromPage,
+  RESUME_SCRIPT,
   spokenScript,
   webUrl,
 } from './web.ts';
@@ -56,6 +58,8 @@ void SplashScreen.preventAutoHideAsync().catch(() => {});
 const GROUND = '#16171A';
 /** Never keep the splash up longer than this, even when the laptop is slow to answer. */
 const SPLASH_MAX_MS = 5000;
+/** A page that does not answer this soon after the app comes back is dead: load it again. */
+const ALIVE_MS = 2000;
 const TABS = ['today', 'sirius', 'plan', 'list'];
 
 const tabOf = (response: Notifications.NotificationResponse | null): string | undefined => {
@@ -118,7 +122,8 @@ function syncFor(event: SiriusEvent): { schedule: boolean; widget: boolean } {
   if (event.type !== 'change') return { schedule: false, widget: false };
   return {
     schedule: ['reminders', 'schedule_events', 'day_state'].includes(event.entity),
-    widget: event.entity === 'tasks',
+    // What the widgets show: tasks, the list, and the theme they are drawn in.
+    widget: ['tasks', 'list_items', 'settings'].includes(event.entity),
   };
 }
 
@@ -138,10 +143,23 @@ function Main({
   const web = useRef<WebView<object>>(null);
   const [lateAlarms, setLateAlarms] = useState(false);
   const [failed, setFailed] = useState(false);
-  // A notification that opened the app picks the first tab; later taps go to the open page.
-  const [source] = useState(() => ({
-    uri: webUrl(connection.address, tabOf(Notifications.getLastNotificationResponse())),
-  }));
+  // What opened the app picks the first tab: the wolf widget's link, or a notification.
+  // Later taps go to the open page.
+  const [source, setSource] = useState<{ uri: string } | null>(null);
+  useEffect(() => {
+    void Linking.getInitialURL()
+      .catch(() => null)
+      .then((url) => {
+        const tab = isListenUrl(url)
+          ? 'listen'
+          : tabOf(Notifications.getLastNotificationResponse());
+        setSource({ uri: webUrl(connection.address, tab) });
+      });
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      if (isListenUrl(url)) web.current?.injectJavaScript(openTabScript('listen'));
+    });
+    return () => sub.remove();
+  }, [connection.address]);
   const bridge = useMemo(
     () => bridgeScript(connection.token, insets.bottom),
     [connection.token, insets.bottom],
@@ -158,13 +176,22 @@ function Main({
   });
 
   // Back on screen the stream may be dead without knowing it, so reconnect and resync.
+  // Android may have killed the page's renderer while away, which leaves a blank screen.
   const { reconnect } = live;
+  const unanswered = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') reconnect();
-      else setReachable(false);
+      if (state === 'active') {
+        reconnect();
+        clearTimeout(unanswered.current);
+        unanswered.current = setTimeout(() => web.current?.reload(), ALIVE_MS);
+        web.current?.injectJavaScript(RESUME_SCRIPT);
+      } else setReachable(false);
     });
-    return () => sub.remove();
+    return () => {
+      sub.remove();
+      clearTimeout(unanswered.current);
+    };
   }, [reconnect]);
 
   useEffect(() => {
@@ -199,7 +226,9 @@ function Main({
   const onMessage = (event: WebViewMessageEvent) => {
     const m = parseFromPage(event.nativeEvent.data);
     if (!m) return;
-    if (m.type === 'speak') {
+    if (m.type === 'alive') {
+      clearTimeout(unanswered.current);
+    } else if (m.type === 'speak') {
       const answer = (ok: boolean) => web.current?.injectJavaScript(spokenScript(m.id, ok));
       Speech.speak(m.text, {
         ...(m.lang ? { language: m.lang } : {}),
@@ -262,37 +291,40 @@ function Main({
           />
         </View>
       ) : null}
-      <WebView<object>
-        ref={web}
-        source={source}
-        style={[s.fill, { backgroundColor: ground }, failed && s.hidden]}
-        injectedJavaScriptBeforeContentLoaded={bridge}
-        onMessage={onMessage}
-        onLoadEnd={() => SplashScreen.hide()}
-        onError={() => {
-          setFailed(true);
-          SplashScreen.hide();
-        }}
-        onNavigationStateChange={(nav) => {
-          canGoBack.current = nav.canGoBack;
-        }}
-        // Links away from the laptop open in the browser, not over the app.
-        onShouldStartLoadWithRequest={(request) => {
-          if (onLaptop(request.url, connection.address) || request.url.startsWith('about:')) {
-            return true;
-          }
-          void Linking.openURL(request.url);
-          return false;
-        }}
-        // The OS asks for the microphone once; then push-to-talk works as in Chrome.
-        mediaCapturePermissionGrantType="grant"
-        mediaPlaybackRequiresUserAction={false}
-        allowsInlineMediaPlayback
-        domStorageEnabled
-        setSupportMultipleWindows={false}
-        overScrollMode="never"
-        webviewDebuggingEnabled={__DEV__}
-      />
+      {source && (
+        <WebView<object>
+          ref={web}
+          source={source}
+          style={[s.fill, { backgroundColor: ground }, failed && s.hidden]}
+          injectedJavaScriptBeforeContentLoaded={bridge}
+          onMessage={onMessage}
+          onLoadEnd={() => SplashScreen.hide()}
+          onRenderProcessGone={() => web.current?.reload()}
+          onError={() => {
+            setFailed(true);
+            SplashScreen.hide();
+          }}
+          onNavigationStateChange={(nav) => {
+            canGoBack.current = nav.canGoBack;
+          }}
+          // Links away from the laptop open in the browser, not over the app.
+          onShouldStartLoadWithRequest={(request) => {
+            if (onLaptop(request.url, connection.address) || request.url.startsWith('about:')) {
+              return true;
+            }
+            void Linking.openURL(request.url);
+            return false;
+          }}
+          // The OS asks for the microphone once; then push-to-talk works as in Chrome.
+          mediaCapturePermissionGrantType="grant"
+          mediaPlaybackRequiresUserAction={false}
+          allowsInlineMediaPlayback
+          domStorageEnabled
+          setSupportMultipleWindows={false}
+          overScrollMode="never"
+          webviewDebuggingEnabled={__DEV__}
+        />
+      )}
     </View>
   );
 }

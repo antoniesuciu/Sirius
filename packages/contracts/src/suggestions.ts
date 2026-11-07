@@ -42,9 +42,16 @@ export function greetingPrefix(hour: number): string {
 const COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five'];
 
 /** F2: the typed greeting depends on the time of day and the open priorities. */
-export function greeting(name: string, hour: number, openPriorities: number): string {
+export function greeting(
+  name: string,
+  hour: number,
+  openPriorities: number,
+  openTasks = 0,
+): string {
   const prefix = `${greetingPrefix(hour)}, ${name}.`;
-  if (openPriorities === 0) return `${prefix} Nothing planned for today.`;
+  if (openPriorities === 0) {
+    return `${prefix} ${openTasks > 0 ? 'Something is waiting for you.' : 'Nothing planned for today.'}`;
+  }
   if (openPriorities === 1) return `${prefix} One thing matters today.`;
   const word = COUNT_WORDS[openPriorities] ?? 'A few';
   return `${prefix} ${word} things matter today.`;

@@ -14,6 +14,9 @@ describe('greeting (F2)', () => {
   });
   test('uses the number of open priorities', () => {
     expect(greeting('Antonie', 9, 0)).toBe('Good morning, Antonie. Nothing planned for today.');
+    expect(greeting('Antonie', 9, 0, 2)).toBe(
+      'Good morning, Antonie. Something is waiting for you.',
+    );
     expect(greeting('Antonie', 9, 1)).toBe('Good morning, Antonie. One thing matters today.');
     expect(greeting('Antonie', 9, 7)).toBe('Good morning, Antonie. A few things matter today.');
   });

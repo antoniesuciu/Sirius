@@ -10,11 +10,17 @@ export const TOKEN_KEY = 'sirius.phone-token';
 export type FromPage =
   | { type: 'speak'; id: number; text: string; lang: string }
   | { type: 'cancel' }
+  | { type: 'alive' }
   | { type: 'token'; token: string | null };
 
 export function webUrl(address: string, tab?: string): string {
   return tab ? `${address}/?tab=${encodeURIComponent(tab)}` : `${address}/`;
 }
+
+/** The home-screen wolf's link: open Sirius, already listening. */
+export const LISTEN_URL = 'sirius://listen';
+export const isListenUrl = (url: string | null | undefined): boolean =>
+  url?.split(/[/?#]/)[2] === 'listen';
 
 /** Whether a navigation stays on the laptop. A prefix test would let laptop.ts.net.evil.com in. */
 export function onLaptop(url: string, address: string): boolean {
@@ -31,11 +37,11 @@ export function onLaptop(url: string, address: string): boolean {
  * has none, so speech goes to the phone's own voice through the shell.
  *
  * It also sizes the space under the tab bar. The page fills the screen down to the bottom edge,
- * so the bar reaches into Android's gesture area: a tab's lower 12px is empty, so it can sit
- * over the gesture line while the labels stay above it (2026-11-06).
+ * so the bar would reach into Android's gesture area: the space under it is the full inset, so
+ * the whole bar sits above the gesture line (2026-11-06).
  */
 export function bridgeScript(token: string, bottomInset = 0): string {
-  const tabPad = Math.max(6, Math.round(bottomInset) - 12);
+  const tabPad = Math.max(6, Math.round(bottomInset));
   return `(function () {
   try { document.documentElement.style.setProperty('--shell-tab-pad', '${tabPad}px'); } catch (e) {}
   var KEY = ${JSON.stringify(TOKEN_KEY)};
@@ -78,6 +84,15 @@ export function bridgeScript(token: string, bottomInset = 0): string {
 true;`;
 }
 
+/**
+ * Back on screen: the page should look for the laptop now, as a browser tab does on its
+ * `online` event. A WebView never sees a tab come back, and its timers may have slept, so its
+ * stream would wait out a backoff of up to 30 s before the queued changes go (2026-11-06).
+ */
+export const RESUME_SCRIPT = `window.dispatchEvent(new Event('online'));
+window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'alive' }));
+true;`;
+
 /** A tapped notification while the app is open: the same message the service worker sends. */
 export function openTabScript(tab: string): string {
   return `(function () {
@@ -102,6 +117,7 @@ export function parseFromPage(raw: string): FromPage | null {
   if (!data || typeof data !== 'object') return null;
   const m = data as Record<string, unknown>;
   if (m.type === 'cancel') return { type: 'cancel' };
+  if (m.type === 'alive') return { type: 'alive' };
   if (m.type === 'speak' && typeof m.id === 'number' && typeof m.text === 'string') {
     return {
       type: 'speak',

@@ -2,9 +2,12 @@ import { describe, expect, test } from 'bun:test';
 import { createContext, runInContext, runInNewContext } from 'node:vm';
 import {
   bridgeScript,
+  isListenUrl,
+  LISTEN_URL,
   onLaptop,
   openTabScript,
   parseFromPage,
+  RESUME_SCRIPT,
   spokenScript,
   TOKEN_KEY,
   webUrl,
@@ -45,11 +48,25 @@ function page() {
 }
 
 describe('the bridge between the laptop page and the shell', () => {
-  test('the tab bar reaches into the gesture area instead of stopping above it', () => {
+  test('coming back on screen asks the page to look for the laptop now', () => {
+    const p = page();
+    const fired: string[] = [];
+    p.window.Event = class {
+      constructor(readonly type: string) {}
+    };
+    p.window.dispatchEvent = (e: { type: string }) => fired.push(e.type);
+    p.run(RESUME_SCRIPT);
+    // The page reconnects on `online` (apps/desktop/src/App.tsx), as a tab coming back does.
+    expect(fired).toEqual(['online']);
+    // And answers, so the shell can tell a live page from one Android has killed.
+    expect(p.posted).toContainEqual({ type: 'alive' });
+  });
+
+  test('the tab bar sits above the gesture area', () => {
     const p = page();
     p.run(bridgeScript('tok-1', 30));
-    // The tabs' empty lower 12px may sit over the gesture area; their labels stay above it.
-    expect(p.style.get('--shell-tab-pad')).toBe('18px');
+    // The whole bar sits above the gesture area.
+    expect(p.style.get('--shell-tab-pad')).toBe('30px');
     const flat = page();
     flat.run(bridgeScript('tok-1', 0));
     expect(flat.style.get('--shell-tab-pad')).toBe('6px');
@@ -153,5 +170,15 @@ describe('messages from the page', () => {
     expect(onLaptop('https://laptop.ts.net.evil.com/', laptop)).toBe(false);
     expect(onLaptop('http://laptop.ts.net/', laptop)).toBe(false);
     expect(onLaptop('not a url', laptop)).toBe(false);
+  });
+});
+
+describe('the wolf link', () => {
+  test('only sirius://listen asks to listen', () => {
+    expect(isListenUrl(LISTEN_URL)).toBe(true);
+    expect(isListenUrl('sirius://listen/')).toBe(true);
+    expect(isListenUrl('sirius://today')).toBe(false);
+    expect(isListenUrl('sirius://')).toBe(false);
+    expect(isListenUrl(null)).toBe(false);
   });
 });

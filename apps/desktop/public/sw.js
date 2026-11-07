@@ -4,6 +4,8 @@
  * an update to the laptop reaches the phone the next time it opens Sirius in reach of it.
  */
 const CACHE = 'sirius-shell-v3';
+/** How long the network gets before the saved copy is used. */
+const NETWORK_MS = 3000;
 
 /** The first visit must already be enough to open offline, so the shell is fetched up front. */
 async function precache() {
@@ -38,16 +40,31 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/v1/')) return;
   // Every page is the one app, so any route offline falls back to the cached start page.
   const fallback = event.request.mode === 'navigate' ? './' : event.request;
+  const fetchAndKeep = () =>
+    fetch(event.request).then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+      }
+      return response;
+    });
+  // The server varies on Origin, which a precached request never sent, so match without it.
+  const match = (request) => caches.match(request, { ignoreVary: true });
+  // Built assets have their hash in the name, so a saved one is always the right one.
+  // shortcut: replaced assets stay cached until CACHE changes; prune them if the cache grows.
+  if (url.pathname.includes('/assets/')) {
+    event.respondWith(match(event.request).then((hit) => hit ?? fetchAndKeep()));
+    return;
+  }
+  // A sleeping laptop behind Tailscale drops packets rather than refusing them, so the network
+  // gets a few seconds before the saved copy opens instead. It still refreshes the copy after.
+  const network = fetchAndKeep();
+  const late = new Promise((resolve) => setTimeout(resolve, NETWORK_MS, null));
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request).then((hit) => hit ?? caches.match(fallback))),
+    Promise.race([network.catch(() => null), late]).then(
+      async (response) =>
+        response ?? (await match(event.request)) ?? (await match(fallback)) ?? network,
+    ),
   );
 });
 

@@ -78,11 +78,14 @@ const PHONE_QUERY = '(max-width: 900px)';
 const TABS: readonly PhoneTab[] = ['today', 'sirius', 'plan', 'list'];
 const isTab = (value: unknown): value is PhoneTab => TABS.includes(value as PhoneTab);
 
-/** A tapped notification opens the app at ?tab=…, once; the address is then cleaned up. */
-function startingTab(): PhoneTab {
+/**
+ * A tapped notification opens the app at ?tab=…, or the home-screen wolf at ?tab=listen,
+ * once; the address is then cleaned up.
+ */
+function startingRequest(): string | null {
   const params = new URLSearchParams(window.location.search);
   const asked = params.get('tab');
-  if (!isTab(asked)) return 'today';
+  if (!isTab(asked) && asked !== 'listen') return null;
   params.delete('tab');
   const rest = params.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
@@ -122,7 +125,10 @@ export function App({ phone = false }: { phone?: boolean }) {
   const hidden = usePageHidden();
   const resting = useResting(REST_AFTER_MS);
   const tabbed = useNarrow(phone);
-  const [tab, setTab] = useState<PhoneTab>(startingTab);
+  const [start] = useState(startingRequest);
+  const [tab, setTab] = useState<PhoneTab>(() =>
+    isTab(start) ? start : start === 'listen' ? 'sirius' : 'today',
+  );
   const [fresh, setFresh] = useState<ReadonlySet<PhoneTab>>(new Set());
   const [heard, setHeard] = useState<Array<{ at: number; line: ChatLine }>>([]);
   const shownTab = useRef(tab);
@@ -156,6 +162,8 @@ export function App({ phone = false }: { phone?: boolean }) {
     },
   });
   const phoneMic = phone && browserVoiceSupported();
+  const voiceNow = useRef(phoneVoice);
+  voiceNow.current = phoneVoice;
   const push = usePhonePush(client, phone);
 
   const openTab = useCallback((next: PhoneTab) => {
@@ -167,14 +175,26 @@ export function App({ phone = false }: { phone?: boolean }) {
       return rest;
     });
   }, []);
-  useOpenTabRequests(
-    useCallback(
-      (asked: string) => {
-        if (isTab(asked)) openTab(asked);
-      },
-      [openTab],
-    ),
+  const onTabRequest = useCallback(
+    (asked: string) => {
+      if (isTab(asked)) openTab(asked);
+      // The home-screen wolf: straight to Sirius, already listening.
+      if (asked === 'listen') {
+        openTab('sirius');
+        const voice = voiceNow.current;
+        if (phoneMic && !voice.recording && !voice.sending) voice.toggle();
+      }
+    },
+    [openTab, phoneMic],
   );
+  useOpenTabRequests(onTabRequest);
+  // Opened cold by the wolf: start listening once, after the first render.
+  const startedListening = useRef(false);
+  useEffect(() => {
+    if (start !== 'listen' || startedListening.current) return;
+    startedListening.current = true;
+    onTabRequest('listen');
+  }, [start, onTabRequest]);
 
   const listen = (event: SiriusEvent) => {
     phoneVoice.onEvent(event);
@@ -226,6 +246,7 @@ export function App({ phone = false }: { phone?: boolean }) {
   const setQuiet = useSetQuiet();
   const renameGoal = useOp('rename_goal', ['list_goals']);
   const addGoal = useOp('add_goal', ['list_goals']);
+  const stepGoal = useOp('step_goal', ['list_goals']);
   const addScheduleEvent = useOp('add_schedule_event', ['list_schedule', 'get_today']);
   const updateScheduleEvent = useOp('update_schedule_event', ['list_schedule', 'get_today']);
   const deleteScheduleEvent = useOp('delete_schedule_event', ['list_schedule', 'get_today']);
@@ -273,13 +294,14 @@ export function App({ phone = false }: { phone?: boolean }) {
   const tasks = today?.tasks;
   const hour = new Date().getHours();
 
-  const { suggestions, openPriorities } = useMemo(() => {
+  const { suggestions, openPriorities, openTasks } = useMemo(() => {
     const open = tasks?.filter((t) => t.status === 'open') ?? [];
     const priorities = open.filter((t) => t.tier === 'priority');
     const current = roadmaps.find((r) => r.status === 'active');
     const step = current ? nextStep(current) : undefined;
     return {
       openPriorities: priorities.length,
+      openTasks: open.length,
       suggestions: buildSuggestions({
         openPriorities: priorities.map((t) => t.title),
         openSmalls: open.filter((t) => t.tier === 'small').map((t) => t.title),
@@ -532,6 +554,7 @@ export function App({ phone = false }: { phone?: boolean }) {
       onRename={(id, title) => renameGoal.mutate({ id, title })}
       onDelete={(id) => deleteGoal.mutate({ id })}
       onAdd={(title) => addGoal.mutate({ title })}
+      onStep={(id) => stepGoal.mutate({ id })}
     />
   );
   const learningPanel = (
@@ -571,7 +594,7 @@ export function App({ phone = false }: { phone?: boolean }) {
         />
       )}
       <Header
-        greeting={today ? greeting(OWNER, hour, openPriorities) : null}
+        greeting={today ? greeting(OWNER, hour, openPriorities, openTasks) : null}
         suggestions={suggestions}
         quiet={quiet}
         onToggleQuiet={() => setQuiet.mutate(!quiet)}

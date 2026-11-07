@@ -8,6 +8,30 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { createSpeaker } from './speech.ts';
 
 const MAX_RECORDING_MS = 20_000; // F28
+/** Recording ends this long after the voice stops, once there was a voice at all. */
+const QUIET_AFTER_MS = 1500;
+/** On readLevel's 0–1 scale: a voice is well above this, a quiet room well below QUIET. */
+const SPEECH_LEVEL = 0.12;
+const QUIET_LEVEL = 0.06;
+
+/**
+ * Says when to stop: after speech, a stretch of quiet. Silence before anyone speaks never
+ * stops it, so a slow start is not cut off; the 20 s cap still applies.
+ */
+export function quietAfterSpeech(quietMs = QUIET_AFTER_MS) {
+  let spoke = false;
+  let quietSince: number | null = null;
+  return (level: number, now: number): boolean => {
+    if (level >= SPEECH_LEVEL) {
+      spoke = true;
+      quietSince = null;
+    } else if (spoke && level < QUIET_LEVEL) {
+      quietSince ??= now;
+      return now - quietSince >= quietMs;
+    } else quietSince = null;
+    return false;
+  };
+}
 
 /** Browsers refuse the microphone outside a secure context, and Tauri has the voice service. */
 export function browserVoiceSupported(): boolean {
@@ -132,6 +156,17 @@ export function usePhoneVoice(client: SiriusClient, handlers: Handlers) {
     setTimeout(() => {
       if (media.state === 'recording') media.stop();
     }, MAX_RECORDING_MS);
+    // Without a meter there is nothing to hear the quiet with, so it waits for a tap.
+    if (meter.current) {
+      const done = quietAfterSpeech();
+      const watch = setInterval(() => {
+        if (media.state !== 'recording') clearInterval(watch);
+        else if (done(readLevel(), performance.now())) {
+          clearInterval(watch);
+          media.stop();
+        }
+      }, 100);
+    }
   };
 
   const stopSpeaking = () => {
