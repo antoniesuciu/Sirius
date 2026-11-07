@@ -32,6 +32,9 @@ export function TodayWidget({
   const ink = colors.ink as Hex;
   const muted = colors.muted as Hex;
   const open = tasks.filter((t) => t.status === 'open');
+  // The list's rows are drawn as pictures the full width of the widget and ignore the panel's
+  // padding, so every part carries its own side padding instead (seen on the Honor, 2026-11-07).
+  const side = compact ? 10 : 14;
   const row = (
     key: string,
     mark: string,
@@ -49,9 +52,13 @@ export function TodayWidget({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: compact ? 4 : 6,
+        paddingHorizontal: side,
       }}
     >
-      <TextWidget text={mark} style={{ fontSize: 17, color: ink, marginRight: 10 }} />
+      <TextWidget
+        text={mark}
+        style={{ fontSize: 17, fontFamily: fonts.text, color: ink, marginRight: 10 }}
+      />
       <TextWidget
         text={text}
         maxLines={1}
@@ -67,7 +74,7 @@ export function TodayWidget({
         width: 'match_parent',
         backgroundColor: colors.panel as Hex,
         borderRadius: 20,
-        padding: compact ? 10 : 14,
+        paddingVertical: side,
         flexDirection: 'column',
       }}
       accessibilityLabel="Sirius, today"
@@ -79,6 +86,7 @@ export function TodayWidget({
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: compact ? 2 : 6,
+          paddingHorizontal: side,
         }}
       >
         <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -108,7 +116,11 @@ export function TodayWidget({
       <ListWidget style={{ height: 'match_parent', width: 'match_parent' }}>
         {tasks.length === 0
           ? [
-              <FlexWidget key="empty" clickAction="OPEN_APP" style={{ paddingVertical: 6 }}>
+              <FlexWidget
+                key="empty"
+                clickAction="OPEN_APP"
+                style={{ paddingVertical: 6, paddingHorizontal: side }}
+              >
                 <TextWidget
                   text="Nothing yet. Add one in Sirius."
                   style={{ fontSize: 15, fontFamily: fonts.text, color: muted }}
@@ -122,7 +134,10 @@ export function TodayWidget({
               }),
             )}
         {list.length > 0 && (
-          <FlexWidget key="remember" style={{ paddingTop: 12, paddingBottom: 2 }}>
+          <FlexWidget
+            key="remember"
+            style={{ paddingTop: 12, paddingBottom: 2, paddingHorizontal: side }}
+          >
             <TextWidget
               text="To remember"
               style={{ fontSize: 17, fontFamily: fonts.title, color: ink }}
