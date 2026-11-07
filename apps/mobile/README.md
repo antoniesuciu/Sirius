@@ -14,7 +14,8 @@ widget, background sync and on-time reminders.
 4. Allow notifications, and the microphone the first time you hold to talk. Tap **Allow on
    time** if it appears: without the exact-alarm permission Android may deliver a reminder
    minutes late.
-5. Add the widget: long-press the home screen, Widgets, **Sirius: Today**.
+5. Add the widgets: long-press the home screen, Widgets, then **Sirius: Today** (tasks and
+   things to remember) and **Sirius: Talk** (the wolf, which opens Sirius listening).
 6. On Honor/MagicOS: Settings, Battery, App launch, Sirius, **Manage manually**, all three on.
    Otherwise MagicOS stops the background sync (see dontkillmyapp.com/huawei).
 
@@ -46,7 +47,8 @@ cd apps/mobile && ./node_modules/.bin/expo export --platform android   # Metro b
 - `src/plan.ts`: which notifications the phone schedules, by the laptop Scheduler's rules.
 - `src/notifications.ts`: schedules them, and turns agent alerts into local notifications.
 - `src/background.ts`: resyncs every ~15 minutes, even with the app closed.
-- `src/widget/`: the widget, rendered outside the app from the laptop or its last saved copy.
+- `src/widget/`: the widgets, rendered outside the app from the laptop or its last saved copy.
+  Their fonts are in `assets/fonts/` (static instances of the page's fonts, with their licences).
 - `src/theme.gen.ts`: generated from the web tokens by `bun scripts/mobile-themes.ts`.
 - Launcher icon and splash: `bun scripts/mobile-icon.ts`, from the logo's paths. Notification
   icon and widget preview: `python3 scripts/mobile-assets.py`.

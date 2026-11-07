@@ -1,4 +1,4 @@
-"""Regenerates the Android notification icon and widget preview. Launcher icon and splash:
+"""Regenerates the Android notification icon and widget previews. Launcher icon and splash:
 scripts/mobile-icon.ts."""
 from PIL import Image, ImageDraw, ImageFont
 
@@ -35,10 +35,22 @@ except OSError:
     big = small = ImageFont.load_default()
 d.text((28, 22), 'Today', font=big, fill=INK)
 d.text((w - 140, 34), '2 open', font=small, fill=MUTED)
-for i, (task, done) in enumerate([('Derive the covariance update', False), ('Ten pages of Abbott', True), ('Walk before sunset', False)]):
-    y = 100 + i * 78
+rows = [('Derive the covariance update', False), ('Ten pages of Abbott', True), (None, False), ('Milk', False)]
+for i, (task, done) in enumerate(rows):
+    y = 92 + i * 64
+    if task is None:
+        d.text((30, y + 4), 'To remember', font=small, fill=INK)
+        continue
     box = (30, y + 6, 62, y + 38)
     d.ellipse(box, outline=INK, width=3, fill=INK if done else None)
     d.text((82, y), task, font=small, fill=MUTED if done else INK)
 preview.save(OUT + 'widget-preview/today.png')
-print('notification icon and widget preview written')
+
+# The one-cell wolf widget: the logo on the panel, as the home screen shows it.
+wolf = Image.new('RGBA', (180, 180), (0, 0, 0, 0))
+ImageDraw.Draw(wolf).ellipse((0, 0, 179, 179), fill=PANEL)
+art = logo.copy()
+art.thumbnail((130, 130), Image.LANCZOS)
+wolf.alpha_composite(art, ((180 - art.width) // 2, (180 - art.height) // 2))
+wolf.save(OUT + 'widget-preview/wolf.png')
+print('notification icon and widget previews written')

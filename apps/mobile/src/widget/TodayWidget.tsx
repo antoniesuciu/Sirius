@@ -1,27 +1,68 @@
 'use no memo';
-/** The home screen widget: today's tasks, ticked off with a tap, the app opened from the title. */
-import type { Task } from '@sirius/contracts';
-import { FlexWidget, TextWidget } from 'react-native-android-widget';
+/**
+ * The home screen widget: today's tasks, then the things to remember, in one list that
+ * scrolls. A tap ticks a task (or unticks it) and ticks an item off. The wolf opens Sirius
+ * listening; the title opens it without the microphone.
+ */
+import { FlexWidget, ListWidget, SvgWidget, TextWidget } from 'react-native-android-widget';
 import type { Colors } from '../theme.ts';
+import { LISTEN_URL } from '../web.ts';
+import { fontsFor, type WidgetItem, type WidgetTask } from './snapshot.ts';
+import { wolfSvg } from './wolf.ts';
 
-const SHOWN = 6;
+type Hex = `#${string}`;
 
 export function TodayWidget({
   tasks,
+  list,
   colors,
+  theme,
   note,
 }: {
-  tasks: Task[];
+  tasks: WidgetTask[];
+  list: WidgetItem[];
   colors: Colors;
+  theme: string;
   note?: string;
 }) {
+  const fonts = fontsFor(theme);
+  const ink = colors.ink as Hex;
+  const muted = colors.muted as Hex;
   const open = tasks.filter((t) => t.status === 'open');
+  const row = (
+    key: string,
+    mark: string,
+    text: string,
+    faded: boolean,
+    clickAction: string,
+    clickActionData: Record<string, string>,
+  ) => (
+    <FlexWidget
+      key={key}
+      clickAction={clickAction}
+      clickActionData={clickActionData}
+      style={{
+        width: 'match_parent',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 6,
+      }}
+    >
+      <TextWidget text={mark} style={{ fontSize: 17, color: ink, marginRight: 10 }} />
+      <TextWidget
+        text={text}
+        maxLines={1}
+        truncate="END"
+        style={{ fontSize: 16, fontFamily: fonts.text, color: faded ? muted : ink }}
+      />
+    </FlexWidget>
+  );
   return (
     <FlexWidget
       style={{
         height: 'match_parent',
         width: 'match_parent',
-        backgroundColor: colors.panel as `#${string}`,
+        backgroundColor: colors.panel as Hex,
         borderRadius: 20,
         padding: 14,
         flexDirection: 'column',
@@ -29,57 +70,61 @@ export function TodayWidget({
       accessibilityLabel="Sirius, today"
     >
       <FlexWidget
-        clickAction="OPEN_APP"
         style={{
           width: 'match_parent',
           flexDirection: 'row',
+          alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: 6,
         }}
       >
-        <TextWidget
-          text="Today"
-          style={{ fontSize: 20, fontFamily: 'serif', color: colors.ink as `#${string}` }}
-        />
-        <TextWidget
-          text={note ?? (open.length ? `${open.length} open` : 'All done')}
-          style={{ fontSize: 13, fontFamily: 'serif', color: colors.muted as `#${string}` }}
-        />
-      </FlexWidget>
-      {tasks.slice(0, SHOWN).map((t) => (
-        <FlexWidget
-          key={t.id}
-          clickAction="TOGGLE"
-          clickActionData={{ id: t.id, status: t.status }}
-          style={{
-            width: 'match_parent',
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingVertical: 5,
-          }}
-        >
+        <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <FlexWidget
+            clickAction="OPEN_URI"
+            clickActionData={{ uri: LISTEN_URL }}
+            accessibilityLabel="Talk to Sirius"
+            style={{ marginRight: 10 }}
+          >
+            <SvgWidget svg={wolfSvg(colors)} style={{ height: 52, width: 52 }} />
+          </FlexWidget>
           <TextWidget
-            text={t.status === 'done' ? '●' : '○'}
-            style={{ fontSize: 17, color: colors.ink as `#${string}`, marginRight: 10 }}
-          />
-          <TextWidget
-            text={t.title}
-            maxLines={1}
-            truncate="END"
-            style={{
-              fontSize: 16,
-              fontFamily: 'serif',
-              color: (t.status === 'done' ? colors.muted : colors.ink) as `#${string}`,
-            }}
+            text="Today"
+            clickAction="OPEN_APP"
+            style={{ fontSize: 24, fontFamily: fonts.title, color: ink }}
           />
         </FlexWidget>
-      ))}
-      {tasks.length === 0 && (
         <TextWidget
-          text="Nothing yet. Add one in Sirius."
-          style={{ fontSize: 15, fontFamily: 'serif', color: colors.muted as `#${string}` }}
+          text={note ?? (open.length ? `${open.length} open` : 'All done')}
+          clickAction="OPEN_APP"
+          style={{ fontSize: 14, fontFamily: fonts.text, color: muted }}
         />
-      )}
+      </FlexWidget>
+      <ListWidget style={{ height: 'match_parent', width: 'match_parent' }}>
+        {tasks.length === 0
+          ? [
+              <FlexWidget key="empty" clickAction="OPEN_APP" style={{ paddingVertical: 6 }}>
+                <TextWidget
+                  text="Nothing yet. Add one in Sirius."
+                  style={{ fontSize: 15, fontFamily: fonts.text, color: muted }}
+                />
+              </FlexWidget>,
+            ]
+          : tasks.map((t) =>
+              row(t.id, t.status === 'done' ? '●' : '○', t.title, t.status === 'done', 'TOGGLE', {
+                id: t.id,
+                status: t.status,
+              }),
+            )}
+        {list.length > 0 && (
+          <FlexWidget key="remember" style={{ paddingTop: 12, paddingBottom: 2 }}>
+            <TextWidget
+              text="To remember"
+              style={{ fontSize: 17, fontFamily: fonts.title, color: ink }}
+            />
+          </FlexWidget>
+        )}
+        {list.map((i) => row(i.id, '○', i.text, false, 'TICK_ITEM', { id: i.id }))}
+      </ListWidget>
     </FlexWidget>
   );
 }

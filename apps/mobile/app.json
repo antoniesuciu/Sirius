@@ -2,6 +2,7 @@
   "expo": {
     "name": "Sirius",
     "slug": "sirius",
+    "scheme": "sirius",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,6 +17,7 @@
       },
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
@@ -55,17 +57,37 @@
       [
         "react-native-android-widget",
         {
+          "fonts": [
+            "./assets/fonts/Newsreader-Regular.ttf",
+            "./assets/fonts/Newsreader-SemiBold.ttf",
+            "./assets/fonts/Inter-Regular.ttf",
+            "./assets/fonts/Inter-SemiBold.ttf",
+            "./assets/fonts/Ubuntu-Regular.ttf",
+            "./assets/fonts/Ubuntu-SemiBold.ttf"
+          ],
           "widgets": [
             {
               "name": "Today",
               "label": "Sirius: Today",
-              "description": "Today's tasks, ticked off with a tap",
+              "description": "Today's tasks and the things to remember, ticked off with a tap",
               "minWidth": "250dp",
               "minHeight": "180dp",
               "targetCellWidth": 4,
               "targetCellHeight": 3,
               "previewImage": "./assets/widget-preview/today.png",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "resizeMode": "horizontal|vertical"
+            },
+            {
+              "name": "Wolf",
+              "label": "Sirius: Talk",
+              "description": "The wolf: tap to talk to Sirius",
+              "minWidth": "40dp",
+              "minHeight": "40dp",
+              "targetCellWidth": 1,
+              "targetCellHeight": 1,
+              "previewImage": "./assets/widget-preview/wolf.png",
+              "resizeMode": "horizontal|vertical"
             }
           ]
         }

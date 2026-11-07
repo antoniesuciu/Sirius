@@ -2,55 +2,79 @@
  * Renders the widget, outside the app: from the laptop when it answers, otherwise from the
  * last copy the app or the background task saved, so the home screen is never empty.
  */
-import { type Task, themeFrom } from '@sirius/contracts';
+import { themeFrom } from '@sirius/contracts';
 import * as SecureStore from 'expo-secure-store';
 import { requestWidgetUpdate, type WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { clientFor, loadConnection } from '../connection.ts';
 import { THEME_COLORS } from '../theme.gen.ts';
+import { onlyChanges, type Snapshot, slimList, slimTasks, ticked, toggled } from './snapshot.ts';
 import { TodayWidget } from './TodayWidget.tsx';
+import { WolfWidget } from './WolfWidget.tsx';
 
+/** Tasks and theme, as before; the list on its own key, to stay under SecureStore's limit. */
 const SNAPSHOT_KEY = 'sirius.widget';
+const LIST_KEY = 'sirius.widget.list';
 export const WIDGET = 'Today';
-
-interface Snapshot {
-  tasks: Task[];
-  theme: string;
-}
+const WOLF = 'Wolf';
 
 async function fresh(): Promise<Snapshot | null> {
   const connection = await loadConnection();
   if (!connection) return null;
   try {
     const client = clientFor(connection);
-    const [today, settings] = await Promise.all([
+    const [today, list, settings] = await Promise.all([
       client.call('get_today', {}),
+      client.call('get_list', {}),
       client.call('get_settings', {}),
     ]);
-    const snapshot = { tasks: today.tasks, theme: themeFrom(settings) };
-    // SecureStore holds about 2 KB a value, so titles are kept short.
-    const small = {
-      ...snapshot,
-      tasks: snapshot.tasks.slice(0, 8).map((t) => ({ ...t, title: t.title.slice(0, 60) })),
+    const snapshot = {
+      tasks: slimTasks(today.tasks),
+      list: slimList(list),
+      theme: themeFrom(settings),
     };
-    await SecureStore.setItemAsync(SNAPSHOT_KEY, JSON.stringify(small)).catch(() => {});
+    await Promise.all([
+      SecureStore.setItemAsync(
+        SNAPSHOT_KEY,
+        JSON.stringify({ tasks: snapshot.tasks, theme: snapshot.theme }),
+      ),
+      SecureStore.setItemAsync(LIST_KEY, JSON.stringify(snapshot.list)),
+    ]).catch(() => {});
     return snapshot;
   } catch {
     return null;
   }
 }
 
-async function saved(): Promise<Snapshot | null> {
-  const raw = await SecureStore.getItemAsync(SNAPSHOT_KEY).catch(() => null);
-  return raw ? (JSON.parse(raw) as Snapshot) : null;
+async function read<T>(key: string): Promise<T | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
 }
 
+async function saved(): Promise<Snapshot | null> {
+  const [main, list] = await Promise.all([
+    read<Omit<Snapshot, 'list'>>(SNAPSHOT_KEY),
+    read<Snapshot['list']>(LIST_KEY),
+  ]);
+  return main ? { tasks: slimTasks(main.tasks), list: list ?? [], theme: main.theme } : null;
+}
+
+const colorsOf = (snapshot: Snapshot | null) =>
+  THEME_COLORS[(snapshot?.theme ?? 'paper') as keyof typeof THEME_COLORS] ?? THEME_COLORS.paper;
+
+// One per JS runtime: the app and the widget's taps share it while the app is alive.
+const today = onlyChanges();
+
 function render(snapshot: Snapshot | null, away: boolean) {
-  const colors =
-    THEME_COLORS[(snapshot?.theme ?? 'paper') as keyof typeof THEME_COLORS] ?? THEME_COLORS.paper;
   return (
     <TodayWidget
       tasks={snapshot?.tasks ?? []}
-      colors={colors}
+      list={snapshot?.list ?? []}
+      colors={colorsOf(snapshot)}
+      theme={snapshot?.theme ?? 'paper'}
       {...(snapshot ? (away ? { note: 'Laptop away' } : {}) : { note: 'Open Sirius to pair' })}
     />
   );
@@ -58,26 +82,52 @@ function render(snapshot: Snapshot | null, away: boolean) {
 
 export async function widgetTaskHandler(props: WidgetTaskHandlerProps): Promise<void> {
   if (props.widgetAction === 'WIDGET_DELETED') return;
-  if (props.widgetAction === 'WIDGET_CLICK' && props.clickAction === 'TOGGLE') {
+  if (props.widgetInfo.widgetName === WOLF) {
+    props.renderWidget(<WolfWidget colors={colorsOf(await saved())} />);
+    return;
+  }
+  const draw = (snapshot: Snapshot | null, away: boolean) =>
+    today.draw([snapshot, away], () => props.renderWidget(render(snapshot, away)));
+  const action = props.widgetAction === 'WIDGET_CLICK' ? props.clickAction : undefined;
+  if (action === 'TOGGLE' || action === 'TICK_ITEM') {
     const { id, status } = (props.clickActionData ?? {}) as { id?: string; status?: string };
     const connection = await loadConnection();
-    if (id && connection) {
-      await clientFor(connection)
-        .call(status === 'done' ? 'reopen_task' : 'complete_task', { id })
-        .catch(() => {});
+    const before = await saved();
+    // Tick at once from the saved copy; the laptop's answer redraws it only if it differs.
+    // If the laptop is away the call fails and the saved copy, never changed, puts it back.
+    if (id && before) {
+      draw(action === 'TOGGLE' ? toggled(before, id) : ticked(before, id), false);
     }
+    if (id && connection) {
+      const client = clientFor(connection);
+      await (action === 'TICK_ITEM'
+        ? client.call('tick_list_item', { id })
+        : client.call(status === 'done' ? 'reopen_task' : 'complete_task', { id })
+      ).catch(() => {});
+    }
+  } else {
+    // Android asked for a redraw (added, resized, the half-hourly update): always draw.
+    today.forget();
   }
   const now = await fresh();
-  props.renderWidget(render(now ?? (await saved()), now === null));
+  draw(now ?? (await saved()), now === null);
 }
 
-/** Called by the app and the background task after a sync. */
-export function refreshWidget(): Promise<void> {
-  return requestWidgetUpdate({
-    widgetName: WIDGET,
-    renderWidget: async () => {
-      const now = await fresh();
-      return render(now ?? (await saved()), now === null);
-    },
+/** Called by the app and the background task after a sync: redraws only what changed. */
+export async function refreshWidget(): Promise<void> {
+  const theme = (await saved())?.theme;
+  const now = await fresh();
+  const snapshot = now ?? (await saved());
+  const away = now === null;
+  let paint: Promise<void> | undefined;
+  today.draw([snapshot, away], () => {
+    paint = requestWidgetUpdate({ widgetName: WIDGET, renderWidget: () => render(snapshot, away) });
   });
+  await paint;
+  if (snapshot?.theme !== theme || theme === undefined) {
+    await requestWidgetUpdate({
+      widgetName: WOLF,
+      renderWidget: () => <WolfWidget colors={colorsOf(snapshot)} />,
+    });
+  }
 }
