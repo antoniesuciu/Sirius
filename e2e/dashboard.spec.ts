@@ -223,8 +223,11 @@ test('breathing starts and stops, with a live label', async ({ page }) => {
 });
 
 test.describe('schedule (F37)', () => {
-  const FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const todayName = () => FULL[(new Date().getDay() + 6) % 7] as string;
+  // A fixed Wednesday morning, so what counts as over does not depend on when tests run.
+  test.beforeEach(async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-11-04T09:00:00') });
+  });
+  const todayName = () => 'Wednesday';
 
   test('a weekly event added by hand shows today, apart from the tasks', async ({ page }) => {
     await open(page);
@@ -232,13 +235,31 @@ test.describe('schedule (F37)', () => {
     await panel.getByRole('button', { name: 'Add to schedule' }).click();
     await panel.getByLabel('What').fill('Probability lecture');
     await panel.getByRole('button', { name: todayName(), exact: true }).click();
-    await panel.getByLabel('Starts').fill('23:30');
-    await panel.getByLabel('Ends').fill('23:50');
+    await panel.getByLabel('Starts').fill('10:30');
+    await panel.getByLabel('Ends').fill('11:50');
     await panel.getByLabel('Where').fill('Room 0.10');
     await panel.getByRole('button', { name: 'Save' }).click();
     await expect(panel.locator('.sched-title', { hasText: 'Probability lecture' })).toBeVisible();
     await expect(panel.locator('.sched-place', { hasText: 'Room 0.10' })).toBeVisible();
     await expect(page.locator('.task', { hasText: 'Probability lecture' })).toHaveCount(0);
+  });
+
+  test('an entry goes by itself once it is over', async ({ page }) => {
+    await open(page);
+    const panel = page.locator('section.panel-schedule');
+    await panel.getByRole('button', { name: 'Add to schedule' }).click();
+    await panel.getByLabel('What').fill('Office hours');
+    await panel.getByRole('button', { name: todayName(), exact: true }).click();
+    await panel.getByLabel('Starts').fill('09:15');
+    await panel.getByLabel('Ends').fill('09:45');
+    await panel.getByRole('button', { name: 'Save' }).click();
+    const entry = panel.locator('.sched-title', { hasText: 'Office hours' });
+    await expect(entry).toBeVisible();
+    await page.clock.fastForward('50:00');
+    await expect(entry).toHaveCount(0);
+    // The week view drops today's finished one too (it shows today and the next six days).
+    await panel.getByRole('button', { name: 'Week' }).click();
+    await expect(entry).toHaveCount(0);
   });
 
   test('the week view shows the coming days', async ({ page }) => {
@@ -306,6 +327,18 @@ test.describe('adding things', () => {
     await page.getByLabel('Add a goal').fill('Run a half marathon');
     await page.getByRole('button', { name: 'Add goal', exact: true }).click();
     await expect(page.locator('.goal-title', { hasText: 'Run a half marathon' })).toBeVisible();
+  });
+
+  test('one tap ticks a goal for today and leaves its dots alone', async ({ page }) => {
+    await open(page);
+    const goal = page.locator('.goal', { hasText: 'Understand stochastic calculus' });
+    const step = goal.getByRole('button', {
+      name: 'One step closer to Understand stochastic calculus',
+    });
+    await expect(step).toHaveAttribute('aria-pressed', 'false');
+    await step.click();
+    await expect(step).toHaveAttribute('aria-pressed', 'true');
+    await expect(goal.getByRole('img')).toHaveAccessibleName('1 of 5 milestones reached');
   });
 
   test('the list takes things to remember and ticks them off (F35)', async ({ page }) => {

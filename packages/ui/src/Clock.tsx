@@ -14,10 +14,10 @@ function formatDate(d: Date): string {
 export const CLOCK_RESYNC_EVENT = 'sirius:resync-clock';
 
 /**
- * F1: inline clock and date. It renders on the minute boundary with a self-rescheduling
- * timeout rather than a 1 s interval, and re-syncs whenever the window may have slept.
+ * The current time, re-rendered on each minute boundary with a self-rescheduling timeout
+ * rather than a 1 s interval, and re-synced whenever the window may have slept.
  */
-export function Clock() {
+export function useMinute(): Date {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -45,7 +45,12 @@ export function Clock() {
       window.removeEventListener(CLOCK_RESYNC_EVENT, schedule);
     };
   }, []);
+  return now;
+}
 
+/** F1: inline clock and date. */
+export function Clock() {
+  const now = useMinute();
   return (
     <div className="header-time">
       <time className="clock" aria-label="Current time">

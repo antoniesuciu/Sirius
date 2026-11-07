@@ -1,5 +1,6 @@
 import {
   addDays,
+  notOver,
   occurrencesOn,
   type ScheduleEvent,
   type ScheduleOccurrence,
@@ -7,6 +8,7 @@ import {
   weekdayOf,
 } from '@sirius/contracts';
 import { type FormEvent, useState } from 'react';
+import { useMinute } from './Clock.tsx';
 import { InlineEdit } from './InlineEdit.tsx';
 
 export interface NewScheduleEvent {
@@ -162,10 +164,14 @@ function AddForm({ onAdd, onClose }: { onAdd(event: NewScheduleEvent): void; onC
 export function SchedulePanel({ events, today, onAdd, onRename, onDelete }: SchedulePanelProps) {
   const [view, setView] = useState<'today' | 'week'>('today');
   const [adding, setAdding] = useState(false);
+  // What is over goes by itself, checked each minute.
+  const now = useMinute();
+  const upcoming = (date: string) =>
+    occurrencesOn(events, date).filter((o) => notOver(o, today, now));
   const week = Array.from({ length: 7 }, (_, i) => addDays(today, i))
-    .map((date) => ({ date, items: occurrencesOn(events, date) }))
+    .map((date) => ({ date, items: upcoming(date) }))
     .filter((day) => day.items.length > 0);
-  const todays = occurrencesOn(events, today);
+  const todays = upcoming(today);
   const row = (o: ScheduleOccurrence) => (
     <Row key={`${o.event_id}-${o.date}`} occurrence={o} onRename={onRename} onDelete={onDelete} />
   );
