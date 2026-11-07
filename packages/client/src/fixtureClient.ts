@@ -82,6 +82,7 @@ function goal(title: string, horizon: string, done: number): GoalView {
     target_date: null,
     status: 'active' as const,
     position: 0,
+    stepped_on: null,
   };
   const milestones = [0, 1, 2, 3, 4].map((i) => ({
     ...common(),
@@ -90,7 +91,7 @@ function goal(title: string, horizon: string, done: number): GoalView {
     position: i,
     done_at: i < done ? Date.now() : null,
   }));
-  return { ...g, milestones };
+  return { ...g, milestones, stepped_today: false };
 }
 
 function roadmap(
@@ -112,6 +113,7 @@ function roadmap(
       position: i,
       status: 'todo' as const,
       done_at: null,
+      worked_on: [],
     })),
   };
 }
@@ -425,6 +427,13 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       changed('goals');
       return g;
     },
+    step_goal: ({ id }) => {
+      const g = find(state.goals, id);
+      g.stepped_today = !g.stepped_today;
+      g.stepped_on = g.stepped_today ? new Date().toISOString().slice(0, 10) : null;
+      changed('goals');
+      return g;
+    },
     delete_goal: ({ id }) => {
       state.goals = state.goals.filter((g) => g.id !== id);
       changed('goals');
@@ -463,6 +472,7 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
         position: r.steps.length,
         status: 'todo' as const,
         done_at: null,
+        worked_on: [],
       };
       r.steps.push(step);
       changed('roadmap_steps');

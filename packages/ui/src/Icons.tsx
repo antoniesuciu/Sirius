@@ -43,6 +43,10 @@ export const PlusIcon = () => (
 export const SendIcon = () => (
   <Stroke size={18} stroke="var(--on-ink)" width={2} d="M12 19 V5 M6 11 L12 5 L18 11" />
 );
+/** "One step closer", on a goal: the send arrow, in ink on the panel. */
+export const StepIcon = () => (
+  <Stroke size={18} stroke="var(--ink)" width={2} d="M12 19 V5 M6 11 L12 5 L18 11" />
+);
 export const StopIcon = () => (
   <Stroke size={18} stroke="var(--on-ink)" width={2} d="M8 8 H16 V16 H8 Z" />
 );

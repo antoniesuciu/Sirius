@@ -23,5 +23,9 @@ export const migrations = [
   {
     "tag": "0005_orange_ken_ellis",
     "sql": "ALTER TABLE `roadmap_steps` ADD `description` text DEFAULT '' NOT NULL;--> statement-breakpoint\nALTER TABLE `roadmap_steps` ADD `notes` text DEFAULT '' NOT NULL;"
+  },
+  {
+    "tag": "0006_next_jetstream",
+    "sql": "ALTER TABLE `goals` ADD `stepped_on` text;"
   }
 ];

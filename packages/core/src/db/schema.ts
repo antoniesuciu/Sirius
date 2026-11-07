@@ -36,6 +36,7 @@ export const goals = sqliteTable('goals', {
   target_date: text('target_date'),
   status: text('status', { enum: ['active', 'paused', 'done'] }).notNull(),
   position: integer('position').notNull(),
+  stepped_on: text('stepped_on'),
 });
 
 export const milestones = sqliteTable(

@@ -572,6 +572,31 @@ ul {
 .goal-dot-on {
   background: var(--ink);
 }
+.goal-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.goal-step {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-mid);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease;
+}
+.goal-step:hover {
+  border-color: var(--ink);
+}
+.goal-step-on {
+  background: var(--ink);
+  border-color: var(--ink);
+}
 
 /* Inline rename and delete (F10) */
 .editable {
@@ -1483,6 +1508,15 @@ fieldset.agent-switch {
 }
 .phone-sirius .chat-area {
   flex: 1;
+}
+
+/* The Black Night theme's gradient, from the owner's reference. */
+:root[data-theme="black-night"] .pill-solid,
+:root[data-theme="black-night"] .tab-mic-live:not(.tab-mic-mark),
+:root[data-theme="black-night"] .mic[aria-pressed="true"] {
+  background: linear-gradient(100deg, #6f9dff, #9b7dff 45%, #ff8a5b);
+  border-color: transparent;
+  color: #000;
 }
 
 /* The phone's launch screen: the logo draws itself in over the theme, then fades away. */

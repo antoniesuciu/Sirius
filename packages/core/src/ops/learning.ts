@@ -13,6 +13,22 @@ function stepsOf(ctx: OpContext, roadmapId: string) {
     .all();
 }
 
+/** The days a step's task was ticked in Today, oldest first. */
+function workedOn(ctx: OpContext, stepId: string): string[] {
+  const rows = ctx.tx.db
+    .select({ day: tasks.scheduled_for })
+    .from(tasks)
+    .where(
+      and(eq(tasks.roadmap_step_id, stepId), eq(tasks.status, 'done'), isNull(tasks.deleted_at)),
+    )
+    .all();
+  return [...new Set(rows.map((r) => r.day))].sort();
+}
+
+function stepViews(ctx: OpContext, roadmapId: string) {
+  return stepsOf(ctx, roadmapId).map((s) => ({ ...s, worked_on: workedOn(ctx, s.id) }));
+}
+
 function allRoadmaps(ctx: OpContext) {
   return ctx.tx.db
     .select()
@@ -50,7 +66,7 @@ export const learningHandlers: Handlers<
   | 'delete_roadmap_step'
 > = {
   list_learning(_input, ctx): RoadmapView[] {
-    return allRoadmaps(ctx).map((r) => ({ ...r, steps: stepsOf(ctx, r.id) }));
+    return allRoadmaps(ctx).map((r) => ({ ...r, steps: stepViews(ctx, r.id) }));
   },
 
   add_roadmap({ title, subtitle, steps }, ctx) {
@@ -70,7 +86,7 @@ export const learningHandlers: Handlers<
         status: 'todo',
       }),
     );
-    return { ...roadmap, steps: rows };
+    return { ...roadmap, steps: rows.map((s) => ({ ...s, worked_on: [] })) };
   },
 
   rename_roadmap({ id, title }, ctx) {
@@ -110,12 +126,12 @@ export const learningHandlers: Handlers<
         .from(tasks)
         .where(and(eq(tasks.roadmap_step_id, id), isNull(tasks.deleted_at)))
         .all();
+      // Finishing the step closes a task still waiting for it. Reopening leaves the ticked
+      // tasks alone: they are the days already worked on, not something to undo.
       for (const task of linked) {
-        if (task.status === 'dropped') continue;
-        ctx.tx.update('tasks', task.id, {
-          status: status === 'done' ? 'done' : 'open',
-          completed_at: status === 'done' ? (task.completed_at ?? ctx.tx.now) : null,
-        });
+        if (status === 'done' && task.status === 'open') {
+          ctx.tx.update('tasks', task.id, { status: 'done', completed_at: ctx.tx.now });
+        }
       }
     }
     return ctx.tx.update('roadmap_steps', id, fields);

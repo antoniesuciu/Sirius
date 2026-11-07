@@ -1,4 +1,4 @@
-import type { OpInput, RoadmapStep } from '@sirius/contracts';
+import type { OpInput, StepView } from '@sirius/contracts';
 import { useState } from 'react';
 
 export function MilestoneEditor({
@@ -7,7 +7,7 @@ export function MilestoneEditor({
   onUpdate,
   onStepToToday,
 }: {
-  step: RoadmapStep;
+  step: StepView;
   current: boolean;
   onUpdate(input: OpInput<'update_roadmap_step'>): Promise<unknown>;
   onStepToToday(id: string): void;
@@ -42,6 +42,9 @@ export function MilestoneEditor({
       </summary>
       {step.done_at && (
         <p className="roadmap-subtitle">Completed {new Date(step.done_at).toLocaleDateString()}</p>
+      )}
+      {step.worked_on.length > 0 && (
+        <p className="roadmap-subtitle">{workedOnLabel(step.worked_on)}</p>
       )}
       <form
         onSubmit={(e) => {
@@ -118,4 +121,15 @@ export function MilestoneEditor({
       </form>
     </details>
   );
+}
+
+/** "Worked on 3 days, last on 7 November": the history of ticks in Today. */
+export function workedOnLabel(days: string[]): string {
+  const last = new Date(`${days.at(-1)}T12:00:00`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+  });
+  return days.length === 1
+    ? `Worked on it on ${last}`
+    : `Worked on ${days.length} days, last on ${last}`;
 }

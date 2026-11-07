@@ -132,6 +132,8 @@ export const Goal = z.object({
   target_date: LocalDate.nullable(),
   status: GoalStatus,
   position: z.number().int(),
+  /** The last day "a step closer" was tapped; the tick shows only on that day. */
+  stepped_on: LocalDate.nullable(),
 });
 export type Goal = z.infer<typeof Goal>;
 
@@ -242,10 +244,14 @@ export const TodayView = z.object({
 });
 export type TodayView = z.infer<typeof TodayView>;
 
-export const GoalView = Goal.extend({ milestones: z.array(Milestone) });
+export const GoalView = Goal.extend({ milestones: z.array(Milestone), stepped_today: z.boolean() });
 export type GoalView = z.infer<typeof GoalView>;
 
-export const RoadmapView = Roadmap.extend({ steps: z.array(RoadmapStep) });
+/** A step with the days it was ticked in Today: working on it is not finishing it. */
+export const StepView = RoadmapStep.extend({ worked_on: z.array(LocalDate) });
+export type StepView = z.infer<typeof StepView>;
+
+export const RoadmapView = Roadmap.extend({ steps: z.array(StepView) });
 export type RoadmapView = z.infer<typeof RoadmapView>;
 
 export const AgentStatusValue = z.enum(['idle', 'working', 'waiting', 'resting', 'unavailable']);

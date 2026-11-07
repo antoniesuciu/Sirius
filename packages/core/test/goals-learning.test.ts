@@ -25,6 +25,21 @@ describe('goals', () => {
     expect(() => h.run('complete_milestone', { id: goal.milestones[0]?.id ?? '' })).toThrow();
   });
 
+  test('a step closer ticks the goal for today only, and leaves the milestones alone', () => {
+    const h = harness();
+    const goal = h.run('add_goal', { title: 'Run a 10k', milestones: [{ title: '5k' }] });
+    const stepped = h.run('step_goal', { id: goal.id });
+    expect(stepped.stepped_today).toBe(true);
+    expect(stepped.milestones.map((m) => m.done_at)).toEqual([null]);
+    expect(h.run('list_goals', {})[0]?.stepped_today).toBe(true);
+    // The next day it is gone by itself.
+    h.advance(24 * 60 * 60 * 1000);
+    expect(h.run('list_goals', {})[0]?.stepped_today).toBe(false);
+    // A second tap on the same day takes the tick back.
+    h.run('step_goal', { id: goal.id });
+    expect(h.run('step_goal', { id: goal.id }).stepped_today).toBe(false);
+  });
+
   test('a milestone needs a real goal', () => {
     expect(() => harness().run('add_milestone', { goal_id: 'nope', title: 'x' })).toThrow();
   });
@@ -62,31 +77,41 @@ describe('learning', () => {
     expect(h.run('step_to_today', { id: step }).id).toBe(a.id);
   });
 
-  test('completing the linked task completes the step (F12)', () => {
+  test('ticking the linked task logs a day worked on, and the step stays open (F12)', () => {
     const { h, step } = twoRoadmaps();
     const task = h.run('step_to_today', { id: step });
     h.run('complete_task', { id: task.id });
-    expect(h.run('list_learning', {})[0]?.steps[0]?.status).toBe('done');
+    const [first] = h.run('list_learning', {});
+    expect(first?.steps[0]?.status).toBe('todo');
+    expect(first?.steps[0]?.worked_on).toEqual([task.scheduled_for]);
+    expect(first?.status).toBe('active');
+    // The next day it can go into Today again, and that day is logged too.
+    h.advance(24 * 60 * 60 * 1000);
+    const next = h.run('step_to_today', { id: step });
+    expect(next.id).not.toBe(task.id);
+    h.run('complete_task', { id: next.id });
+    expect(h.run('list_learning', {})[0]?.steps[0]?.worked_on).toEqual([
+      task.scheduled_for,
+      next.scheduled_for,
+    ]);
   });
 
-  test('finishing a roadmap leaves the other roadmap active', () => {
-    const { h, step } = twoRoadmaps();
-    h.run('complete_task', { id: h.run('step_to_today', { id: step }).id });
-    expect(h.run('list_learning', {}).map((r) => r.status)).toEqual(['done', 'active']);
-  });
-
-  test('reopening the task reopens the step and its roadmap', () => {
+  test('unticking the task takes the day back off', () => {
     const { h, step } = twoRoadmaps();
     const task = h.run('step_to_today', { id: step });
     h.run('complete_task', { id: task.id });
     h.run('reopen_task', { id: task.id });
-    const [first] = h.run('list_learning', {});
-    expect(first?.status).toBe('active');
-    expect(first?.steps[0]?.status).toBe('todo');
+    expect(h.run('list_learning', {})[0]?.steps[0]?.worked_on).toEqual([]);
+  });
+
+  test('finishing a roadmap leaves the other roadmap active', () => {
+    const { h, step } = twoRoadmaps();
+    h.run('update_roadmap_step', { id: step, status: 'done' });
+    expect(h.run('list_learning', {}).map((r) => r.status)).toEqual(['done', 'active']);
   });
 });
 
-test('milestone notes persist and completing / reopening keeps linked tasks consistent', () => {
+test('milestone notes persist; finishing closes its open task, reopening keeps the history', () => {
   const h = harness();
   const r = h.run('add_roadmap', { title: 'Independent route', steps: [{ title: 'First' }] });
   const id = r.steps[0]!.id;
@@ -110,7 +135,8 @@ test('milestone notes persist and completing / reopening keeps linked tasks cons
     status: 'todo',
     done_at: null,
   });
-  expect(h.run('get_today', {}).tasks.find((t) => t.id === task.id)?.status).toBe('open');
+  // The day it was worked on stays in its history.
+  expect(h.run('get_today', {}).tasks.find((t) => t.id === task.id)?.status).toBe('done');
   h.run('update_roadmap_step', { id, status: 'done' });
   h.run('add_roadmap_step', { roadmap_id: r.id, title: 'Second' });
   expect(h.run('list_learning', {})[0]?.status).toBe('active');

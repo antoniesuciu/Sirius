@@ -328,6 +328,14 @@ export const ops = {
     input: IdInput,
     output: Milestone,
   }),
+  step_goal: op({
+    class: 'additive',
+    summary:
+      'Tick a goal as worked on today, or untick it. The tick clears itself the next day; milestones are untouched.',
+    http: { method: 'post', path: '/goals/{id}/step' },
+    input: IdInput,
+    output: GoalView,
+  }),
   delete_milestone: op({
     class: 'bulk_or_destructive',
     summary: 'Delete one milestone.',

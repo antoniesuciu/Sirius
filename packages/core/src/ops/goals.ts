@@ -21,6 +21,14 @@ function nextPosition(ctx: OpContext, goalId: string): number {
   return (row?.top ?? -1) + 1;
 }
 
+function view(ctx: OpContext, goal: typeof goals.$inferSelect): GoalView {
+  return {
+    ...goal,
+    milestones: goalMilestones(ctx, goal.id),
+    stepped_today: goal.stepped_on === ctx.today,
+  };
+}
+
 export const goalHandlers: Handlers<
   | 'list_goals'
   | 'add_goal'
@@ -29,6 +37,7 @@ export const goalHandlers: Handlers<
   | 'add_milestone'
   | 'complete_milestone'
   | 'reopen_milestone'
+  | 'step_goal'
   | 'delete_milestone'
 > = {
   list_goals(_input, ctx): GoalView[] {
@@ -38,7 +47,7 @@ export const goalHandlers: Handlers<
       .where(isNull(goals.deleted_at))
       .orderBy(asc(goals.position))
       .all()
-      .map((goal) => ({ ...goal, milestones: goalMilestones(ctx, goal.id) }));
+      .map((goal) => view(ctx, goal));
   },
 
   add_goal({ title, horizon_text, target_date, milestones: drafts }, ctx) {
@@ -56,7 +65,7 @@ export const goalHandlers: Handlers<
     const rows = (drafts ?? []).map((draft, position) =>
       ctx.tx.insert('milestones', { goal_id: goal.id, title: draft.title, position }),
     );
-    return { ...goal, milestones: rows };
+    return { ...goal, milestones: rows, stepped_today: false };
   },
 
   rename_goal({ id, title }, ctx) {
@@ -81,6 +90,12 @@ export const goalHandlers: Handlers<
 
   reopen_milestone({ id }, ctx) {
     return ctx.tx.update('milestones', id, { done_at: null });
+  },
+
+  step_goal({ id }, ctx) {
+    const goal = ctx.tx.get('goals', id);
+    const stepped_on = goal.stepped_on === ctx.today ? null : ctx.today;
+    return view(ctx, ctx.tx.update('goals', id, { stepped_on }));
   },
 
   delete_milestone({ id }, ctx) {

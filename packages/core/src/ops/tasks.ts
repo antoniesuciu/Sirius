@@ -3,7 +3,6 @@ import { and, eq, isNull, max, sql } from 'drizzle-orm';
 import { tasks } from '../db/schema.ts';
 import { conflict } from '../errors.ts';
 import type { Handlers, OpContext } from './context.ts';
-import { completeStep, reopenStep } from './learning.ts';
 
 const SOURCE_BY_VIA: Record<Via, TaskSource> = {
   ui: 'user',
@@ -75,7 +74,7 @@ export const taskHandlers: Handlers<
   complete_task({ id }, ctx) {
     const task = ctx.tx.get('tasks', id);
     if (task.status === 'dropped') throw conflict('That task was let go.');
-    if (task.roadmap_step_id) completeStep(ctx, task.roadmap_step_id); // F12
+    // F12: a step's task ticked in Today is a day worked on it, not the step finished.
     return ctx.tx.update('tasks', id, {
       status: 'done',
       completed_at: task.completed_at ?? ctx.tx.now,
@@ -83,8 +82,7 @@ export const taskHandlers: Handlers<
   },
 
   reopen_task({ id }, ctx) {
-    const task = ctx.tx.get('tasks', id);
-    if (task.roadmap_step_id) reopenStep(ctx, task.roadmap_step_id);
+    ctx.tx.get('tasks', id);
     return ctx.tx.update('tasks', id, { status: 'open', completed_at: null });
   },
 

@@ -1,6 +1,6 @@
 import type { GoalView } from '@sirius/contracts';
 import { type FormEvent, useState } from 'react';
-import { PlusIcon } from './Icons.tsx';
+import { CheckIcon, PlusIcon, StepIcon } from './Icons.tsx';
 import { InlineEdit } from './InlineEdit.tsx';
 
 export interface GoalsPanelProps {
@@ -9,6 +9,8 @@ export interface GoalsPanelProps {
   onRename(id: string, title: string): void;
   onDelete(id: string): void;
   onAdd(title: string): void;
+  /** One step closer: ticks the goal for today, or unticks it (step_goal). */
+  onStep(id: string): void;
 }
 
 const MAX_DOTS = 5;
@@ -40,7 +42,7 @@ function Dots({ goal }: { goal: GoalView }) {
   );
 }
 
-export function GoalsPanel({ goals, dimmed, onRename, onDelete, onAdd }: GoalsPanelProps) {
+export function GoalsPanel({ goals, dimmed, onRename, onDelete, onAdd, onStep }: GoalsPanelProps) {
   const [draft, setDraft] = useState('');
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -67,7 +69,19 @@ export function GoalsPanel({ goals, dimmed, onRename, onDelete, onAdd }: GoalsPa
               <span className="goal-when">{whenLabel(goal)}</span>
             </div>
           </InlineEdit>
-          <Dots goal={goal} />
+          <div className="goal-progress">
+            <Dots goal={goal} />
+            <button
+              type="button"
+              className={`goal-step ${goal.stepped_today ? 'goal-step-on' : ''}`}
+              aria-label={`One step closer to ${goal.title}`}
+              aria-pressed={goal.stepped_today}
+              title={goal.stepped_today ? 'A step closer today' : 'One step closer'}
+              onClick={() => onStep(goal.id)}
+            >
+              {goal.stepped_today ? <CheckIcon size={18} stroke="var(--on-ink)" /> : <StepIcon />}
+            </button>
+          </div>
         </div>
       ))}
       <form className="quick-add" onSubmit={submit}>

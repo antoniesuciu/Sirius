@@ -1,0 +1,1 @@
+ALTER TABLE `goals` ADD `stepped_on` text;
