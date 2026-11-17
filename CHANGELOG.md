@@ -186,3 +186,71 @@
 - Black Night theme (the former Orb, renamed, with the wolf's gradient).
 - **Sirius: Today (small)**, a row shorter; a Today widget about two rows high tightens its header.
 - Schedule: an entry with no end time counts as an hour long before it leaves today's list.
+
+## Notes and folding cards (2026-11-11)
+
+- **Notes**: notes of any length, loose or in folders such as "Stocks", in a new card beside
+  To remember (on the phone, under List). A note saves itself as you type, and Sirius can
+  write and edit notes; deleting one needs your confirmation.
+- Every card except the chat folds to its title bar when you click its title, showing a count
+  where one helps. Each device remembers which cards are folded.
+- Codex approval alerts stay quiet in "Approve for me" (auto-review) mode, where a reviewer
+  agent answers instead of you. The hook reads the session's current mode from Codex's log.
+
+## Notes app, layout and polish (2026-11-16)
+
+- **Notes page**: the Notes card opens a full notes page (`?notes`, or `?notes=<id>` for one
+  note), with folders and their counts, a searchable list (pinned first, then the latest edit)
+  and the open note side by side; on a phone the list and the note take turns. A note is one
+  writing surface whose first line is its title, with a save state, a word count, its times, a
+  folder, a pin, and delete with Undo for 30 seconds. `/` or Ctrl+F searches, Ctrl+Enter starts
+  a note, and Escape steps back. The card now shows the latest few notes and the quick-add line.
+- An open note no longer overwrites an edit made elsewhere, such as by Sirius: `update_note`
+  takes an optional `expected_rev` and refuses a stale one with `conflict`, and the note then
+  offers Keep mine or Take theirs. `update_note` also takes `pinned`, and `delete_note` returns
+  the `change_id` to undo it.
+- **Android widgets stay current**: they redraw when the live stream connects and when the app
+  goes to the background, a failed sync no longer skips the background refresh, a failed paint
+  is retried by the next refresh, and a revoked token says "Open Sirius to pair" instead of
+  "Laptop away". The same release stops a stale reminder sync overwriting a newer one and
+  lets the phone page recover once the laptop is back.
+- The cards moved: Roadmaps and Personal sit on the left, To remember and Notes on the right.
+- Polish: labels are in sentence case, the small lines under titles are plainer, glyphs are SVG
+  icons, and an empty card says so ("Nothing for today yet.") once its data has loaded. Focus
+  rings keep the shape of what they surround.
+- Motion: timings come from shared tokens. Cards enter faster, a toast leaves as gently as it
+  arrives, a tick draws itself, the rows below a removed row glide up, and a card folds with
+  transform only. Reduced motion is honoured everywhere, including the motion run from code.
+- Fixed: a chat turn survives leaving the window and coming back, push-to-talk no longer starts
+  twice, the pairing button, the 04:00 rollover after a restart, and Escape in voice before
+  capture begins.
+
+## Notes, chat and polish, finished (2026-11-17)
+
+- **Notes keep every word**: saves go one at a time, each against the revision the editor last
+  saw, so closing a note can no longer overwrite an edit made elsewhere. Closing a note in
+  conflict keeps your text as a new note in the same folder. A first line over 500 characters
+  keeps its overflow in the body. Deleting a folder now offers Undo, which brings its notes back.
+- **Milestones**: the milestone editor sends the revision it opened, merges an edit made
+  elsewhere into fields you did not touch, and asks Keep mine or Take theirs when both changed
+  the same one. `update_roadmap_step` takes an optional `expected_rev`.
+- **Chat**: a file still uploading shows "uploading" and holds Send until it is ready; only the
+  files actually sent are cleared; Send is busy from the moment you press it; resending the
+  same words shows them again. A finished reply is held until its stored copy arrives, matched
+  by the core's time, so an error or a spoken line is never taken for it.
+- Rows added while the laptop has not answered yet cannot be ticked or dropped until it does.
+- Push-to-talk releases the microphone when recording fails to start. In the voice service, an
+  Escape pressed just before a reply starts playing is honoured, and a failure no longer
+  swallows a press that arrived during it.
+- Polish: text fields have edges at 3:1 contrast, note times use the 24-hour clock like the
+  rest of the app, long task titles on a phone wrap short of the remove button, headings
+  balance their lines, disabled round buttons change colour as well as fading, and the roadmap
+  checkpoints' spoken names match what they show. Full-page dialogs no longer use `100vw`.
+- A note or milestone saved while the laptop was away, then refused because it changed
+  somewhere else, keeps its text as a new note ("… (kept from a conflict)") once no editor is
+  open on it, and says so. Before, after a reload, that text was dropped without a word.
+- Stop works from the moment you press Send, not only once the reply has started.
+- Sending the same words again fades the new bubble in, like any other.
+- A link at the end of a row lines its words up with the card's edge.
+- Playwright now also runs the desktop specs in WebKit, the nearest stand-in for the desktop
+  app's WebKitGTK window, locally and in CI.

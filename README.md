@@ -47,12 +47,15 @@ working from its own copy while the laptop is away.
 | **Goals** | A few goals, with milestone dots instead of percentages. "A step closer" marks today as a day you worked on the goal, without adding a milestone. You can add goals by hand or ask Sirius. |
 | **Learning** | Independent roadmaps, each with its milestones and its own page of checkpoints, descriptions and progress notes. "Put it in Today" turns the next step into a task; ticking that task logs a day worked on the step and leaves the step open until you finish it. Attach a syllabus PDF or Markdown file in the chat, and Sirius turns it into a roadmap. |
 | **To remember** | A plain list for things to buy or remember, with no day or time attached. |
+| **Notes** | Notes of any length, loose or in folders such as "Stocks". They save as you type, and Sirius can write or edit them for you. |
 | **Personal and Well-being** | Prayer and reflection reminders, a breathing exercise and stretch nudges. |
 | **Agent attention** | A toast and a desktop notification when Claude Code or Codex, in any terminal, is blocked on a permission prompt or a question. It clears itself once you answer. Clicking it brings up the terminal or VS Code the agent runs in, also from a distrobox container; with the focus extension, that agent's own window. The Sirius card shows which sessions are working or idle. |
 | **Voice** | Push-to-talk with **Ctrl+Alt+Space**, in English and Romanian. Common commands such as "add milk to my list" or "ce urmează" are handled on the laptop without an agent turn, and anything else goes to the agent. |
 | **Looks** | Seven themes, among them Black Night (black with the wolf's blue-to-orange gradient); ask Sirius ("switch to midnight", "something darker"). The Sirius wolf takes each theme's colours and reacts to what happens: it draws itself in at launch, listens, thinks and speaks with the voice, works while an agent runs, howls when one finishes or wants you, and sleeps in quiet mode. |
 | **Phone** | An installable web app over Tailscale, with its own layout: Today, Sirius, Plan and List behind a bottom bar, and a mic that sends your voice to the laptop, stops by itself once you go quiet, and says the answer on the phone. It keeps an offline copy, opens from it within about three seconds when the laptop does not answer, queues the changes you make while away, and sends each one exactly once when the laptop is back. |
 | **Android app** | The same phone app in a native shell, which adds reminders scheduled on the phone (they fire with the laptop off), agent alerts, home-screen widgets and background sync. No Google account, no Firebase, built locally for free. |
+
+Any card except the chat folds to its title bar with a click on its title, so one you don't need right now takes one line. Each device remembers which cards are folded.
 
 Agents never change several things at once, or delete anything, without you confirming a
 proposal card. Single changes an agent makes can be undone for 30 seconds.
