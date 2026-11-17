@@ -14,6 +14,9 @@ import { clientFor, loadConnection } from '../connection.ts';
 import { THEME_COLORS } from '../theme.gen.ts';
 import {
   isCompact,
+  type Link,
+  linkAfter,
+  noteFor,
   onlyChanges,
   type Snapshot,
   slimList,
@@ -32,9 +35,11 @@ export const WIDGET = 'Today';
 const SMALL = 'TodaySmall';
 const WOLF = 'Wolf';
 
-async function fresh(): Promise<Snapshot | null> {
+// All or nothing on purpose: drawing today's tasks fresh beside a stale list, with no "Laptop
+// away" note, would pass old rows off as current.
+async function fresh(): Promise<{ snapshot: Snapshot | null; link: Link }> {
   const connection = await loadConnection();
-  if (!connection) return null;
+  if (!connection) return { snapshot: null, link: 'unpaired' };
   try {
     const client = clientFor(connection);
     const [today, list, settings] = await Promise.all([
@@ -54,9 +59,9 @@ async function fresh(): Promise<Snapshot | null> {
       ),
       SecureStore.setItemAsync(LIST_KEY, JSON.stringify(snapshot.list)),
     ]).catch(() => {});
-    return snapshot;
-  } catch {
-    return null;
+    return { snapshot, link: 'ok' };
+  } catch (error) {
+    return { snapshot: null, link: linkAfter(error) };
   }
 }
 
@@ -83,7 +88,8 @@ const colorsOf = (snapshot: Snapshot | null) =>
 // One per JS runtime: the app and the widget's taps share it while the app is alive.
 const today = onlyChanges();
 
-function render(snapshot: Snapshot | null, away: boolean, compact: boolean) {
+function render(snapshot: Snapshot | null, link: Link, compact: boolean) {
+  const note = noteFor(snapshot, link);
   return (
     <TodayWidget
       tasks={snapshot?.tasks ?? []}
@@ -91,7 +97,7 @@ function render(snapshot: Snapshot | null, away: boolean, compact: boolean) {
       colors={colorsOf(snapshot)}
       theme={snapshot?.theme ?? 'paper'}
       compact={compact}
-      {...(snapshot ? (away ? { note: 'Laptop away' } : {}) : { note: 'Open Sirius to pair' })}
+      {...(note ? { note } : {})}
     />
   );
 }
@@ -104,9 +110,9 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps): Promise<
   }
   const { widgetId, height } = props.widgetInfo;
   const compact = isCompact(height);
-  const draw = (snapshot: Snapshot | null, away: boolean) =>
-    today.draw(widgetId, [snapshot, away, compact], () =>
-      props.renderWidget(render(snapshot, away, compact)),
+  const draw = (snapshot: Snapshot | null, link: Link) =>
+    today.draw(widgetId, [snapshot, link, compact], () =>
+      props.renderWidget(render(snapshot, link, compact)),
     );
   const action = props.widgetAction === 'WIDGET_CLICK' ? props.clickAction : undefined;
   if (action === 'TOGGLE' || action === 'TICK_ITEM') {
@@ -116,7 +122,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps): Promise<
     // Tick at once from the saved copy; the laptop's answer redraws it only if it differs.
     // If the laptop is away the call fails and the saved copy, never changed, puts it back.
     if (id && before) {
-      draw(action === 'TOGGLE' ? toggled(before, id) : ticked(before, id), false);
+      draw(action === 'TOGGLE' ? toggled(before, id) : ticked(before, id), 'ok');
     }
     if (id && connection) {
       const client = clientFor(connection);
@@ -130,26 +136,28 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps): Promise<
     today.forget(widgetId);
   }
   const now = await fresh();
-  draw(now ?? (await saved()), now === null);
+  draw(now.snapshot ?? (await saved()), now.link);
 }
 
 /** Called by the app and the background task after a sync: redraws only what changed. */
 export async function refreshWidget(): Promise<void> {
   const theme = (await saved())?.theme;
   const now = await fresh();
-  const snapshot = now ?? (await saved());
-  const away = now === null;
+  const snapshot = now.snapshot ?? (await saved());
+  const { link } = now;
   const paints: Promise<void>[] = [];
   for (const widgetName of [WIDGET, SMALL]) {
     for (const { widgetId, height } of await getWidgetInfo(widgetName).catch(() => [])) {
       const compact = isCompact(height);
-      today.draw(widgetId, [snapshot, away, compact], () => {
+      today.draw(widgetId, [snapshot, link, compact], () => {
         paints.push(
           requestWidgetUpdateById({
             widgetName,
             widgetId,
-            renderWidget: () => render(snapshot, away, compact),
-          }),
+            renderWidget: () => render(snapshot, link, compact),
+            // A rejected paint must not count as shown. Native draw errors the library
+            // swallows stay invisible here.
+          }).catch(() => today.forget(widgetId)),
         );
       });
     }
