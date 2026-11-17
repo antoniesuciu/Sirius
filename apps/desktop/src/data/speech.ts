@@ -48,12 +48,9 @@ export function speechSupported(): boolean {
 export function createSpeaker(onSpeaking: (speaking: boolean) => void): Speaker {
   let buffer = '';
   let queued = 0;
+  /** Bumped by stop: a cancelled utterance's late onerror must not end newer speech. */
+  let generation = 0;
   const synth = speechSupported() ? window.speechSynthesis : null;
-
-  const settle = () => {
-    queued = Math.max(0, queued - 1);
-    if (queued === 0) onSpeaking(false);
-  };
 
   const utter = (raw: string, lang: string) => {
     const text = forSpeech(raw);
@@ -63,6 +60,12 @@ export function createSpeaker(onSpeaking: (speaking: boolean) => void): Speaker 
     // Without a matching voice the phone reads Romanian with an English one.
     const voice = synth.getVoices().find((v) => v.lang.replace('_', '-') === utterance.lang);
     if (voice) utterance.voice = voice;
+    const mine = generation;
+    const settle = () => {
+      if (mine !== generation) return;
+      queued = Math.max(0, queued - 1);
+      if (queued === 0) onSpeaking(false);
+    };
     utterance.onend = settle;
     utterance.onerror = settle;
     queued += 1;
@@ -85,6 +88,7 @@ export function createSpeaker(onSpeaking: (speaking: boolean) => void): Speaker 
     stop() {
       buffer = '';
       queued = 0;
+      generation += 1;
       synth?.cancel();
       onSpeaking(false);
     },

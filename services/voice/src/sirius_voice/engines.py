@@ -73,7 +73,6 @@ class PipeWireSpeaker:
         self._stopped = threading.Event()
 
     def play(self, chunks: Iterable[np.ndarray], sample_rate: int, on_level) -> bool:
-        self._stopped.clear()
         process = subprocess.Popen(
             ["pw-play", f"--rate={sample_rate}", "--channels=1", "--format=s16", "-"],
             stdin=subprocess.PIPE,
@@ -106,6 +105,9 @@ class PipeWireSpeaker:
         if process.poll() is None:
             process.send_signal(signal.SIGTERM)
         self._process = None
+
+    def reset(self) -> None:
+        self._stopped.clear()
 
     def stop(self) -> None:
         self._stopped.set()
@@ -251,6 +253,7 @@ class PiperTts:
 def earcon(speaker: PipeWireSpeaker) -> None:
     """A soft rising two-note tone, generated here so no audio file is needed."""
     rate = 22_050
+    speaker.reset()  # A barge-in's stop must not silence the tone that follows it.
     notes = []
     for frequency in (660, 880):
         t = np.arange(int(rate * 0.09)) / rate
