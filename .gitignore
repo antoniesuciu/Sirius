@@ -54,3 +54,6 @@ token
 
 # Agent worktrees (each is its own checkout)
 /.worktrees/
+
+# Hallmark sweep screenshots and log
+.hallmark/

@@ -1,5 +1,6 @@
 import type { ReminderView } from '@sirius/contracts';
 import { useEffect, useState } from 'react';
+import { FoldTitle } from './Fold.tsx';
 
 export interface WellbeingPanelProps {
   nudge: ReminderView | null;
@@ -31,7 +32,9 @@ export function WellbeingPanel({ nudge, onSnoozeNudge, startSignal }: WellbeingP
   return (
     <section className="panel panel-wellbeing rise d5">
       <div className="panel-head">
-        <h2>Well-being</h2>
+        <h2>
+          <FoldTitle>Well-being</FoldTitle>
+        </h2>
       </div>
       <div className="breath">
         <div className="breath-ring" aria-hidden="true">
@@ -49,7 +52,9 @@ export function WellbeingPanel({ nudge, onSnoozeNudge, startSignal }: WellbeingP
       </div>
       <div className="nudge">
         <span>
-          Next nudge · {nudge ? `${nudge.time_local} · ${nudge.label.toLowerCase()}` : 'none today'}
+          {nudge
+            ? `Next nudge at ${nudge.time_local}: ${nudge.label.toLowerCase()}`
+            : 'No nudge today'}
         </span>
         {nudge && (
           <button
