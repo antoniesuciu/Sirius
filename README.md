@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/design/sirius.svg" alt="Sirius logo" width="96">
+<img src="docs/design/sirius-logo/sirius.svg" alt="Sirius logo" width="120">
 
 # Sirius
 
@@ -9,7 +9,6 @@ A personal dashboard and assistant for the day, on Ubuntu and Android.
 ![Bun](https://img.shields.io/badge/Bun-1.4%2B-000?logo=bun&logoColor=white)
 ![Platform](https://img.shields.io/badge/Ubuntu%2024.04%20%C2%B7%20Android-E95420?logo=ubuntu&logoColor=white)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex-D97757)
-![Self-hosted](https://img.shields.io/badge/runs%20on-your%20laptop-2E7D32)
 
 <img src="docs/screenshots/dashboard.png" alt="The Sirius dashboard on a laptop, after asking Sirius to add a goal" width="900">
 

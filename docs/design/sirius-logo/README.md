@@ -1,12 +1,11 @@
 # Sirius logo playgrounds
 
-Two animated versions of the layered logo, side by side for comparison. Both render the app's
-own components from `packages/ui/src`, with the app's theme tokens.
+The animated layered logo. It renders the app's
+own component from `packages/ui/src`, with the app's theme tokens.
 
 | Page | Component | States |
 | --- | --- | --- |
 | `logo.html` | `SiriusLogo.tsx`, ported from the spec, in the app | startup, idle, listening, thinking, working, speaking, notify, error, sleep |
-| `mark.html` | `SiriusMark.tsx`, the earlier five-state version, kept to compare | idle, listening, thinking, speaking, asleep |
 | `playground.html` | the owner's original standalone spec | the same nine |
 
 ```sh

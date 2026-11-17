@@ -1,9 +1,7 @@
-import { mkdirSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
 test('the Sirius wolf is visible and still while idle in all themes', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop');
-  mkdirSync('docs/design/logos/themes', { recursive: true });
   await page.goto('/?fixtures&toastMs=600000');
   for (const theme of [
     'paper',
@@ -30,9 +28,6 @@ test('the Sirius wolf is visible and still while idle in all themes', async ({ p
       .first()
       .evaluate((stop) => getComputedStyle(stop).stopColor);
     expect(ink).not.toBe('rgba(0, 0, 0, 0)');
-    await page
-      .locator('.sirius-head')
-      .screenshot({ path: `docs/design/logos/themes/wolf-${theme}.png` });
   }
 });
 

@@ -12,7 +12,6 @@ mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 const errors: string[] = [];
 for (const [page, states] of [
-  ['mark', 5],
   ['logo', 9],
 ] as const) {
   const tab = await browser.newPage({ viewport: { width: 1100, height: 900 } });

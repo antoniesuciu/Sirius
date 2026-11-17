@@ -9,7 +9,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: resolve(__dirname, 'index.html'),
-        mark: resolve(__dirname, 'mark.html'),
         logo: resolve(__dirname, 'logo.html'),
       },
     },
