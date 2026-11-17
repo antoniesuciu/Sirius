@@ -185,6 +185,24 @@ describe('quiet mode (F4, F24)', () => {
     h.core.scheduler.tick();
     expect(h.notified.length).toBe(1);
   });
+
+  test('a core restarted across rollover still releases the queue, once', () => {
+    const h = harness();
+    // A restart forgets everything the scheduler holds in memory.
+    const restart = () => Object.assign(h.core.scheduler, { lastDate: null });
+    h.core.scheduler.tick();
+    h.run('set_quiet_mode', { on: true });
+    h.run('post_agent_event', { source: 'claude', kind: 'needs_input' });
+    restart();
+    h.now.value = at('2026-11-02T09:00:00Z');
+    h.core.scheduler.tick();
+    expect(h.notified.length).toBe(1);
+    expect(h.events.some((e) => e.type === 'day_changed')).toBe(true);
+    restart();
+    h.advance(60_000);
+    h.core.scheduler.tick();
+    expect(h.notified.length).toBe(1);
+  });
 });
 
 describe('agent attention (F23, F25)', () => {

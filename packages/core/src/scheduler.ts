@@ -24,6 +24,8 @@ import type { Store, Tx } from './store.ts';
 
 /** A reminder missed by more than this (a suspended laptop, say) is let go, not fired late. */
 const REMINDER_GRACE_MS = 5 * 60 * 1000;
+/** The last logical date a tick ran on, kept in the settings table. */
+const LAST_DATE_SETTING = 'scheduler.last_date';
 
 export class Scheduler {
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -67,12 +69,24 @@ export class Scheduler {
     this.expireProposals(now);
     this.fireReminders(now);
     this.remindSchedule(now);
-    if (this.lastDate !== null && this.lastDate !== today) {
-      this.releaseQuiet(this.lastDate);
-      // An open window has no other way to learn this when no task had to move.
-      this.bus.publish({ type: 'day_changed', date: today });
+    // Persisted, so a core restarted across 04:00 still ends the previous day's quiet mode once.
+    this.lastDate ??= this.store.write(
+      'system',
+      (tx) => (tx.peek('settings', LAST_DATE_SETTING)?.value as string | undefined) ?? null,
+    );
+    if (this.lastDate !== today) {
+      if (this.lastDate !== null) {
+        this.releaseQuiet(this.lastDate);
+        // An open window has no other way to learn this when no task had to move.
+        this.bus.publish({ type: 'day_changed', date: today });
+      }
+      this.store.write('system', (tx) => {
+        if (tx.peek('settings', LAST_DATE_SETTING)) {
+          tx.update('settings', LAST_DATE_SETTING, { value: today });
+        } else tx.insert('settings', { key: LAST_DATE_SETTING, value: today });
+      });
+      this.lastDate = today;
     }
-    this.lastDate = today;
     this.backups?.runDaily(today);
   }
 
