@@ -35,8 +35,22 @@ test('the notes page lists folders with counts, searches, and finds nothing plai
   await expect(view.getByLabel('Search notes')).toHaveValue('');
   await expect(view).toBeVisible();
 
+  // The new folder's rows animate in (Web Animations, so WebKit plays it too). Count the calls:
+  // the 240 ms animation can be over before an assertion looks.
+  await page.evaluate(() => {
+    const w = window as unknown as { rowAnimations: number };
+    w.rowAnimations = 0;
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      if (this.matches('.note-list > li')) w.rowAnimations++;
+      return animate.apply(this, args);
+    };
+  });
   await folders.getByRole('button', { name: 'Stocks 1' }).click();
   await expect(view.locator('.note-row-title')).toHaveText(['NVDA thesis']);
+  expect(
+    await page.evaluate(() => (window as unknown as { rowAnimations: number }).rowAnimations),
+  ).toBe(1);
   await folders.getByRole('button', { name: 'Delete folder: Stocks' }).click();
   await expect(view.getByText('Deleting Stocks also deletes the 1 note in it.')).toBeVisible();
   await view.getByRole('button', { name: 'Keep' }).click();

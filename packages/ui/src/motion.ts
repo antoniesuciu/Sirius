@@ -33,10 +33,13 @@ function canAnimate(): boolean {
   );
 }
 
-function play(el: Element, keyframes: Keyframe[], durationToken: string) {
+function play(el: Element, keyframes: Keyframe[], durationToken: string, delay = 0) {
   running.get(el)?.cancel();
   const animation = el.animate(keyframes, {
     duration: tokenMs(durationToken),
+    delay,
+    // A delayed element holds its first frame, so it does not flash in before its turn.
+    fill: 'backwards',
     easing: token('--ease-out') || 'ease-out',
   });
   running.set(el, animation);
@@ -73,9 +76,14 @@ export function measure(els: Element[]): () => void {
   };
 }
 
-/** Content just shown fades in and rises a few pixels. */
-export function reveal(els: Iterable<Element>) {
+/**
+ * Content just shown fades in and rises a few pixels. With `stagger`, each element starts one
+ * `--stagger` after the one before, up to the eighth, so a long list does not trail on.
+ */
+export function reveal(els: Iterable<Element>, stagger = false) {
   if (!canAnimate()) return;
+  const step = stagger ? tokenMs('--stagger') : 0;
+  let i = 0;
   for (const el of els) {
     play(
       el,
@@ -84,6 +92,7 @@ export function reveal(els: Iterable<Element>) {
         { opacity: 1, transform: 'none' },
       ],
       '--dur',
+      Math.min(i++, 8) * step,
     );
   }
 }

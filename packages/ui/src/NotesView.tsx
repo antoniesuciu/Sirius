@@ -1,6 +1,14 @@
 import type { Note, NotesView as NotesData } from '@sirius/contracts';
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { BackIcon, PlusIcon } from './Icons.tsx';
+import { reveal } from './motion.ts';
 import { type NoteChanges, NoteEditor, splitText, UNTITLED } from './NoteEditor.tsx';
 import { noteMatches, notePreview, noteTime } from './noteText.ts';
 
@@ -267,6 +275,17 @@ export function NotesView({
   const open = pane.kind === 'note' ? view.notes.find((n) => n.id === pane.id) : undefined;
   const folderName = (id: string | null) => view.folders.find((f) => f.id === id)?.name;
 
+  // Another folder's notes come in row by row (Web Animations, so WebKitGTK and Android's
+  // WebView play it too). Not on first paint: the page has its own entrance.
+  const listPane = useRef<HTMLElement>(null);
+  const lastFilter = useRef(filter);
+  useLayoutEffect(() => {
+    if (lastFilter.current === filter) return;
+    lastFilter.current = filter;
+    const pane = listPane.current;
+    if (pane) reveal(pane.querySelectorAll('.note-list > li, .notes-empty'), true);
+  }, [filter]);
+
   const newNote = () => {
     void onAddNote(UNTITLED, folder?.id ?? null).then((note) => {
       setMade(note.id);
@@ -329,7 +348,7 @@ export function NotesView({
           {...folderActions}
           onDeleted={setDeleted}
         />
-        <section className="notes-list-pane" aria-label="Note list">
+        <section ref={listPane} className="notes-list-pane" aria-label="Note list">
           <div className="notes-list-tools">
             <input
               ref={search}
