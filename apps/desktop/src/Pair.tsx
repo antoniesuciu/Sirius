@@ -23,8 +23,9 @@ export function Pair({ code: fromLink }: { code: string | null }) {
     }).catch(() => null);
     if (!reply) return setState('unreachable');
     if (!reply.ok) return setState('failed');
-    const { token } = (await reply.json()) as { token: string };
-    saveToken(token);
+    const body = (await reply.json().catch(() => null)) as { token?: unknown } | null;
+    if (typeof body?.token !== 'string') return setState('failed');
+    saveToken(body.token);
     window.location.replace(window.location.pathname);
   };
 

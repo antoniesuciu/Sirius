@@ -4,6 +4,42 @@ import { useEffect, useRef, useState } from 'react';
 import { invalidationsFor, useClient } from './queries.ts';
 import { setReachable } from './sync.ts';
 
+type ChatEvent = Extract<SiriusEvent, { type: 'chat' }>;
+
+/** The chat turn as this client knows it. The core runs one turn at a time. */
+export type Turn =
+  | { kind: 'idle' }
+  | { kind: 'thinking' | 'tool' | 'streaming'; turnId: string; text: string };
+
+/** `resynced`: after a (re)connect, the core's own word on which turn is running, if any. */
+export type TurnEvent = ChatEvent | { kind: 'resynced'; activeTurnId: string | null };
+
+const IDLE: Turn = { kind: 'idle' };
+
+export function turnReducer(turn: Turn, event: TurnEvent): Turn {
+  const current = turn.kind === 'idle' ? null : turn;
+  switch (event.kind) {
+    case 'resynced':
+      if (event.activeTurnId === null) return IDLE;
+      if (current?.turnId === event.activeTurnId) return turn;
+      return { kind: 'thinking', turnId: event.activeTurnId, text: '' };
+    case 'start':
+      return { kind: 'thinking', turnId: event.turn_id, text: '' };
+    case 'done':
+    case 'error':
+      return current?.turnId === event.turn_id ? IDLE : turn;
+    case 'text':
+    case 'tool': {
+      // A live event for another turn means its start was missed while disconnected, and the
+      // core runs one turn at a time, so the old one is over: follow the new one.
+      const text = current?.turnId === event.turn_id ? current.text : '';
+      return event.kind === 'text'
+        ? { kind: 'streaming', turnId: event.turn_id, text: text + event.delta }
+        : { kind: 'tool', turnId: event.turn_id, text };
+    }
+  }
+}
+
 /** Agent-applied changes stay undoable this long (F20). */
 const UNDO_WINDOW_MS = 30_000;
 
@@ -35,9 +71,9 @@ export function useLive(
   const connectedHook = useRef(onConnected);
   connectedHook.current = onConnected;
   const qc = useQueryClient();
-  const [streaming, setStreaming] = useState<string | null>(null);
-  const [thinking, setThinking] = useState(false);
-  const [turnId, setTurnId] = useState<string | null>(null);
+  const [turn, setTurn] = useState<Turn>(IDLE);
+  /** Counts chat events, so a resync answer older than a live event is dropped. */
+  const chatSeen = useRef(0);
   const [breathingSignal, setBreathingSignal] = useState(0);
   const [undoable, setUndoable] = useState<ChangeEvent | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -46,27 +82,24 @@ export function useLive(
   const connected = useRef(false);
 
   useEffect(() => {
-    const onChat = (event: Extract<SiriusEvent, { type: 'chat' }>) => {
-      switch (event.kind) {
-        case 'start':
-          setTurnId(event.turn_id);
-          setThinking(true);
-          setStreaming(null);
-          break;
-        case 'text':
-          setThinking(false);
-          setStreaming((s) => (s ?? '') + event.delta);
-          break;
-        case 'tool':
-          setThinking(true);
-          break;
-        case 'done':
-        case 'error':
-          setTurnId(null);
-          setThinking(false);
-          setStreaming(null);
-          break;
-      }
+    let closed = false;
+    const onChat = (event: ChatEvent) => {
+      chatSeen.current += 1;
+      setTurn((t) => turnReducer(t, event));
+    };
+    // Deltas sent while disconnected are lost; the full reply arrives with the conversation.
+    const resync = () => {
+      const seen = chatSeen.current;
+      const apply = (activeTurnId: string | null) => {
+        if (!closed && chatSeen.current === seen) {
+          setTurn((t) => turnReducer(t, { kind: 'resynced', activeTurnId }));
+        }
+      };
+      client.call('get_conversation', {}).then(
+        (view) => apply(view.active_turn_id),
+        // Unknown is treated as over, so Send is never stuck behind a turn that ended.
+        () => apply(null),
+      );
     };
 
     const onEvent = (event: SiriusEvent) => {
@@ -86,7 +119,7 @@ export function useLive(
       }
     };
 
-    return client.subscribe({
+    const unsubscribe = client.subscribe({
       onEvent,
       onDisconnected: () => {
         connected.current = false;
@@ -95,24 +128,27 @@ export function useLive(
       onConnected: () => {
         connected.current = true;
         setReachable(true);
-        // A turn's end may have happened while disconnected, so never stay stuck on it.
-        setTurnId(null);
-        setThinking(false);
-        setStreaming(null);
+        // A turn may have ended, or gone on, while disconnected: ask the core which.
+        resync();
         // Anything may have changed while disconnected, and the machine may have slept.
         void qc.invalidateQueries();
         connectedHook.current?.();
       },
     });
+    return () => {
+      closed = true;
+      unsubscribe();
+    };
     // `attempt` is a dependency only so that bumping it reconnects at once.
   }, [client, qc, attempt]);
 
   useEffect(() => () => clearTimeout(undoTimer.current), []);
 
+  const active = turn.kind === 'idle' ? null : turn;
   return {
-    streaming,
-    thinking,
-    turnId,
+    streaming: active && (active.kind === 'streaming' || active.text !== '') ? active.text : null,
+    thinking: active?.kind === 'thinking' || active?.kind === 'tool',
+    turnId: active?.turnId ?? null,
     breathingSignal,
     undoable,
     clearUndo: () => setUndoable(null),

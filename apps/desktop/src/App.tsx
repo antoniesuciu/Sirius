@@ -10,6 +10,7 @@ import {
   useLearning,
   useList,
   useLive,
+  useNotes,
   useOp,
   useProposals,
   useReminders,
@@ -28,6 +29,7 @@ import {
   describeAgentEvent,
   greeting,
   logicalDate,
+  type Note,
   type Proposal,
   type ReminderView,
   type SiriusEvent,
@@ -38,13 +40,15 @@ import {
   type AvatarState,
   type ChatLine,
   CLOCK_RESYNC_EVENT,
+  Fold,
   GoalsPanel,
   Header,
   LearningPanel,
   ListPanel,
   type LogoState,
+  NotesPanel,
+  NotesView,
   nextStep,
-  type PendingFile,
   PersonalPanel,
   type PhoneTab,
   receiptForIntent,
@@ -55,16 +59,37 @@ import {
   TabBar,
   TodayPanel,
   tabForEntity,
+  useNotesRoute,
   usePageHidden,
   useResting,
   WellbeingPanel,
   WindowControls,
 } from '@sirius/ui';
+import { onlineManager } from '@tanstack/react-query';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { ConnectionLine } from './ConnectionLine.tsx';
 import { browserVoiceSupported, usePhoneVoice } from './data/browserVoice.ts';
 import { useOpenTabRequests, usePhonePush } from './data/phonePush.ts';
+import {
+  type Attachment,
+  IDLE,
+  type Outgoing,
+  type OutgoingEvent,
+  outgoingReducer,
+  pendingLine,
+  uploaded,
+  uploadKey,
+  withoutSent,
+} from './outgoing.ts';
 
 const OWNER = 'Antonie';
 const SNOOZE_MS = 60 * 60 * 1000;
@@ -227,10 +252,12 @@ export function App({ phone = false }: { phone?: boolean }) {
   }, [tabbed, breathing]);
 
   const today = useToday().data;
-  const goals = useGoals().data ?? [];
+  const goalsData = useGoals().data;
+  const goals = goalsData ?? [];
   const roadmaps = useLearning().data ?? [];
   const reminders = useReminders().data ?? [];
   const listItems = useList().data;
+  const notes = useNotes().data ?? { folders: [], notes: [] };
   const schedule = useSchedule().data ?? [];
   const proposals = useProposals().data ?? [];
   const agents = useAgents().data;
@@ -252,6 +279,18 @@ export function App({ phone = false }: { phone?: boolean }) {
   const deleteScheduleEvent = useOp('delete_schedule_event', ['list_schedule', 'get_today']);
   const addToList = useAddToList();
   const tickListItem = useTickListItem();
+  const addNoteFolder = useOp('add_note_folder', ['list_notes']);
+  const renameNoteFolder = useOp('rename_note_folder', ['list_notes']);
+  const deleteNoteFolder = useOp('delete_note_folder', ['list_notes']);
+  const addNote = useOp('add_note', ['list_notes']);
+  const updateNote = useOp('update_note', ['list_notes']);
+  const deleteNote = useOp('delete_note', ['list_notes']);
+  const notesRoute = useNotesRoute();
+  // Only the event stream decides whether the core is in reach (ADR 0010).
+  const online = useSyncExternalStore(
+    (listener) => onlineManager.subscribe(listener),
+    () => onlineManager.isOnline(),
+  );
   const deleteGoal = useOp('delete_goal', ['list_goals']);
   const renameRoadmap = useOp('rename_roadmap', ['list_learning']);
   const deleteRoadmap = useOp('delete_roadmap', ['list_learning']);
@@ -264,12 +303,19 @@ export function App({ phone = false }: { phone?: boolean }) {
   const newConversation = useOp('new_conversation', ['get_conversation']);
   const confirmProposal = useOp('confirm_proposal', ['list_proposals', 'get_conversation']);
   const rejectProposal = useOp('reject_proposal', ['list_proposals', 'get_conversation']);
-  const undo = useOp('undo', ['get_today', 'list_goals', 'list_learning', 'list_reminders']);
+  const undo = useOp('undo', [
+    'get_today',
+    'list_goals',
+    'list_learning',
+    'list_reminders',
+    'list_notes',
+  ]);
   const ackEvent = useOp('ack_agent_event', ['list_agent_events', 'get_agents']);
 
   const [dismissedToasts, setDismissedToasts] = useState<ReadonlySet<string>>(new Set());
-  const [files, setFiles] = useState<PendingFile[]>([]);
-  const [pendingText, setPendingText] = useState<string | null>(null);
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [outgoing, setOutgoing] = useState<Outgoing>(IDLE);
+  const step = (event: OutgoingEvent) => setOutgoing((o) => outgoingReducer(o, event));
 
   const theme = themeFrom(settings);
   const settingsLoaded = settings !== undefined;
@@ -353,9 +399,10 @@ export function App({ phone = false }: { phone?: boolean }) {
     if (fresh.some((e) => e.kind === 'error')) setFlash('error');
     else if (fresh.length > 0 && !quiet) setFlash('notify');
   }, [agentEventData, quiet]);
+  const errorText = sendError ?? (outgoing.kind === 'failed' ? outgoing.error : null);
   useEffect(() => {
-    if (sendError) setFlash('error');
-  }, [sendError]);
+    if (errorText) setFlash('error');
+  }, [errorText]);
   const voiceLogo = avatar === 'listening' || avatar === 'thinking' || avatar === 'speaking';
   const logo: LogoState = voiceLogo
     ? avatar
@@ -390,8 +437,11 @@ export function App({ phone = false }: { phone?: boolean }) {
         text: m.text,
         ...(files.length > 0 ? { attachments: files.map((f) => f.name) } : {}),
         ...(receipts.length > 0 ? { receipts } : {}),
+        storedAt: m.created_at,
       };
     });
+  const newestMine = thread.findLast((line) => line.mine)?.id ?? null;
+  const pending = pendingLine(outgoing, newestMine);
   // Spoken commands slot in by time, so a later typed message still comes after them.
   const stamps = new Map((conversation?.messages ?? []).map((m) => [m.id, m.created_at]));
   const messages: ChatLine[] = [
@@ -401,45 +451,62 @@ export function App({ phone = false }: { phone?: boolean }) {
     .sort((a, b) => a.at - b.at)
     .map((entry) => entry.line);
   const lines: ChatLine[] = [
-    ...(messages.length === 0 && pendingText === null
+    ...(messages.length === 0 && pending === null
       ? [{ id: 'welcome', mine: false, text: WELCOME }]
       : []),
     ...messages,
-    ...(pendingText !== null && !messages.some((m) => m.mine && m.text === pendingText)
-      ? [{ id: 'pending', mine: true, text: pendingText }]
-      : []),
-    ...(sendError ? [{ id: 'error', mine: false, text: sendError }] : []),
+    ...(pending ? [pending] : []),
+    ...(errorText ? [{ id: 'error', mine: false, text: errorText }] : []),
   ];
 
   const showFailure = { onError: (error: unknown) => setSendError(failureText(error)) };
 
+  // Stop pressed after Send but before the turn has an id: cancel it as soon as it has one.
+  const stopAsked = useRef(false);
   const send = async (text: string) => {
     setSendError(null);
-    setPendingText(text);
-    const attachment_ids = files.map((f) => f.id);
+    stopAsked.current = false;
+    // The panel holds Send while a file uploads, so every listed file is ready here.
+    const attachment_ids = files.flatMap((f) => (f.fileId ? [f.fileId] : []));
+    const at = Date.now();
+    step({ kind: 'send', text, fileIds: attachment_ids, at, after: newestMine });
     try {
-      // The turn's own `start` event marks it active. Marking it here too would race a fast
-      // failure, whose events can arrive before this response and leave the panel stuck.
-      await client.call('send_chat', {
+      // The turn's own `start` event marks it active; `sending` only holds Send until then.
+      // A fast failure's events can arrive before this response, so neither waits on the other.
+      const { turn_id } = await client.call('send_chat', {
         text,
         ...(attachment_ids.length ? { attachment_ids } : {}),
       });
-      setFiles([]);
+      step({ kind: 'accepted', at });
+      if (stopAsked.current) void client.call('cancel_chat', { turn_id });
+      setFiles((now) => withoutSent(now, attachment_ids));
     } catch (error) {
-      setSendError(failureText(error));
+      step({ kind: 'refused', at, error: failureText(error) });
     }
   };
 
   const attach = (file: File) => {
     setSendError(null);
+    const key = uploadKey();
+    const entry: Attachment = {
+      id: key,
+      name: file.name,
+      detail: 'uploading',
+      state: 'uploading',
+      fileId: null,
+    };
+    setFiles((now) => [...now, entry]);
     client
       .attach(file, file.name)
       .then((kept) => {
         const size = kept.pages ? `${kept.pages} page${kept.pages === 1 ? '' : 's'}` : '';
         const detail = [size, kept.truncated ? 'cut to fit' : ''].filter(Boolean).join(', ');
-        setFiles((now) => [...now, { id: kept.id, name: kept.name, detail }]);
+        setFiles((now) => uploaded(now, key, { fileId: kept.id, name: kept.name, detail }));
       })
-      .catch((error) => setSendError(failureText(error)));
+      .catch((error) => {
+        setFiles((now) => now.filter((f) => f.id !== key));
+        setSendError(failureText(error));
+      });
   };
 
   const toastEvent = quiet
@@ -477,9 +544,10 @@ export function App({ phone = false }: { phone?: boolean }) {
         selectAgent.mutate({ agent: agents?.selected ?? 'claude', model }, showFailure)
       }
       messages={lines}
+      loaded={conversation !== undefined}
       streaming={live.streaming}
       thinking={live.thinking}
-      busy={live.turnId !== null}
+      busy={live.turnId !== null || outgoing.kind === 'sending'}
       proposals={proposals}
       onConfirm={(p: Proposal) => confirmProposal.mutate({ id: p.id })}
       onReject={(p: Proposal) => rejectProposal.mutate({ id: p.id })}
@@ -496,9 +564,10 @@ export function App({ phone = false }: { phone?: boolean }) {
       onRemoveFile={(id) => setFiles((now) => now.filter((f) => f.id !== id))}
       onCancel={() => {
         if (live.turnId) void client.call('cancel_chat', { turn_id: live.turnId });
+        else stopAsked.current = true;
       }}
       onNewConversation={() => {
-        setPendingText(null);
+        step({ kind: 'reset' });
         setSendError(null);
         setHeard([]);
         newConversation.mutate({});
@@ -520,65 +589,115 @@ export function App({ phone = false }: { phone?: boolean }) {
     />
   );
   const wellbeingPanel = (
-    <WellbeingPanel
-      nudge={nextOfKind(reminders, 'wellbeing')}
-      onSnoozeNudge={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
-      startSignal={live.breathingSignal}
-    />
+    <Fold id="wellbeing">
+      <WellbeingPanel
+        nudge={nextOfKind(reminders, 'wellbeing')}
+        onSnoozeNudge={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
+        startSignal={live.breathingSignal}
+      />
+    </Fold>
   );
   const todayPanel = (
-    <TodayPanel
-      tasks={today?.tasks ?? []}
-      restingTomorrow={today?.resting_tomorrow ?? 0}
-      dimmed={quiet}
-      onToggle={(task) => toggleTask.mutate(task)}
-      onAdd={(title) => addTask.mutate(title)}
-      onDrop={(task) => dropTask.mutate(task)}
-    />
+    <Fold id="today" hint={openTasks > 0 ? `${openTasks} open` : undefined}>
+      <TodayPanel
+        tasks={today?.tasks ?? []}
+        loaded={today !== undefined}
+        restingTomorrow={today?.resting_tomorrow ?? 0}
+        dimmed={quiet}
+        onToggle={(task) => toggleTask.mutate(task)}
+        onAdd={(title) => addTask.mutate(title)}
+        onDrop={(task) => dropTask.mutate(task)}
+      />
+    </Fold>
   );
   const schedulePanel = (
-    <SchedulePanel
-      events={schedule}
-      today={
-        today?.date ?? logicalDate(Date.now(), Intl.DateTimeFormat().resolvedOptions().timeZone)
-      }
-      onAdd={(event) => addScheduleEvent.mutate(event)}
-      onRename={(id, title) => updateScheduleEvent.mutate({ id, title })}
-      onDelete={(id) => deleteScheduleEvent.mutate({ id })}
-    />
+    <Fold id="schedule">
+      <SchedulePanel
+        events={schedule}
+        today={
+          today?.date ?? logicalDate(Date.now(), Intl.DateTimeFormat().resolvedOptions().timeZone)
+        }
+        onAdd={(event) => addScheduleEvent.mutate(event)}
+        onRename={(id, title) => updateScheduleEvent.mutate({ id, title })}
+        onDelete={(id) => deleteScheduleEvent.mutate({ id })}
+      />
+    </Fold>
   );
   const goalsPanel = (
-    <GoalsPanel
-      goals={goals}
-      dimmed={quiet}
-      onRename={(id, title) => renameGoal.mutate({ id, title })}
-      onDelete={(id) => deleteGoal.mutate({ id })}
-      onAdd={(title) => addGoal.mutate({ title })}
-      onStep={(id) => stepGoal.mutate({ id })}
-    />
+    <Fold id="goals" hint={goals.length > 0 ? String(goals.length) : undefined}>
+      <GoalsPanel
+        goals={goals}
+        loaded={goalsData !== undefined}
+        dimmed={quiet}
+        onRename={(id, title) => renameGoal.mutate({ id, title })}
+        onDelete={(id) => deleteGoal.mutate({ id })}
+        onAdd={(title) => addGoal.mutate({ title })}
+        onStep={(id) => stepGoal.mutate({ id })}
+      />
+    </Fold>
   );
   const learningPanel = (
-    <LearningPanel
-      roadmaps={roadmaps}
-      onUpdateStep={updateStep.mutateAsync}
-      onAddStep={addStep.mutateAsync}
-      onStepToToday={(id) => stepToToday.mutate({ id })}
-      onRename={(id, title) => renameRoadmap.mutate({ id, title })}
-      onDelete={(id) => deleteRoadmap.mutate({ id })}
-    />
+    <Fold id="learning">
+      <LearningPanel
+        roadmaps={roadmaps}
+        onUpdateStep={updateStep.mutateAsync}
+        onAddStep={addStep.mutateAsync}
+        onStepToToday={(id) => stepToToday.mutate({ id })}
+        onRename={(id, title) => renameRoadmap.mutate({ id, title })}
+        onDelete={(id) => deleteRoadmap.mutate({ id })}
+      />
+    </Fold>
   );
   const personalPanel = (
-    <PersonalPanel
-      reminders={reminders.filter((r) => r.kind !== 'wellbeing')}
-      onToggle={(r) => setReminderEnabled.mutate({ id: r.id, enabled: !r.enabled })}
-      onSnooze={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
-    />
+    <Fold id="personal">
+      <PersonalPanel
+        reminders={reminders.filter((r) => r.kind !== 'wellbeing')}
+        onToggle={(r) => setReminderEnabled.mutate({ id: r.id, enabled: !r.enabled })}
+        onSnooze={(r) => snoozeReminder.mutate({ id: r.id, until: Date.now() + SNOOZE_MS })}
+      />
+    </Fold>
   );
   const listPanel = (
-    <ListPanel
-      items={listItems ?? []}
-      onAdd={(text) => addToList.mutate(text)}
-      onTick={(item) => tickListItem.mutate(item)}
+    <Fold id="list" hint={listItems?.length ? String(listItems.length) : undefined}>
+      <ListPanel
+        items={listItems ?? []}
+        loaded={listItems !== undefined}
+        onAdd={(text) => addToList.mutate(text)}
+        onTick={(item) => tickListItem.mutate(item)}
+      />
+    </Fold>
+  );
+
+  const notesPanel = (
+    <Fold id="notes" hint={notes.notes.length > 0 ? String(notes.notes.length) : undefined}>
+      <NotesPanel
+        view={notes}
+        onAddNote={(title, folder_id) => addNote.mutateAsync({ title, folder_id })}
+        onOpen={(id) => notesRoute.open(id)}
+      />
+    </Fold>
+  );
+  // F42's notes page sits outside the columns and tabs, so it opens from any of them.
+  const notesView = notesRoute.pane && (
+    <NotesView
+      view={notes}
+      pane={notesRoute.pane}
+      offline={!online}
+      onShow={notesRoute.show}
+      onClose={notesRoute.close}
+      onAddFolder={(name) => addNoteFolder.mutate({ name })}
+      onRenameFolder={(id, name) => renameNoteFolder.mutate({ id, name })}
+      onDeleteFolder={(id) =>
+        deleteNoteFolder.mutateAsync({ id }) as Promise<{ change_id: string }>
+      }
+      onAddNote={(title, folder_id, body) =>
+        addNote.mutateAsync({ title, folder_id, body }) as Promise<Note>
+      }
+      onUpdateNote={(id, changes, expected_rev) =>
+        updateNote.mutateAsync({ id, ...changes, expected_rev }) as Promise<Note>
+      }
+      onDeleteNote={(id) => deleteNote.mutateAsync({ id }) as Promise<{ change_id: string }>}
+      onUndo={(change_id) => undo.mutate({ change_id })}
     />
   );
 
@@ -634,6 +753,7 @@ export function App({ phone = false }: { phone?: boolean }) {
             </div>
             <div className="phone-section" hidden={tab !== 'list'}>
               {listPanel}
+              {notesPanel}
               {personalPanel}
             </div>
           </main>
@@ -652,7 +772,8 @@ export function App({ phone = false }: { phone?: boolean }) {
           {/* Sirius first, so the first thing on the screen is someone to talk to. */}
           <div className="col col-3">
             {siriusPanel}
-            {listPanel}
+            {learningPanel}
+            {personalPanel}
           </div>
           <div className="col col-1">
             {todayPanel}
@@ -660,14 +781,16 @@ export function App({ phone = false }: { phone?: boolean }) {
             {goalsPanel}
           </div>
           <div className="col col-2">
-            {learningPanel}
-            {personalPanel}
+            {listPanel}
+            {notesPanel}
             {wellbeingPanel}
           </div>
         </main>
       )}
+      {notesView}
       {toastEvent && (
         <AgentToast
+          key={toastEvent.id}
           text={describeAgentEvent(toastEvent)}
           onGotIt={() => ackEvent.mutate({ id: toastEvent.id })}
           onLater={() => setDismissedToasts((s) => new Set(s).add(toastEvent.id))}

@@ -36,11 +36,17 @@ test('the Sirius wolf is visible and still while idle in all themes', async ({ p
   }
 });
 
-test('the list sits below Sirius and roadmap summaries stay compact', async ({ page }, info) => {
+test('roadmaps and personal sit below Sirius, the list and notes on the right, and roadmap summaries stay compact', async ({
+  page,
+}, info) => {
   test.skip(info.project.name !== 'desktop');
   await page.goto('/?fixtures&toastMs=600000');
   const left = page.locator('.col-3');
-  await expect(left.getByRole('heading', { name: 'To remember' })).toBeVisible();
+  await expect(left.locator('.panel-learning')).toBeVisible();
+  await expect(left.locator('.panel-personal')).toBeVisible();
+  const right = page.locator('.col-2');
+  await expect(right.getByRole('heading', { name: 'To remember' })).toBeVisible();
+  await expect(right.locator('.panel-notes')).toBeVisible();
   await expect(left.getByRole('heading', { name: 'Well-being' })).toHaveCount(0);
   for (const card of await page.locator('.roadmap-card').all()) {
     expect((await card.boundingBox())!.height).toBeLessThan(150);
