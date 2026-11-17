@@ -1,3 +1,9 @@
+/* Hallmark · checked: 2026-11-17 · genre: modern-minimal (inferred) · shape: app screen
+ * floor: 6 FAIL dismissed as owner-chosen or false positive (2a, 47a, 62, 63) · fixed: 34, 39a, 40, 48, F3, F23, label-content-name-mismatch
+ * finish-review: subagent · 5 findings · 3 resolved, 1 dismissed (capture artifact), 1 left to the owner (Today tiers)
+ * surface: absolute (Black Night only) · built: the project · redesign: polish · v2.0.0 */
+/* Hallmark · waive 7b · --on-ink and --bg are #000 only in the Black Night theme · the owner chose a true-black theme for an OLED phone */
+/* Hallmark · waive 39b · button.note-row is a two-line list row with a title and its preview · a notes list row carries two lines of text, not a control height */
 @import "@fontsource-variable/newsreader/opsz.css";
 @import "@fontsource-variable/newsreader/opsz-italic.css";
 @import "./tokens.css";

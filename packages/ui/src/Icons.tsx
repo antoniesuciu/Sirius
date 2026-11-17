@@ -21,7 +21,8 @@ function Stroke({ size, stroke, width, d }: StrokeProps) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d={d} />
+      {/* pathLength 100: a stroke can draw itself in with the `draw` keyframes. */}
+      <path d={d} pathLength={100} />
     </svg>
   );
 }
@@ -80,3 +81,31 @@ export function SproutIcon() {
     </svg>
   );
 }
+/** Remove or let go of something; in the colour of its button's text. */
+export const CloseIcon = ({ size = 16 }: { size?: number }) => (
+  <Stroke size={size} stroke="currentColor" width={2} d="M6 6 L18 18 M18 6 L6 18" />
+);
+/** Goes to where a change was made (a receipt on the phone). */
+export const ArrowRightIcon = () => (
+  <Stroke size={14} stroke="currentColor" width={2} d="M5 12 H19 M13 6 L19 12 L13 18" />
+);
+/** Opens a full page, such as a roadmap. */
+export const OpenIcon = () => (
+  <Stroke size={14} stroke="currentColor" width={2} d="M7 17 L17 7 M9 7 H17 V15" />
+);
+export const ChevronIcon = () => (
+  <Stroke size={16} stroke="var(--muted)" width={2} d="M6 9 L12 15 L18 9" />
+);
+/** Back to the list or the dashboard (F42's notes view). */
+export const BackIcon = () => (
+  <Stroke size={18} stroke="var(--ink)" width={2} d="M19 12 H5 M11 6 L5 12 L11 18" />
+);
+/** A pushpin: pinned notes list first (F42). */
+export const PinIcon = () => (
+  <Stroke
+    size={18}
+    stroke="var(--ink)"
+    width={1.8}
+    d="M9 4 H15 M10 4 V10 L7 14 H17 L14 10 V4 M12 14 V20"
+  />
+);

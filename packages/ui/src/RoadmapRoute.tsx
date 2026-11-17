@@ -1,4 +1,5 @@
 import type { RoadmapStep } from '@sirius/contracts';
+import { CheckIcon } from './Icons.tsx';
 
 /** SVG route geometry and its keyboard-accessible checkpoint controls. */
 export function RoadmapRoute({
@@ -39,17 +40,23 @@ export function RoadmapRoute({
           className={`map-checkpoint ${step.status === 'done' ? 'is-done' : ''} ${step.id === currentId ? 'is-current' : ''} ${step.id === selectedId ? 'is-selected' : ''}`}
           style={{ left: `${((i % 2 ? 560 : 200) / 760) * 100}%`, top: 90 + i * 175 }}
           aria-pressed={step.id === selectedId}
+          aria-current={step.id === currentId ? 'step' : undefined}
           aria-label={`Milestone ${i + 1}: ${step.title}${step.status === 'done' ? ', complete' : ''}`}
           onClick={() => onSelect(step.id)}
         >
-          <span className="checkpoint-dot">
-            {step.status === 'done' ? '✓' : String(i + 1).padStart(2, '0')}
+          {/* The number is drawn by CSS so it stays out of the accessible name (axe label-content-name-mismatch). */}
+          <span
+            className="checkpoint-dot"
+            data-n={step.status === 'done' ? undefined : String(i + 1).padStart(2, '0')}
+          >
+            {step.status === 'done' && <CheckIcon size={22} stroke="currentColor" />}
           </span>
           <span className="checkpoint-label">{step.title}</span>
-          {step.id === currentId && <small>You are here</small>}
         </button>
       ))}
-      {steps.length === 0 && <p className="route-empty">Your route starts with a milestone.</p>}
+      {steps.length === 0 && (
+        <p className="empty-line route-empty">Your route starts with a milestone.</p>
+      )}
     </div>
   );
 }

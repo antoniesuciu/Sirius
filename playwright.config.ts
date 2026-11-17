@@ -41,6 +41,13 @@ export default defineConfig({
       use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 }, launchOptions: fakeMic },
     },
     {
+      // The nearest stand-in for the desktop app's WebKitGTK window. The specs that rewrite
+      // tracked screenshots stay on Chromium, so the PNGs under docs/ do not churn.
+      name: 'webkit',
+      testIgnore: /(live|remote|phone|readme-shots|roadmap|brand)\.spec/,
+      use: { browserName: 'webkit', viewport: { width: 1440, height: 900 } },
+    },
+    {
       // A core started the way the container starts it, serving the UI itself.
       name: 'remote',
       testMatch: /remote\.spec/,

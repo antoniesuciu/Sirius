@@ -1,10 +1,14 @@
 export { AgentToast } from './AgentToast.tsx';
 export { CLOCK_RESYNC_EVENT } from './Clock.tsx';
+export { Fold, FoldTitle } from './Fold.tsx';
 export { GoalsPanel } from './GoalsPanel.tsx';
 export { Header } from './Header.tsx';
 export { usePageHidden, useResting } from './hooks.ts';
 export { LearningPanel, nextStep } from './LearningPanel.tsx';
 export { ListPanel } from './ListPanel.tsx';
+export type { NoteChanges } from './NoteEditor.tsx';
+export { NotesPanel } from './NotesPanel.tsx';
+export { type NotesPane, NotesView, useNotesRoute } from './NotesView.tsx';
 export { PersonalPanel } from './PersonalPanel.tsx';
 export {
   PHONE_TABS,

@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { mergeClaudeSettings, mergeCodexConfig, mergeCodexHooks } from '../src/hooks.ts';
 import {
@@ -213,5 +216,28 @@ describe('Codex hooks', () => {
       project: 'teatru',
       message: 'Codex needs your approval',
     });
+  });
+
+  test('no alert when a reviewer agent answers approvals, read from the latest turn', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sirius-codex-'));
+    const log = join(dir, 'rollout.jsonl');
+    const turn = (reviewer: string, policy = 'on-request') =>
+      `${JSON.stringify({ type: 'turn_context', payload: { approval_policy: policy, approvals_reviewer: reviewer } })}\n`;
+    const hook = JSON.stringify({
+      hook_event_name: 'PermissionRequest',
+      cwd: '/x/lab',
+      transcript_path: log,
+    });
+
+    writeFileSync(log, turn('user') + turn('auto_review'));
+    expect(fromCodexHook(hook)).toBeNull();
+    // Switched back to asking the person mid-session.
+    writeFileSync(log, turn('auto_review') + turn('user'));
+    expect(fromCodexHook(hook)?.kind).toBe('needs_input');
+    writeFileSync(log, turn('user', 'never'));
+    expect(fromCodexHook(hook)).toBeNull();
+    // A missing log still alerts: better one alert too many than a missed prompt.
+    rmSync(dir, { recursive: true });
+    expect(fromCodexHook(hook)?.kind).toBe('needs_input');
   });
 });

@@ -28,6 +28,8 @@ export function tabForEntity(entity: EntityName): PhoneTab | null {
     case 'roadmap_steps':
       return 'plan';
     case 'list_items':
+    case 'notes':
+    case 'note_folders':
     case 'reminders':
       return 'list';
     case 'messages':
@@ -51,6 +53,7 @@ function receiptForOp(op: string): Receipt | null {
   if (op.includes('schedule')) return { label: 'Schedule', tab: 'today' };
   if (op.includes('roadmap')) return { label: 'Learning', tab: 'plan' };
   if (op.includes('goal') || op.includes('milestone')) return { label: 'Goals', tab: 'plan' };
+  if (op.includes('note')) return { label: 'Notes', tab: 'list' };
   if (op.includes('list')) return { label: 'List', tab: 'list' };
   if (op.includes('reminder')) return { label: 'Reminders', tab: 'list' };
   return null;
@@ -96,7 +99,7 @@ export function TabBar({ active, fresh, onSelect, micOpen, micBusy, onMic, mark 
       aria-current={t.id === active ? 'page' : undefined}
       onClick={() => onSelect(t.id)}
     >
-      {t.label}
+      <span className="tab-label">{t.label}</span>
       {fresh.has(t.id) && t.id !== active && (
         <span className="tab-dot" role="img" aria-label="something new" />
       )}

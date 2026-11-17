@@ -531,7 +531,7 @@ export function SiriusLogo({
               <circle
                 className="l-glint"
                 r="44"
-                fill="#ffffff"
+                style={{ fill: 'var(--sirius-glint)' }}
                 filter={`url(#${id}-glint)`}
                 opacity="0"
               />

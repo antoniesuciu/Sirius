@@ -61,17 +61,105 @@ function failure(error: unknown): string {
   return 'That recording could not be used.';
 }
 
+/**
+ * Push-to-talk on the phone. `turnId` is the agent turn this phone started by voice, whose
+ * reply it should say; while speaking it is null once that reply's last part arrived (or for
+ * a command's own reply).
+ */
+export type PhoneVoice =
+  | { kind: 'idle' }
+  | { kind: 'opening' }
+  | { kind: 'recording'; recorder: MediaRecorder }
+  | { kind: 'sending' }
+  | { kind: 'awaitingReply'; turnId: string }
+  | { kind: 'speaking'; turnId: string | null };
+
+export type PhoneVoiceInput =
+  | { type: 'open' }
+  | { type: 'opened'; recorder: MediaRecorder }
+  | { type: 'openFailed' }
+  | { type: 'stopped' }
+  | { type: 'sent'; turnId: string | null }
+  | { type: 'reply'; turnId: string; final: boolean }
+  /** From the speaker: it started, or went quiet. */
+  | { type: 'voiceOn' }
+  | { type: 'quiet' }
+  | { type: 'hush' };
+
+/** What a tap does now. While the mic is opening or the recording uploads, nothing. */
+export function tapAction(voice: PhoneVoice): 'open' | 'stop' | 'hush' | null {
+  if (voice.kind === 'recording') return 'stop';
+  if (voice.kind === 'speaking') return 'hush';
+  if (voice.kind === 'idle' || voice.kind === 'awaitingReply') return 'open';
+  return null;
+}
+
+/** Only the reply to this phone's own voice turn is spoken. */
+export function awaits(voice: PhoneVoice, turnId: string): boolean {
+  return (voice.kind === 'awaitingReply' || voice.kind === 'speaking') && voice.turnId === turnId;
+}
+
+export function phoneVoiceStep(voice: PhoneVoice, input: PhoneVoiceInput): PhoneVoice {
+  switch (input.type) {
+    case 'open':
+      // A new recording drops any reply still awaited, so it is never said over the mic.
+      return tapAction(voice) === 'open' ? { kind: 'opening' } : voice;
+    case 'opened':
+      return voice.kind === 'opening' ? { kind: 'recording', recorder: input.recorder } : voice;
+    case 'openFailed':
+      return voice.kind === 'opening' ? { kind: 'idle' } : voice;
+    case 'stopped':
+      return voice.kind === 'recording' ? { kind: 'sending' } : voice;
+    case 'sent':
+      if (voice.kind !== 'sending') return voice;
+      return input.turnId ? { kind: 'awaitingReply', turnId: input.turnId } : { kind: 'idle' };
+    case 'reply':
+      if (!awaits(voice, input.turnId) || !input.final) return voice;
+      return voice.kind === 'speaking' ? { kind: 'speaking', turnId: null } : { kind: 'idle' };
+    case 'voiceOn':
+      if (voice.kind === 'awaitingReply') return { kind: 'speaking', turnId: voice.turnId };
+      return voice.kind === 'idle' ? { kind: 'speaking', turnId: null } : voice;
+    case 'quiet':
+      // Between two sentences of a streamed reply the speaker can run dry; keep listening.
+      if (voice.kind !== 'speaking') return voice;
+      return voice.turnId ? { kind: 'awaitingReply', turnId: voice.turnId } : { kind: 'idle' };
+    case 'hush':
+      return voice.kind === 'speaking' || voice.kind === 'awaitingReply' ? { kind: 'idle' } : voice;
+  }
+}
+
+/**
+ * The microphone and a recorder already running on it. Any failure after the permission was
+ * granted stops the tracks, or the browser keeps showing the mic as in use.
+ */
+export async function openRecorder(): Promise<{ stream: MediaStream; media: MediaRecorder }> {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  try {
+    const media = new MediaRecorder(stream);
+    media.start();
+    return { stream, media };
+  } catch (error) {
+    for (const track of stream.getTracks()) track.stop();
+    throw error;
+  }
+}
+
 export function usePhoneVoice(client: SiriusClient, handlers: Handlers) {
-  const [recording, setRecording] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const speaker = useMemo(() => createSpeaker(setSpeaking), []);
-  const recorder = useRef<MediaRecorder | null>(null);
-  /** The agent turn this phone started by voice, whose reply it should say. */
-  const agentTurn = useRef<string | null>(null);
+  const [voice, setVoice] = useState<PhoneVoice>({ kind: 'idle' });
+  const state = useRef<PhoneVoice>(voice);
+  const dispatch = useCallback((input: PhoneVoiceInput) => {
+    const next = phoneVoiceStep(state.current, input);
+    if (next !== state.current) {
+      state.current = next;
+      setVoice(next);
+    }
+  }, []);
+  const speaker = useMemo(
+    () => createSpeaker((on) => dispatch({ type: on ? 'voiceOn' : 'quiet' })),
+    [dispatch],
+  );
   /** A fast failure can be said before the upload's answer names its turn. */
   const early = useRef<Extract<SiriusEvent, { type: 'voice_reply' }>[]>([]);
-  const sendingNow = useRef(false);
   const latest = useRef(handlers);
   latest.current = handlers;
   /** Reads the microphone's loudness for the voice wave while recording. */
@@ -91,42 +179,43 @@ export function usePhoneVoice(client: SiriusClient, handlers: Handlers) {
   }, []);
 
   const sayReply = (event: Extract<SiriusEvent, { type: 'voice_reply' }>) => {
+    if (!awaits(state.current, event.turn_id)) return;
     speaker.stream(event.text, event.lang, event.final);
-    if (event.final) agentTurn.current = null;
+    dispatch({ type: 'reply', turnId: event.turn_id, final: event.final });
   };
 
   const send = async (audio: Blob) => {
-    setSending(true);
-    sendingNow.current = true;
     early.current = [];
+    let turnId: string | null = null;
+    let said: { text: string; lang: string } | null = null;
     try {
       const result = await client.speak(audio);
       if (!result.transcript) {
         latest.current.onError("I didn't hear anything.");
       } else if (result.route === 'agent' && result.turn_id) {
         // The question and the answer arrive through the chat as usual.
-        agentTurn.current = result.turn_id;
-        for (const event of early.current) if (event.turn_id === result.turn_id) sayReply(event);
+        turnId = result.turn_id;
       } else {
         latest.current.onHeard({
           transcript: result.transcript,
           reply: result.reply,
           intent: result.intent ?? null,
         });
-        if (result.reply) speaker.say(result.reply, result.lang);
+        if (result.reply) said = { text: result.reply, lang: result.lang };
       }
     } catch (error) {
       latest.current.onError(failure(error));
     } finally {
-      sendingNow.current = false;
+      // Out of `sending` first, so the speaker starting moves the state to `speaking`.
+      dispatch({ type: 'sent', turnId });
+      for (const event of early.current) sayReply(event);
       early.current = [];
-      setSending(false);
     }
+    if (said) speaker.say(said.text, said.lang);
   };
 
   const start = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const media = new MediaRecorder(stream);
+    const { stream, media } = await openRecorder();
     try {
       const context = new AudioContext();
       const analyser = context.createAnalyser();
@@ -146,13 +235,10 @@ export function usePhoneVoice(client: SiriusClient, handlers: Handlers) {
       meter.current?.close();
       meter.current = null;
       for (const track of stream.getTracks()) track.stop();
-      setRecording(false);
-      recorder.current = null;
+      dispatch({ type: 'stopped' });
       void send(new Blob(chunks, { type: media.mimeType }));
     };
-    media.start();
-    recorder.current = media;
-    setRecording(true);
+    dispatch({ type: 'opened', recorder: media });
     setTimeout(() => {
       if (media.state === 'recording') media.stop();
     }, MAX_RECORDING_MS);
@@ -170,28 +256,37 @@ export function usePhoneVoice(client: SiriusClient, handlers: Handlers) {
   };
 
   const stopSpeaking = () => {
-    agentTurn.current = null;
+    dispatch({ type: 'hush' });
     speaker.stop();
   };
 
   return {
-    recording,
-    sending,
-    speaking,
+    recording: voice.kind === 'recording',
+    sending: voice.kind === 'sending',
+    speaking: voice.kind === 'speaking',
     readLevel,
     /** Tap: start, or stop recording, or cut the answer short. Never two at once. */
     toggle() {
-      if (recorder.current) recorder.current.stop();
-      else if (speaking) stopSpeaking();
-      else if (!sending)
-        start().catch(() => latest.current.onError('I could not reach the microphone.'));
+      const now = state.current;
+      const action = tapAction(now);
+      if (action === 'stop' && now.kind === 'recording') now.recorder.stop();
+      else if (action === 'hush') stopSpeaking();
+      else if (action === 'open') {
+        // Whatever is left of an earlier reply is dropped with it.
+        speaker.stop();
+        dispatch({ type: 'open' });
+        start().catch(() => {
+          dispatch({ type: 'openFailed' });
+          latest.current.onError('I could not reach the microphone.');
+        });
+      }
     },
     stopSpeaking,
     /** Feed every live event; only the reply to this phone's own voice turn is spoken. */
     onEvent(event: SiriusEvent) {
       if (event.type !== 'voice_reply') return;
-      if (event.turn_id === agentTurn.current) sayReply(event);
-      else if (sendingNow.current) early.current.push(event);
+      if (state.current.kind === 'sending') early.current.push(event);
+      else sayReply(event);
     },
   };
 }

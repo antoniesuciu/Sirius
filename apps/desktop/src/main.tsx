@@ -1,6 +1,12 @@
 import '@sirius/ui/styles.css';
-import { ClientContext, registerQueuedOps, reportRefusal, setReachable } from '@sirius/client';
-import { isUnreachable } from '@sirius/contracts';
+import {
+  ClientContext,
+  registerQueuedOps,
+  reportRefusal,
+  rescueConflict,
+  setReachable,
+} from '@sirius/client';
+import { ApiError, conflictsHeld, isUnreachable, type SiriusClient } from '@sirius/contracts';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -15,6 +21,9 @@ const KEEP_OFFLINE_MS = 30 * 24 * 60 * 60 * 1000;
 /** Change this when the shape of cached data changes, so an old copy is dropped. */
 const CACHE_VERSION = 'v1';
 
+/** Set once connected, for the queue's conflict rescue. */
+let queuedClient: SiriusClient | null = null;
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -25,8 +34,24 @@ const queryClient = new QueryClient({
     },
   },
   mutationCache: new MutationCache({
-    onError: (error) => {
-      if (!isUnreachable(error)) reportRefusal(error);
+    onError: async (error, variables) => {
+      if (isUnreachable(error)) return;
+      const queued = variables as { op?: string; input?: Record<string, unknown> } | undefined;
+      if (error instanceof ApiError && error.code === 'conflict' && queued?.op && queued.input) {
+        // An open editor shows its own conflict, with Keep mine or Take theirs.
+        if (conflictsHeld(String(queued.input.id))) return;
+        if (queuedClient && (await rescueConflict(queuedClient, queued.op, queued.input))) {
+          reportRefusal(
+            new ApiError(
+              409,
+              'conflict',
+              'It changed somewhere else, so your text is kept in Notes.',
+            ),
+          );
+          return;
+        }
+      }
+      reportRefusal(error);
     },
   }),
 });
@@ -64,6 +89,7 @@ if (boot.kind === 'pair') {
 } else {
   // Before anything restores, so changes saved on the phone know how to send themselves.
   registerQueuedOps(queryClient, boot.client);
+  queuedClient = boot.client;
   setReachable(boot.reachable);
   const persister = boot.phone ? phonePersister() : null;
   const app = (

@@ -42,6 +42,7 @@ export const useGoals = () => useOpQuery('list_goals', {});
 export const useLearning = () => useOpQuery('list_learning', {});
 export const useReminders = () => useOpQuery('list_reminders', {});
 export const useList = () => useOpQuery('get_list', {});
+export const useNotes = () => useOpQuery('list_notes', {});
 export const useSchedule = () => useOpQuery('list_schedule', {});
 export const useProposals = () => useOpQuery('list_proposals', {});
 export const useAgents = () => useOpQuery('get_agents', {});
@@ -59,6 +60,8 @@ const INVALIDATES: Record<EntityName, OpName[]> = {
   roadmap_steps: ['list_learning'],
   reminders: ['list_reminders', 'get_today'],
   list_items: ['get_list'],
+  note_folders: ['list_notes'],
+  notes: ['list_notes'],
   schedule_events: ['list_schedule', 'get_today'],
   day_state: ['get_today', 'get_agents'],
   proposals: ['list_proposals'],
@@ -114,7 +117,7 @@ const NEEDS_THE_CORE = new Set<OpName>([
   'new_conversation',
 ]);
 
-function newKey(): string {
+export function newKey(): string {
   return (
     globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
   );
@@ -182,10 +185,21 @@ function useOptimisticToday<A>(
   return { ...mutation, mutate: (arg: A) => mutation.mutate({ ...toOp(arg), key: newKey(), arg }) };
 }
 
-function placeholderTask(title: string, date: string): Task {
+/**
+ * A row shown before the core has stored it. Client-side only, never on the wire: the screen
+ * disables ticking, dropping and editing it, since the core has no row with that id yet.
+ */
+export type Pending<T> = T & { pending?: boolean };
+
+export function isPending(row: object): boolean {
+  return 'pending' in row && row.pending === true;
+}
+
+export function placeholderTask(title: string, date: string): Pending<Task> {
   const now = Date.now();
   return {
-    id: `optimistic-${now}`,
+    pending: true,
+    id: newKey(),
     created_at: now,
     updated_at: now,
     deleted_at: null,
@@ -281,8 +295,9 @@ export function useAddToList() {
       const previous = qc.getQueryData<ListItem[]>(key);
       void qc.cancelQueries({ queryKey: key });
       const now = Date.now();
-      const placeholder: ListItem = {
-        id: `optimistic-${now}`,
+      const placeholder: Pending<ListItem> = {
+        pending: true,
+        id: newKey(),
         created_at: now,
         updated_at: now,
         deleted_at: null,

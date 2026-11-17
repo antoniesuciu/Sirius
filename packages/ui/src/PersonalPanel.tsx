@@ -1,4 +1,5 @@
 import type { ReminderView } from '@sirius/contracts';
+import { FoldTitle } from './Fold.tsx';
 
 export interface PersonalPanelProps {
   reminders: ReminderView[];
@@ -18,8 +19,10 @@ export function PersonalPanel({ reminders, onToggle, onSnooze }: PersonalPanelPr
   return (
     <section className="panel panel-personal rise d4">
       <div className="panel-head">
-        <h2>Personal</h2>
-        <span className="label">Prayer · reflection</span>
+        <h2>
+          <FoldTitle>Personal</FoldTitle>
+        </h2>
+        <span className="label">Prayer and reflection</span>
       </div>
       <p className="personal-note">{note(reminders, Date.now())}</p>
       {reminders.map((r) => (

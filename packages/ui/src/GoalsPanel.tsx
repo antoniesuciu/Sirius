@@ -1,5 +1,6 @@
 import type { GoalView } from '@sirius/contracts';
 import { type FormEvent, useState } from 'react';
+import { FoldTitle } from './Fold.tsx';
 import { CheckIcon, PlusIcon, StepIcon } from './Icons.tsx';
 import { InlineEdit } from './InlineEdit.tsx';
 
@@ -11,6 +12,8 @@ export interface GoalsPanelProps {
   onAdd(title: string): void;
   /** One step closer: ticks the goal for today, or unticks it (step_goal). */
   onStep(id: string): void;
+  /** False while the data is still loading, so the empty line waits. */
+  loaded?: boolean;
 }
 
 const MAX_DOTS = 5;
@@ -42,7 +45,15 @@ function Dots({ goal }: { goal: GoalView }) {
   );
 }
 
-export function GoalsPanel({ goals, dimmed, onRename, onDelete, onAdd, onStep }: GoalsPanelProps) {
+export function GoalsPanel({
+  goals,
+  dimmed,
+  onRename,
+  onDelete,
+  onAdd,
+  onStep,
+  loaded = true,
+}: GoalsPanelProps) {
   const [draft, setDraft] = useState('');
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -54,7 +65,9 @@ export function GoalsPanel({ goals, dimmed, onRename, onDelete, onAdd, onStep }:
   return (
     <section className={`panel panel-goals panel-dimmable rise d2 ${dimmed ? 'panel-dim' : ''}`}>
       <div className="panel-head">
-        <h2>Goals</h2>
+        <h2>
+          <FoldTitle>Goals</FoldTitle>
+        </h2>
       </div>
       {goals.map((goal) => (
         <div className="goal msg" key={goal.id}>
@@ -84,6 +97,7 @@ export function GoalsPanel({ goals, dimmed, onRename, onDelete, onAdd, onStep }:
           </div>
         </div>
       ))}
+      {loaded && goals.length === 0 && <p className="empty-line">No goals yet.</p>}
       <form className="quick-add" onSubmit={submit}>
         <input
           type="text"

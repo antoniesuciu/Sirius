@@ -59,7 +59,12 @@ class Speaker(Protocol):
         ...
 
     def stop(self) -> None:
-        """Stops at once. Safe to call from another thread."""
+        """Stops at once. Safe to call from another thread. Stays in force until reset()."""
+        ...
+
+    def reset(self) -> None:
+        """Forgets an earlier stop. Called before an utterance, so a stop that lands after it
+        (even before play() starts) is honored instead of being cleared by play() itself."""
         ...
 
 

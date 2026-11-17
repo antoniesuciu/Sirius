@@ -32,6 +32,9 @@ import {
   LocalDate,
   Milestone,
   MilestoneDraft,
+  Note,
+  NoteFolder,
+  NotesView,
   Proposal,
   ProposedOp,
   Reminder,
@@ -74,6 +77,9 @@ function op<I extends z.ZodObject, O extends z.ZodType>(def: OpDefinition<I, O>)
 }
 
 const NoInput = z.object({});
+const FolderName = z.string().trim().min(1).max(100);
+/** Roughly 50 pages of text: room for long notes without one filling the database. */
+const NoteBody = z.string().max(200_000);
 const Ok = z.object({ ok: z.literal(true) });
 const Rejected = z.object({ ok: z.literal(true), proposal: Proposal });
 
@@ -206,6 +212,74 @@ export const ops = {
     http: { method: 'post', path: '/schedule/{id}/delete' },
     input: IdInput,
     output: z.object({ ok: z.literal(true) }),
+  }),
+  // Notes -------------------------------------------------------------------
+  list_notes: op({
+    class: 'read',
+    summary: 'All note folders and notes, with each note in full. Use it to find ids.',
+    http: { method: 'get', path: '/notes' },
+    input: NoInput,
+    output: NotesView,
+  }),
+  add_note_folder: op({
+    class: 'additive',
+    summary: 'Add a folder for notes, such as "Stocks".',
+    http: { method: 'post', path: '/note-folders' },
+    input: z.object({ name: FolderName }),
+    output: NoteFolder,
+  }),
+  rename_note_folder: op({
+    class: 'additive',
+    summary: 'Rename one note folder.',
+    http: { method: 'post', path: '/note-folders/{id}/rename' },
+    input: z.object({ id: Id, name: FolderName }),
+    output: NoteFolder,
+  }),
+  delete_note_folder: op({
+    class: 'bulk_or_destructive',
+    summary: 'Delete a note folder and every note in it.',
+    http: { method: 'delete', path: '/note-folders/{id}' },
+    input: IdInput,
+    output: z.object({ ok: z.literal(true), change_id: Id }),
+  }),
+  add_note: op({
+    class: 'additive',
+    summary:
+      'Write a note to keep, optionally in a folder (folder_id from list_notes). Not for tasks or things to buy.',
+    http: { method: 'post', path: '/notes' },
+    input: z.object({
+      title: Title,
+      body: NoteBody.optional(),
+      folder_id: Id.nullable().optional(),
+    }),
+    output: Note,
+  }),
+  update_note: op({
+    class: 'additive',
+    summary:
+      'Change one note: its title, its whole text, its folder (null for none) or whether it is pinned. Only the fields given change.',
+    http: { method: 'post', path: '/notes/{id}' },
+    input: z.object({
+      id: Id,
+      title: Title.optional(),
+      body: NoteBody.optional(),
+      folder_id: Id.nullable().optional(),
+      pinned: z.boolean().optional(),
+      expected_rev: z
+        .number()
+        .int()
+        .optional()
+        .describe('the rev you read; the change is refused with a conflict if the note moved on'),
+    }),
+    output: Note,
+  }),
+  delete_note: op({
+    class: 'bulk_or_destructive',
+    summary: 'Delete one note.',
+    http: { method: 'delete', path: '/notes/{id}' },
+    input: IdInput,
+    /** change_id: pass to `undo` to bring the note back within 30 seconds. */
+    output: z.object({ ok: z.literal(true), change_id: Id }),
   }),
   list_reminders: op({
     class: 'read',
@@ -392,6 +466,11 @@ export const ops = {
       description: z.string().max(10000).optional(),
       notes: z.string().max(20000).optional(),
       status: z.enum(['todo', 'done']).optional(),
+      expected_rev: z
+        .number()
+        .int()
+        .optional()
+        .describe('the rev you read; the change is refused with a conflict if the step moved on'),
     }),
     output: RoadmapStep,
   }),

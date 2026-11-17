@@ -8,7 +8,7 @@
 .roadmap-card {
   padding: 12px 14px;
   border: 1px solid var(--panel-border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--input);
 }
 .panel-learning .node {
@@ -34,7 +34,8 @@
 }
 .roadmap-count {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
 }
 .roadmap-subtitle {
   margin-top: 8px;
@@ -67,7 +68,7 @@
 .roadmap-dialog {
   position: fixed;
   inset: 0;
-  width: 100vw;
+  width: 100%;
   max-width: none;
   height: 100dvh;
   max-height: none;
@@ -78,6 +79,10 @@
   color: var(--ink);
   font-family: var(--font);
   overflow: auto;
+}
+.roadmap-dialog[open],
+.roadmap-dialog::backdrop {
+  animation: fade var(--dur) var(--ease-out);
 }
 .roadmap-dialog::backdrop {
   background: var(--bg);
@@ -91,8 +96,12 @@
 .roadmap-detail-head h2 {
   font-size: clamp(30px, 4vw, 48px);
   font-weight: 400;
-  margin-top: 12px;
   overflow-wrap: anywhere;
+}
+.roadmap-kind {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 15px;
 }
 .roadmap-position {
   display: flex;
@@ -119,7 +128,7 @@
 .route-map {
   position: relative;
   background: radial-gradient(circle, var(--panel-border) 1px, transparent 1px) 0 0 / 22px 22px;
-  border-radius: 24px;
+  border-radius: var(--radius-panel);
   min-width: 0;
 }
 .route-line {
@@ -151,6 +160,7 @@
   background: transparent;
 }
 .checkpoint-dot {
+  position: relative;
   display: grid;
   place-items: center;
   width: 60px;
@@ -159,35 +169,53 @@
   border: 2px solid var(--rail);
   background: var(--panel);
   font-size: 18px;
-  transition:
-    box-shadow 180ms,
-    background 180ms,
-    transform 180ms;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+/* The glow is drawn once and faded, so only opacity changes. */
+.checkpoint-dot::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 7px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 0 32px color-mix(in srgb, var(--accent) 35%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 .is-done .checkpoint-dot {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--bg);
+  color: var(--on-ink);
 }
 .is-current .checkpoint-dot {
   border-color: var(--accent);
 }
 .is-selected .checkpoint-dot,
 .map-checkpoint:hover .checkpoint-dot {
-  box-shadow:
-    0 0 0 7px color-mix(in srgb, var(--accent) 18%, transparent),
-    0 0 32px color-mix(in srgb, var(--accent) 35%, transparent);
   transform: scale(1.08);
+}
+.is-selected .checkpoint-dot::after,
+.map-checkpoint:hover .checkpoint-dot::after {
+  opacity: 1;
 }
 .checkpoint-label {
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 5px 10px;
   font-size: 19px;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
-.map-checkpoint small {
+.checkpoint-dot[data-n]::before {
+  content: attr(data-n);
+  content: attr(data-n) / "";
+}
+/* Drawn by CSS and kept out of the name: the dialog already says where you are in words. */
+.map-checkpoint.is-current::after {
+  content: "You are here";
+  content: "You are here" / "";
   color: var(--accent);
   background: var(--bg);
   padding: 2px 8px;
@@ -198,8 +226,12 @@
   background: var(--panel);
   border: 1px solid var(--panel-border);
   padding: 26px;
-  border-radius: 20px;
+  border-radius: var(--radius-panel);
   min-width: 0;
+}
+/* The chosen milestone settles in as it is picked. */
+.checkpoint-detail > div:not([hidden]) {
+  animation: settle var(--dur) var(--ease-out) backwards;
 }
 .milestone-editor {
   margin-top: 18px;
@@ -209,6 +241,11 @@
   display: grid;
   gap: 10px;
   font-size: 25px;
+}
+.milestone-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
 }
 .milestone-editor summary small {
   color: var(--muted);
@@ -232,7 +269,7 @@
   width: 100%;
   min-width: 0;
   border: 1px solid var(--panel-border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--input);
   color: var(--ink);
   padding: 12px;
@@ -242,10 +279,6 @@
 .milestone-editor textarea {
   resize: vertical;
   line-height: 1.5;
-}
-.milestone-editor textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 .milestone-actions {
   display: flex;
@@ -273,7 +306,6 @@
 .route-empty {
   text-align: center;
   padding: 70px 20px;
-  color: var(--muted);
 }
 @media (max-width: 700px) {
   .roadmap-explorer {
@@ -298,12 +330,11 @@
     font-size: 17px;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .checkpoint-dot {
-    transition: none;
-  }
-}
 
 .roadmap-card > .inline-edit {
   padding: 0;
+}
+/* Edit overlays the title on hover; back it with the card's own fill, not the panel's. */
+.roadmap-card .edit-trigger {
+  background: var(--input);
 }

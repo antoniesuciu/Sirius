@@ -7,7 +7,7 @@ function formatClock(d: Date): string {
 function formatDate(d: Date): string {
   const weekday = d.toLocaleDateString('en-GB', { weekday: 'long' });
   const day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
-  return `${weekday} · ${day}`;
+  return `${weekday} ${day}`;
 }
 
 /** Dispatch this on the window to re-sync after a resume (the core reconnecting, say). */

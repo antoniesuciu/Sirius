@@ -1,5 +1,7 @@
 import type { RoadmapStep, RoadmapView } from '@sirius/contracts';
 import { useEffect, useState } from 'react';
+import { FoldTitle } from './Fold.tsx';
+import { OpenIcon } from './Icons.tsx';
 import { InlineEdit } from './InlineEdit.tsx';
 import type { RoadmapActions } from './RoadmapDetail.tsx';
 import { RoadmapDetail } from './RoadmapDetail.tsx';
@@ -43,7 +45,9 @@ export function LearningPanel({ roadmaps, onRename, onDelete, ...actions }: Lear
   return (
     <section className="panel rise d2 panel-learning">
       <div className="panel-head">
-        <h2>Learning</h2>
+        <h2>
+          <FoldTitle>Learning</FoldTitle>
+        </h2>
         <span className="label">Roadmaps</span>
       </div>
       <div className="roadmap-cards">
@@ -66,7 +70,8 @@ export function LearningPanel({ roadmaps, onRename, onDelete, ...actions }: Lear
                 >
                   <span className="node-title">{roadmap.title}</span>
                   <span className="roadmap-count">
-                    {done} / {roadmap.steps.length} milestones <span aria-hidden="true">↗</span>
+                    {done} / {roadmap.steps.length} milestones
+                    <OpenIcon />
                   </span>
                 </button>
               </InlineEdit>
@@ -92,7 +97,7 @@ export function LearningPanel({ roadmaps, onRename, onDelete, ...actions }: Lear
           );
         })}
         {roadmaps.length === 0 && (
-          <p className="roadmap-subtitle">Ask Sirius to create a learning roadmap.</p>
+          <p className="empty-line">Ask Sirius to create a learning roadmap.</p>
         )}
       </div>
       {chosen && (

@@ -1,8 +1,16 @@
 import type { AgentId, AgentInfo, AgentStatusValue, Proposal } from '@sirius/contracts';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type Live,
+  liveReducer,
+  NO_LIVE,
+  newestStoredAt,
+  storedReplies,
+  wroteAgain,
+} from './heldReply.ts';
 import { useSmoothedText } from './hooks.ts';
-import { MicIcon, PaperclipIcon, SendIcon, StopIcon } from './Icons.tsx';
+import { ArrowRightIcon, CloseIcon, MicIcon, PaperclipIcon, SendIcon, StopIcon } from './Icons.tsx';
 import { ModelPicker } from './ModelPicker.tsx';
 import type { PhoneTab, Receipt } from './PhoneTabs.tsx';
 import { type LogoState, SiriusLogo } from './SiriusLogo.tsx';
@@ -18,6 +26,8 @@ export interface ChatLine {
   attachments?: string[];
   /** What this reply changed, shown as links on the phone (F38). */
   receipts?: Receipt[];
+  /** The core's `created_at`, on lines it stored: not the pending, error or spoken-only lines. */
+  storedAt?: number;
 }
 
 /** A file waiting to go with the next message. */
@@ -26,6 +36,8 @@ export interface PendingFile {
   name: string;
   /** Such as "12 pages" or "cut to fit". */
   detail: string;
+  /** Send waits while any file is still uploading, so none is left behind. */
+  state: 'uploading' | 'ready';
 }
 
 export interface VoiceProps {
@@ -49,6 +61,8 @@ export interface SiriusPanelProps {
   onSelectAgent(agent: AgentId): void;
   onSelectModel(model: string): void;
   messages: ChatLine[];
+  /** False while the conversation is still loading, so the empty line waits. */
+  loaded?: boolean;
   /** Streamed reply so far; null when no reply is arriving. */
   streaming: string | null;
   thinking: boolean;
@@ -126,13 +140,17 @@ function LiveReply({
 
 /** Animates in once: the sent line that replaces its pending copy must not fade in again. */
 function MyBubble({ line, seen }: { line: ChatLine; seen: Set<string> }) {
-  const [fresh] = useState(() => !seen.has(line.text));
-  seen.add(line.text);
+  // What you just sent fades in once: its stored copy, matched by text, replaces the pending
+  // bubble without fading again, and lets the text go so the same words sent later fade too.
+  const pending = line.id === 'pending';
+  const [fresh] = useState(() => pending || !seen.has(line.text));
+  if (pending) seen.add(line.text);
+  else seen.delete(line.text);
   return (
     <div className={fresh ? 'bubble bubble-me msg' : 'bubble bubble-me'}>
       {line.text}
       {line.attachments && line.attachments.length > 0 && (
-        <span className="bubble-files">{line.attachments.join(' · ')}</span>
+        <span className="bubble-files">{line.attachments.join(', ')}</span>
       )}
     </div>
   );
@@ -140,16 +158,6 @@ function MyBubble({ line, seen }: { line: ChatLine; seen: Set<string> }) {
 
 function logoFor(avatar: AvatarState): LogoState {
   return avatar === 'asleep' ? 'sleep' : avatar;
-}
-
-/** A finished reply kept on screen until the stored copy replaces it, so it never blinks. */
-interface Held {
-  text: string;
-  /** The newest line when the stream began: the stored reply cannot be that line or older. */
-  after: string | undefined;
-  /** How many lines were mine then; one more means I wrote again and the hold is over. */
-  mine: number;
-  typed: boolean;
 }
 
 function ProposalCard({
@@ -181,47 +189,39 @@ export function SiriusPanel(props: SiriusPanelProps) {
   const [draft, setDraft] = useState('');
   const active = props.agents.find((a) => a.id === props.selected);
 
-  const newest = props.messages[props.messages.length - 1];
-  const [held, setHeld] = useState<Held | null>(null);
-  const mineCount = props.messages.filter((m) => m.mine).length;
-  // Set while rendering, not in an effect, so not one frame passes without the reply.
-  const [lastStream, setLastStream] = useState(props.streaming);
-  const [streamAfter, setStreamAfter] = useState<string | undefined>(undefined);
-  if (props.streaming !== lastStream) {
-    setLastStream(props.streaming);
-    if (lastStream === null) setStreamAfter(newest?.id);
-    if (props.streaming === null && lastStream) {
-      setHeld({ text: lastStream, after: streamAfter, mine: mineCount, typed: false });
-    } else if (props.streaming !== null && held) setHeld(null);
-  }
+  const [live, setLive] = useState<Live>(NO_LIVE);
+  // Stepped while rendering, not in an effect, so not one frame passes without the reply.
+  const stepped = liveReducer(live, {
+    kind: 'stream',
+    text: props.streaming,
+    after: newestStoredAt(props.messages),
+    mine: props.messages.filter((m) => m.mine).length,
+  });
+  if (stepped !== live) setLive(stepped);
   // The stored copy may already be in when the stream ends (a fast core), or come later.
-  const stored =
-    held !== null &&
-    newest !== undefined &&
-    !newest.mine &&
-    (newest.id !== held.after || newest.text.trim() === held.text.trim());
-  const wroteAgain = held !== null && mineCount > held.mine;
+  const stored = storedReplies(stepped, props.messages);
+  const gaveWay = wroteAgain(stepped, props.messages);
+  const typed = stepped.kind === 'held' && stepped.typed;
   useEffect(() => {
-    if ((stored && held?.typed) || wroteAgain) setHeld(null);
-  }, [stored, held?.typed, wroteAgain]);
-  const onTyped = useCallback(
-    () => setHeld((h) => (h && !h.typed ? { ...h, typed: true } : h)),
-    [],
-  );
-  const liveText =
-    props.streaming ?? (wroteAgain ? null : held?.text) ?? (props.thinking ? '' : null);
-  const shownMessages = stored && !wroteAgain ? props.messages.slice(0, -1) : props.messages;
+    if ((stored.size > 0 && typed) || gaveWay) setLive((l) => liveReducer(l, { kind: 'cleared' }));
+  }, [stored.size, typed, gaveWay]);
+  const onTyped = useCallback(() => setLive((l) => liveReducer(l, { kind: 'typed' })), []);
+  const held = stepped.kind === 'held' && !gaveWay ? stepped.text : null;
+  const liveText = props.streaming ?? held ?? (props.thinking ? '' : null);
+  const shownMessages =
+    held !== null ? props.messages.filter((m) => !stored.has(m.id)) : props.messages;
   const seen = useRef(new Set<string>());
   const newChat = () => {
-    setHeld(null);
+    setLive(NO_LIVE);
     props.onNewConversation();
   };
+  const uploading = props.files.some((f) => f.state === 'uploading');
 
   const picker = useRef<HTMLInputElement>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const clean = draft.trim();
-    if ((!clean && props.files.length === 0) || props.busy) return;
+    if ((!clean && props.files.length === 0) || props.busy || uploading) return;
     props.onSend(clean || 'See the attached document.');
     setDraft('');
   };
@@ -314,10 +314,8 @@ export function SiriusPanel(props: SiriusPanelProps) {
             <span className="agent-states">
               {props.agents.map((agent) => (
                 <span className="agent-state" key={agent.id}>
-                  <span
-                    className={`agent-dot ${agent.status === 'working' || agent.status === 'waiting' ? 'agent-dot-on' : ''}`}
-                  />
-                  {agent.label} · {STATUS_TEXT[agent.status]}
+                  {agent.label}{' '}
+                  <span className="agent-state-text">{STATUS_TEXT[agent.status]}</span>
                 </span>
               ))}
             </span>
@@ -358,6 +356,10 @@ export function SiriusPanel(props: SiriusPanelProps) {
               onTyped={onTyped}
             />
           )}
+          {props.loaded !== false &&
+            shownMessages.length === 0 &&
+            liveText === null &&
+            props.proposals.length === 0 && <p className="empty-line">No messages yet.</p>}
           {[...shownMessages].reverse().map((m) => {
             const open = props.onOpenTab;
             const bubble = m.mine ? (
@@ -366,7 +368,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
               <div key={m.id} className="bubble">
                 {m.text}
                 {m.attachments && m.attachments.length > 0 && (
-                  <span className="bubble-files">{m.attachments.join(' · ')}</span>
+                  <span className="bubble-files">{m.attachments.join(', ')}</span>
                 )}
               </div>
             );
@@ -382,7 +384,8 @@ export function SiriusPanel(props: SiriusPanelProps) {
                       className="receipt"
                       onClick={() => open(r.tab)}
                     >
-                      Changed {r.label} <span aria-hidden="true">→</span>
+                      Changed {r.label}
+                      <ArrowRightIcon />
                     </button>
                   ))}
                 </div>
@@ -405,7 +408,7 @@ export function SiriusPanel(props: SiriusPanelProps) {
                 aria-label={`Remove ${f.name}`}
                 onClick={() => props.onRemoveFile(f.id)}
               >
-                ×
+                <CloseIcon />
               </button>
             </li>
           ))}
@@ -460,7 +463,12 @@ export function SiriusPanel(props: SiriusPanelProps) {
             <StopIcon />
           </button>
         ) : (
-          <button type="submit" className="round round-lg" aria-label="Send" disabled={props.busy}>
+          <button
+            type="submit"
+            className="round round-lg"
+            aria-label="Send"
+            disabled={props.busy || uploading}
+          >
             <SendIcon />
           </button>
         )}
@@ -470,7 +478,6 @@ export function SiriusPanel(props: SiriusPanelProps) {
         <div className="chat-foot">
           {voice.micOpen ? (
             <span className="mic-indicator" role="status">
-              <span className="mic-indicator-dot mic-live" />
               Microphone on
             </span>
           ) : (

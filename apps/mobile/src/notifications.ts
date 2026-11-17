@@ -7,6 +7,7 @@ import { describeAgentEvent, type SiriusClient } from '@sirius/contracts';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { planNotifications } from './plan.ts';
+import { singleFlight } from './singleFlight.ts';
 
 const CHANNEL = 'sirius';
 const SEEN_KEY = 'sirius.seen-events';
@@ -43,8 +44,14 @@ export async function allowExactAlarms(): Promise<void> {
   await Notifications.requestExactAlarmPermissionsAsync().catch(() => {});
 }
 
-/** Replaces every scheduled notification with what the laptop's data says now. */
-export async function syncScheduled(client: SiriusClient): Promise<number> {
+/**
+ * Replaces every scheduled notification with what the laptop's data says now. Single-flight
+ * within this JS runtime, so a stale run cannot schedule after a newer one cancelled; the
+ * headless background task runs in its own runtime and is not coordinated with this.
+ */
+export const syncScheduled = singleFlight(syncOnce);
+
+async function syncOnce(client: SiriusClient): Promise<number> {
   const [reminders, schedule, today] = await Promise.all([
     client.call('list_reminders', {}),
     client.call('list_schedule', {}),

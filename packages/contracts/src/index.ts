@@ -1,6 +1,7 @@
 export * from './appearance.ts';
 export * from './attention.ts';
 export * from './client.ts';
+export * from './conflicts.ts';
 export * from './events.ts';
 export * from './models.ts';
 export * from './ops.ts';

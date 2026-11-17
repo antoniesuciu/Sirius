@@ -16,9 +16,12 @@ TaskManager.defineTask(SYNC_TASK, async () => {
   if (!connection) return BackgroundTask.BackgroundTaskResult.Success;
   try {
     const client = clientFor(connection);
-    await Promise.all([syncScheduled(client), notifyAgentEvents(client)]);
+    // A failed sync must not skip the widget: it still shows the saved copy, with a note.
+    const synced = await Promise.allSettled([syncScheduled(client), notifyAgentEvents(client)]);
     await refreshWidget();
-    return BackgroundTask.BackgroundTaskResult.Success;
+    return synced.some((r) => r.status === 'rejected')
+      ? BackgroundTask.BackgroundTaskResult.Failed
+      : BackgroundTask.BackgroundTaskResult.Success;
   } catch {
     // The laptop is asleep or away: what is already scheduled still fires.
     return BackgroundTask.BackgroundTaskResult.Failed;

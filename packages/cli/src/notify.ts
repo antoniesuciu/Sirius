@@ -2,7 +2,7 @@
  * `sirius notify`, called from agent hooks. Hooks must never block or fail an agent, so
  * every path exits 0 and the request gives up quickly when the core is down (spec section 9).
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync } from 'node:fs';
 import { basename } from 'node:path';
 import type { AgentEventKind, OpInput } from '@sirius/contracts';
 
@@ -49,9 +49,49 @@ export function projectFromHook(raw: string): string | undefined {
   }
 }
 
-/** A Codex PermissionRequest hook: Codex is about to ask for an approval in this folder. */
-export function fromCodexHook(raw: string): AgentEventInput {
+/** How much of the session log to search, from the end, for the current approval settings. */
+const TAIL_BYTES = 1 << 20;
+
+/**
+ * Who answers approvals in this Codex session, from its latest turn context: "user", or
+ * "auto_review" when a reviewer agent decides ("Approve for me"). The hook payload does not say,
+ * and the mode can change mid-session, so it is read from the session log. Never throws.
+ */
+export function codexReviewer(transcriptPath: unknown): string | undefined {
+  if (typeof transcriptPath !== 'string' || !transcriptPath) return undefined;
+  let fd: number | undefined;
+  try {
+    fd = openSync(transcriptPath, 'r');
+    const size = fstatSync(fd).size;
+    const length = Math.min(size, TAIL_BYTES);
+    const buffer = Buffer.alloc(length);
+    readSync(fd, buffer, 0, length, size - length);
+    const text = buffer.toString('utf8');
+    // shortcut: a turn whose output exceeds 1 MB hides its context; that falls back to alerting.
+    const at = text.lastIndexOf('"approvals_reviewer":"');
+    const policy = text.lastIndexOf('"approval_policy":"');
+    if (policy >= 0 && text.startsWith('"approval_policy":"never"', policy)) return 'never';
+    if (at < 0) return undefined;
+    return text.slice(at + 22, text.indexOf('"', at + 22));
+  } catch {
+    return undefined;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
+
+/**
+ * A Codex PermissionRequest hook: Codex is about to ask for an approval in this folder. Null
+ * when no person will be asked: the hook also fires when a reviewer agent will decide.
+ */
+export function fromCodexHook(raw: string): AgentEventInput | null {
   const project = projectFromHook(raw);
+  let transcript: unknown;
+  try {
+    transcript = (JSON.parse(raw) as { transcript_path?: unknown }).transcript_path;
+  } catch {}
+  const reviewer = codexReviewer(transcript);
+  if (reviewer === 'auto_review' || reviewer === 'never') return null;
   return {
     source: 'codex',
     kind: 'needs_input',

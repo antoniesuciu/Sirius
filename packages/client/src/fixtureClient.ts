@@ -16,6 +16,8 @@ import {
   type ListItem,
   logicalDate,
   type Message,
+  type Note,
+  type NoteFolder,
   nextOccurrence,
   type OpInput,
   type OpName,
@@ -173,6 +175,11 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       roadmap('Stochastic calculus', 'Later, for quantitative finance', 'later', []),
     ],
     list: [] as ListItem[],
+    folders: [{ ...common(), name: 'Stocks' }] as NoteFolder[],
+    notes: [] as Note[],
+    /** Deleted notes by change id, for the 30-second undo (F20). */
+    deletedNotes: new Map<string, Note>(),
+    deletedFolders: new Map<string, { folder: NoteFolder; notes: Note[] }>(),
     schedule: [
       scheduleEvent('Real analysis lecture', 0b0000101, '10:00', '11:30', 'Room 2.14'),
       scheduleEvent('Gym', 0b0001010, '18:00', '19:00', null),
@@ -193,6 +200,29 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
     proposals: [] as Proposal[],
     events: [] as AgentEvent[],
   };
+
+  // Two notes, so the notes page (F42) has something to show; the older one is pinned.
+  const stocks = state.folders[0];
+  const hoursAgo = (h: number) => Date.now() - h * 3_600_000;
+  state.notes.push(
+    {
+      ...common(),
+      updated_at: hoursAgo(2),
+      folder_id: stocks?.id ?? null,
+      title: 'NVDA thesis',
+      body: 'Data centre demand.\nExit below 100.',
+      pinned_at: null,
+    },
+    {
+      ...common(),
+      created_at: hoursAgo(72),
+      updated_at: hoursAgo(72),
+      folder_id: null,
+      title: 'Reading list',
+      body: 'Abbott, chapter 3.',
+      pinned_at: hoursAgo(72),
+    },
+  );
 
   const first = state.roadmaps[0]?.steps[0];
   if (first) {
@@ -373,6 +403,95 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       changed('list_items');
       return item;
     },
+    list_notes: () => ({
+      folders: [...state.folders].sort((a, b) => a.name.localeCompare(b.name)),
+      // As core orders them: pinned first, the latest pin on top, then the latest edit.
+      notes: [...state.notes].sort(
+        (a, b) =>
+          Number(a.pinned_at === null) - Number(b.pinned_at === null) ||
+          (b.pinned_at ?? 0) - (a.pinned_at ?? 0) ||
+          b.updated_at - a.updated_at,
+      ),
+    }),
+    add_note_folder: ({ name }) => {
+      const folder: NoteFolder = { ...common(), name };
+      state.folders.push(folder);
+      changed('note_folders');
+      return folder;
+    },
+    rename_note_folder: ({ id, name }) => {
+      const folder = find(state.folders, id);
+      folder.name = name;
+      changed('note_folders');
+      return folder;
+    },
+    delete_note_folder: ({ id }) => {
+      const folder = find(state.folders, id);
+      const notes = state.notes.filter((n) => n.folder_id === id);
+      state.folders = state.folders.filter((f) => f.id !== id);
+      state.notes = state.notes.filter((n) => n.folder_id !== id);
+      const change_id = newId();
+      state.deletedFolders.set(change_id, { folder, notes });
+      changed('note_folders');
+      changed('notes');
+      return { ok: true, change_id };
+    },
+    add_note: ({ title, body, folder_id }) => {
+      const note: Note = {
+        ...common(),
+        title,
+        body: body ?? '',
+        folder_id: folder_id ?? null,
+        pinned_at: null,
+      };
+      state.notes.push(note);
+      changed('notes');
+      return note;
+    },
+    update_note: ({ id, pinned, expected_rev, ...patch }) => {
+      const note = find(state.notes, id);
+      if (expected_rev !== undefined && note.rev !== expected_rev) {
+        throw new ApiError(
+          409,
+          'conflict',
+          'That note changed somewhere else since you opened it.',
+        );
+      }
+      Object.assign(
+        note,
+        Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)),
+        { updated_at: Date.now(), rev: note.rev + 1 },
+      );
+      if (pinned !== undefined) note.pinned_at = pinned ? (note.pinned_at ?? Date.now()) : null;
+      changed('notes');
+      return note;
+    },
+    delete_note: ({ id }) => {
+      const note = find(state.notes, id);
+      state.notes = state.notes.filter((n) => n.id !== id);
+      const change_id = newId();
+      state.deletedNotes.set(change_id, note);
+      changed('notes');
+      return { ok: true, change_id };
+    },
+    // shortcut: the fixture only undoes note deletes, enough for the notes view's Undo.
+    undo: ({ change_id }) => {
+      const gone = state.deletedFolders.get(change_id);
+      if (gone) {
+        state.deletedFolders.delete(change_id);
+        state.folders.push(gone.folder);
+        state.notes.push(...gone.notes);
+        changed('note_folders');
+        changed('notes');
+        return { ok: true, reverted: 1 + gone.notes.length };
+      }
+      const note = state.deletedNotes.get(change_id);
+      if (!note) throw new ApiError(404, 'not_found', 'Change not found');
+      state.deletedNotes.delete(change_id);
+      state.notes.push(note);
+      changed('notes');
+      return { ok: true, reverted: 1 };
+    },
     list_proposals: () => state.proposals.filter((p) => p.status === 'pending'),
     list_agent_events: () => state.events.filter((e) => !e.acknowledged_at),
     get_agents: agentsView,
@@ -450,12 +569,19 @@ export function createFixtureClient(options: FixtureOptions): SiriusClient {
       changed('roadmaps');
       return { ok: true };
     },
-    update_roadmap_step: ({ id, ...fields }) => {
+    update_roadmap_step: ({ id, expected_rev, ...fields }) => {
       const step = find(
         state.roadmaps.flatMap((r) => r.steps),
         id,
       );
-      Object.assign(step, fields);
+      if (expected_rev !== undefined && step.rev !== expected_rev) {
+        throw new ApiError(
+          409,
+          'conflict',
+          'That milestone changed somewhere else since you opened it.',
+        );
+      }
+      Object.assign(step, fields, { updated_at: Date.now(), rev: step.rev + 1 });
       if (fields.status) step.done_at = fields.status === 'done' ? Date.now() : null;
       changed('roadmap_steps');
       return step;

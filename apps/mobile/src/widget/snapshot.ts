@@ -1,5 +1,5 @@
 /** What the widget draws from: kept by the app, so the home screen works without the laptop. */
-import type { ListItem, Task } from '@sirius/contracts';
+import { ApiError, type ListItem, type Task } from '@sirius/contracts';
 
 export type WidgetTask = Pick<Task, 'id' | 'title' | 'status'>;
 export type WidgetItem = Pick<ListItem, 'id' | 'text'>;
@@ -8,6 +8,18 @@ export interface Snapshot {
   tasks: WidgetTask[];
   list: WidgetItem[];
   theme: string;
+}
+
+/** How the laptop answered the last fetch: 'ok', out of reach, or it refused this phone's token. */
+export type Link = 'ok' | 'away' | 'unpaired';
+
+export const linkAfter = (error: unknown): Link =>
+  error instanceof ApiError && error.status === 401 ? 'unpaired' : 'away';
+
+/** The widget's one-line status; the saved rows stay visible under every note. */
+export function noteFor(snapshot: Snapshot | null, link: Link): string | undefined {
+  if (!snapshot || link === 'unpaired') return 'Open Sirius to pair';
+  return link === 'away' ? 'Laptop away' : undefined;
 }
 
 /** SecureStore may refuse a value over 2048 bytes, so each saved part is kept under it. */

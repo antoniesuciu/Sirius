@@ -2,7 +2,11 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 
 const open = (page: Page, query = '?fixtures&toastMs=600000') => page.goto(`/${query}`);
-const typed = (page: Page) => expect(page.locator('h1 .caret')).toHaveCount(0, { timeout: 10_000 });
+// Typing starts only once data arrives, so wait for the whole sentence, then for the caret to go.
+const typed = async (page: Page) => {
+  await expect(page.locator('h1.greeting')).toHaveText(/(today|for you)\.$/, { timeout: 10_000 });
+  await expect(page.locator('h1 .caret')).toHaveCount(0, { timeout: 10_000 });
+};
 
 test("on a wide window the header buttons share the greeting's rows", async ({
   page,
@@ -352,6 +356,53 @@ test.describe('adding things', () => {
     await page.getByRole('button', { name: 'Tick off: Milk' }).click();
     await expect(list.locator('.task-text')).toHaveText(['A birthday card']);
   });
+
+  test('the notes card adds a note and opens the notes page on it (F42)', async ({ page }) => {
+    await open(page);
+    const notes = page.locator('.panel-notes');
+    await notes.getByLabel('New note').fill('NVDA');
+    await notes.getByRole('button', { name: 'Add note' }).click();
+    // The fixture's pinned note stays on top; then the newest edit.
+    await expect(notes.locator('.note-row-title')).toHaveText([
+      'Reading list',
+      'NVDA',
+      'NVDA thesis',
+    ]);
+    await notes
+      .getByRole('button', { name: /^NVDA\b/ })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/[?&]notes=f\d+/);
+    const view = page.getByRole('dialog', { name: 'Notes' });
+    await expect(view.getByLabel('Note', { exact: true })).toHaveValue('NVDA');
+    await view.getByRole('button', { name: 'Dashboard' }).click();
+    await expect(view).toHaveCount(0);
+    await expect(page).not.toHaveURL(/notes=/);
+  });
+
+  test('a card folds to its title and stays folded after a reload', async ({ page }) => {
+    await open(page);
+    await page.getByLabel('Add to the list').fill('Milk');
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'To remember', expanded: true }).click();
+    // Hidden, not removed: a half-typed entry would survive the fold.
+    await expect(page.getByLabel('Add to the list')).toBeHidden();
+    const folded = page.getByRole('button', { name: /To remember/, expanded: false });
+    await expect(folded).toBeVisible();
+    await expect(folded.locator('.fold-hint')).toHaveText('1');
+    await page.reload();
+    await expect(folded).toBeVisible();
+    await folded.click();
+    await expect(page.getByLabel('Add to the list')).toBeVisible();
+  });
+
+  test('folding and opening a card keeps what was typed in it', async ({ page }) => {
+    await open(page);
+    await page.getByLabel('Add to the list').fill('half-typed');
+    await page.getByRole('button', { name: 'To remember', expanded: true }).click();
+    await page.getByRole('button', { name: /To remember/, expanded: false }).click();
+    await expect(page.getByLabel('Add to the list')).toHaveValue('half-typed');
+  });
 });
 
 test.describe('sirius', () => {
@@ -533,6 +584,12 @@ test.describe('sirius', () => {
   test('the open model list has no accessibility violations', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: /^Model:/ }).click();
+    // axe reads colours mid-fade, so let the panel's entrance and the list's drop finish first.
+    await page
+      .locator('.panel-sirius')
+      .evaluate((el) =>
+        Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => {}))),
+      );
     const results = await new AxeBuilder({ page }).include('.model-picker').analyze();
     expect(results.violations).toEqual([]);
   });
@@ -557,10 +614,10 @@ test('the agent toast offers Got it and Later', async ({ page }) => {
   const width = page.viewportSize()?.width ?? 0;
   expect(box?.y).toBeLessThan(30);
   expect(Math.abs((box?.x ?? 0) + (box?.width ?? 0) / 2 - width / 2)).toBeLessThan(4);
-  await expect(page.getByText('Claude · waiting for you')).toBeVisible();
+  await expect(page.getByText('Claude waiting for you')).toBeVisible();
   await toast.getByRole('button', { name: 'Later' }).click();
   await expect(toast).toHaveCount(0);
-  await expect(page.getByText('Claude · waiting for you')).toBeVisible();
+  await expect(page.getByText('Claude waiting for you')).toBeVisible();
 });
 
 test.describe('non-functional', () => {

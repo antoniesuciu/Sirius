@@ -5,6 +5,8 @@
   --panel-border: rgba(26, 24, 20, 0.13);
   --line-soft: rgba(26, 24, 20, 0.35);
   --line-mid: rgba(26, 24, 20, 0.3);
+  /* A text field's edge: half the ink, so it holds 3:1 (WCAG 1.4.11) on every theme's ground. */
+  --field-edge: color-mix(in srgb, var(--ink) 50%, transparent);
   --rail: rgba(26, 24, 20, 0.16);
   --ink: #1a1814;
   --ink-2: #3a362e;
@@ -24,8 +26,26 @@
   --sirius-2: #8a5a36;
   --sirius-glow: #c9b98a;
 
+  /* The logo's passing glint: a highlight, the same white in every theme. */
+  --sirius-glint: #fff;
+
+  --radius-tail: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
   --radius-panel: 20px;
+  --radius-pill: 999px;
+
+  /* Motion: short and one-shot (ADR 0004). Fold.tsx and motion.ts read these too. */
+  --dur-fast: 160ms;
+  --dur: 240ms;
+  --dur-slow: 400ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --stagger: 60ms;
+
   --font: "Newsreader Variable", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, monospace;
   color-scheme: light;
 }
 
@@ -165,6 +185,8 @@
   --sirius-1: #6f9dff;
   --sirius-2: #e45c8c;
   --sirius-glow: #c4d4ff;
+  /* The solid controls' gradient, from the owner's reference; on-ink reads on every stop. */
+  --solid-gradient: linear-gradient(100deg, #6f9dff, #9b7dff 45%, #ff8a5b);
   --font: Inter, Ubuntu, "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
 }

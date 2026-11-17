@@ -97,6 +97,32 @@ export const ListItem = z.object({
 });
 export type ListItem = z.infer<typeof ListItem>;
 
+/** Notes (F42): free text kept for later, grouped in folders such as "Stocks". */
+export const NoteFolder = z.object({
+  ...Common,
+  name: z.string(),
+});
+export type NoteFolder = z.infer<typeof NoteFolder>;
+
+export const Note = z.object({
+  ...Common,
+  /** null: not in any folder. */
+  folder_id: Id.nullable(),
+  title: z.string(),
+  body: z.string(),
+  /** null: not pinned. A pinned note lists before the others. */
+  pinned_at: z.number().int().nullable(),
+});
+export type Note = z.infer<typeof Note>;
+
+export const NotesView = z.object({
+  /** By name. */
+  folders: z.array(NoteFolder),
+  /** Pinned first (most recently pinned on top), then most recently changed first. */
+  notes: z.array(Note),
+});
+export type NotesView = z.infer<typeof NotesView>;
+
 /**
  * The schedule (F37): fixed commitments such as lectures or shifts. Weekly on the days in
  * `weekdays`, or once on `date`. It never mixes with today's tasks.

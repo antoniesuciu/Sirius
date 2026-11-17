@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from sirius_voice.protocols import FRAME_SAMPLES
-from sirius_voice.session import VoiceSession, _Shutdown
+from sirius_voice.session import Phase, VoiceSession, _Shutdown
 from sirius_voice.text import Endpoint, Endpointer, SentenceBuffer
 
 SPEECH = np.ones(FRAME_SAMPLES, dtype=np.float32)
@@ -80,6 +80,9 @@ class FakeSpeaker:
 
     def stop(self):
         self.stopped.set()
+
+    def reset(self):
+        pass  # `stopped` is kept as a record of what was stopped; the real flag is tested below.
 
 
 class FakeCore:
@@ -208,10 +211,55 @@ class TestPushToTalk:
 
     def test_pressing_again_ends_the_utterance(self):
         session, parts = build(frames=[SPEECH] * 2)
-        session.listening.set()
+        session.phase = Phase.LISTENING
         session.ptt()
         assert session.end_early.is_set()
         assert session.inbox.empty()
+
+    def test_esc_before_capture_starts_cancels_the_session(self):
+        session, parts = build()
+        session.ptt()
+        session.stop()  # Queued behind the press while the models were still loading.
+        drive(session)
+        assert parts["mic"].opened == 0
+        assert ("listening", True) not in parts["core"].states
+        assert parts["core"].states[-1] == ("idle", False)
+        assert session.phase is Phase.IDLE and not session.abort.is_set()
+
+    def test_esc_while_the_models_load_cancels_the_session(self):
+        class EscDuringPrepare(FakeStt):
+            def prepare(self):
+                session.stop()
+
+        session, parts = build(stt=EscDuringPrepare())
+        drive(session, session.ptt)
+        assert parts["mic"].opened == 0
+        assert parts["core"].sent == []
+        assert session.phase is Phase.IDLE
+
+    def test_a_second_press_before_capture_starts_does_not_start_a_second_session(self):
+        class PressDuringPrepare(FakeStt):
+            def prepare(self):
+                session.ptt()
+
+        session, parts = build(stt=PressDuringPrepare())
+        drive(session, session.ptt)
+        assert parts["mic"].opened == 1
+        assert parts["core"].states.count(("listening", True)) == 1
+        assert session.phase is Phase.IDLE
+
+    def test_esc_while_thinking_suppresses_the_fast_path_reply(self):
+        class EscDuringTranscribe(FakeStt):
+            def transcribe(self, audio):
+                session.stop()
+                return super().transcribe(audio)
+
+        session, parts = build(stt=EscDuringTranscribe())
+        drive(session, session.ptt)
+        assert parts["core"].sent == [("add buy rice to today", "en")]
+        assert parts["tts"].said == []
+        assert parts["core"].states[-1] == ("idle", False)
+        assert session.phase is Phase.IDLE
 
     def test_voice_off_never_opens_the_mic(self):
         session, parts = build(core=FakeCore(enabled=False))
@@ -311,3 +359,93 @@ def test_pace_stretches_the_voice_it_is_applied_to(tmp_path):
     list(chunks)
     assert rate == 22_050
     assert voice.used.length_scale == pytest.approx(1.8)
+
+
+class FakeProcess:
+    """Stands in for pw-play: records what was written and exits at once."""
+
+    def __init__(self, *args, **kwargs):
+        self.written = []
+        self.stdin = self
+
+    def write(self, data):
+        self.written.append(data)
+
+    def flush(self):
+        pass
+
+    def close(self):
+        pass
+
+    def poll(self):
+        return 0
+
+
+def real_speaker(monkeypatch):
+    from sirius_voice import engines
+
+    processes = []
+
+    def popen(*args, **kwargs):
+        processes.append(FakeProcess())
+        return processes[-1]
+
+    monkeypatch.setattr(engines.subprocess, "Popen", popen)
+    return engines.PipeWireSpeaker(), processes
+
+
+def test_esc_between_the_abort_check_and_play_is_honored(monkeypatch):
+    speaker, processes = real_speaker(monkeypatch)
+
+    class EscWhileSynthesizing(FakeTts):
+        def synthesize(self, text, lang):
+            session.stop()  # After _speak's abort check, before play() starts.
+            return super().synthesize(text, lang)
+
+    agent = {"route": "agent", "turn_id": "turn-1", "intent": None, "reply": None}
+    session, parts = build(speaker=speaker, tts=EscWhileSynthesizing(), core=FakeCore(agent))
+    drive(session, session.ptt, lambda: session.reply("turn-1", "Hello there. ", "en", False))
+    assert [p.written for p in processes] == [[]]  # Started, but nothing was played.
+    assert session.phase is Phase.IDLE
+
+
+def test_a_stop_does_not_silence_the_next_utterance(monkeypatch):
+    speaker, processes = real_speaker(monkeypatch)
+    speaker.stop()  # Esc or a barge-in with nothing playing.
+    speaker.reset()
+    assert speaker.play([np.zeros(10, dtype=np.float32)], 22050, lambda _level: None)
+    assert processes[0].written
+
+
+def test_a_failure_does_not_swallow_a_press_that_arrived_during_it():
+    phases = []
+
+    class FailingTts(FakeTts):
+        def synthesize(self, text, lang):
+            if not self.said:
+                self.said.append((text, lang))
+                session.ptt()  # Barge-in while this reply is being synthesized.
+                raise RuntimeError("tts down")
+            return super().synthesize(text, lang)
+
+    class RecordingCore(FakeCore):
+        def set_state(self, state, **kwargs):
+            if state == "idle":
+                phases.append(session.phase)
+            super().set_state(state, **kwargs)
+
+    agent = {"route": "agent", "turn_id": "turn-1", "intent": None, "reply": None}
+    session, parts = build(tts=FailingTts(), core=RecordingCore(agent))
+    drive(session, session.ptt, lambda: session.reply("turn-1", "Hello there. ", "en", False))
+    assert phases[0] is Phase.REQUESTED  # Not reset to IDLE under the queued press.
+    assert parts["mic"].opened == 2
+
+
+def test_a_failure_before_capture_releases_its_own_press():
+    class BrokenStt(FakeStt):
+        def prepare(self):
+            raise RuntimeError("model missing")
+
+    session, parts = build(stt=BrokenStt())
+    drive(session, session.ptt)
+    assert session.phase is Phase.IDLE

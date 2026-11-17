@@ -9,6 +9,7 @@ import {
 } from '@sirius/contracts';
 import { type FormEvent, useState } from 'react';
 import { useMinute } from './Clock.tsx';
+import { FoldTitle } from './Fold.tsx';
 import { InlineEdit } from './InlineEdit.tsx';
 
 export interface NewScheduleEvent {
@@ -179,7 +180,9 @@ export function SchedulePanel({ events, today, onAdd, onRename, onDelete }: Sche
   return (
     <section className="panel panel-schedule rise d1">
       <div className="panel-head">
-        <h2>Schedule</h2>
+        <h2>
+          <FoldTitle>Schedule</FoldTitle>
+        </h2>
         <div className="sched-views" role="group" aria-label="Show">
           <button
             type="button"
@@ -203,7 +206,7 @@ export function SchedulePanel({ events, today, onAdd, onRename, onDelete }: Sche
         (todays.length > 0 ? (
           <ul className="sched-list">{todays.map(row)}</ul>
         ) : (
-          <p className="sched-empty">Nothing scheduled today.</p>
+          <p className="empty-line">Nothing scheduled today.</p>
         ))}
       {view === 'week' &&
         (week.length > 0 ? (
@@ -218,7 +221,7 @@ export function SchedulePanel({ events, today, onAdd, onRename, onDelete }: Sche
             </div>
           ))
         ) : (
-          <p className="sched-empty">Nothing scheduled this week.</p>
+          <p className="empty-line">Nothing scheduled this week.</p>
         ))}
       {adding ? (
         <AddForm onAdd={onAdd} onClose={() => setAdding(false)} />

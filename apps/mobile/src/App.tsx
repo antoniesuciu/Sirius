@@ -165,15 +165,19 @@ function Main({
     [connection.token, insets.bottom],
   );
 
-  const live = useLive((event) => {
-    const need = syncFor(event);
-    if (need.schedule) void syncScheduled(client).catch(() => {});
-    if (need.widget) void refreshWidget().catch(() => {});
-    // A new alert, or an answered one (its row changes), so the notification follows.
-    if (event.type === 'agent' || (event.type === 'change' && event.entity === 'agent_events')) {
-      void notifyAgentEvents(client).catch(() => {});
-    }
-  });
+  const live = useLive(
+    (event) => {
+      const need = syncFor(event);
+      if (need.schedule) void syncScheduled(client).catch(() => {});
+      if (need.widget) void refreshWidget().catch(() => {});
+      // A new alert, or an answered one (its row changes), so the notification follows.
+      if (event.type === 'agent' || (event.type === 'change' && event.entity === 'agent_events')) {
+        void notifyAgentEvents(client).catch(() => {});
+      }
+    },
+    // The stream does not replay what it missed, so every (re)connect redraws the widget.
+    () => void refreshWidget().catch(() => {}),
+  );
 
   // Back on screen the stream may be dead without knowing it, so reconnect and resync.
   // Android may have killed the page's renderer while away, which leaves a blank screen.
@@ -186,7 +190,11 @@ function Main({
         clearTimeout(unanswered.current);
         unanswered.current = setTimeout(() => web.current?.reload(), ALIVE_MS);
         web.current?.injectJavaScript(RESUME_SCRIPT);
-      } else setReachable(false);
+      } else {
+        setReachable(false);
+        // Leaving: the home screen shows current data at once, not at Android's next update.
+        void refreshWidget().catch(() => {});
+      }
     });
     return () => {
       sub.remove();
@@ -196,7 +204,8 @@ function Main({
 
   useEffect(() => {
     void (async () => {
-      await setUpNotifications();
+      // Denied permission or a channel error must not stop the widget or the background task.
+      await setUpNotifications().catch(() => {});
       setLateAlarms(!(await exactAlarmsAllowed()));
       await Promise.all([syncScheduled(client), notifyAgentEvents(client)]).catch(() => {});
       await refreshWidget().catch(() => {});
@@ -298,6 +307,8 @@ function Main({
           style={[s.fill, { backgroundColor: ground }, failed && s.hidden]}
           injectedJavaScriptBeforeContentLoaded={bridge}
           onMessage={onMessage}
+          // onLoad, not onLoadEnd: that one also fires after a failed load.
+          onLoad={() => setFailed(false)}
           onLoadEnd={() => SplashScreen.hide()}
           onRenderProcessGone={() => web.current?.reload()}
           onError={() => {
