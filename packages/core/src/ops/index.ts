@@ -4,6 +4,7 @@ import { dayHandlers } from './day.ts';
 import { goalHandlers } from './goals.ts';
 import { learningHandlers } from './learning.ts';
 import { listHandlers } from './list.ts';
+import { noteHandlers } from './notes.ts';
 import { reminderHandlers } from './reminders.ts';
 import { scheduleHandlers } from './schedule.ts';
 import { taskHandlers } from './tasks.ts';
@@ -15,6 +16,7 @@ export const domainHandlers = {
   ...learningHandlers,
   ...reminderHandlers,
   ...listHandlers,
+  ...noteHandlers,
   ...scheduleHandlers,
   ...dayHandlers,
 } satisfies Partial<Handlers<OpName>>;

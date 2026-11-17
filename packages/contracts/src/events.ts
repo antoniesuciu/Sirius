@@ -16,6 +16,8 @@ export const EntityName = z.enum([
   'roadmap_steps',
   'reminders',
   'list_items',
+  'note_folders',
+  'notes',
   'schedule_events',
   'day_state',
   'proposals',

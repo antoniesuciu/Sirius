@@ -17,12 +17,14 @@ const NOUNS: Record<string, string> = {
   roadmap_steps: 'step',
   reminders: 'reminder',
   list_items: 'item on the list',
+  note_folders: 'notes folder',
+  notes: 'note',
 };
 /** Enough to set the agent straight without swamping a prompt. */
 const MAX_LINES = 8;
 
 function nameOf(row: Row): string {
-  const name = row?.title ?? row?.text ?? row?.label ?? row?.summary;
+  const name = row?.title ?? row?.text ?? row?.label ?? row?.name ?? row?.summary;
   return typeof name === 'string' ? `“${name}”` : '';
 }
 

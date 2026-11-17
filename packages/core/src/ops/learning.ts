@@ -1,6 +1,7 @@
 import type { RoadmapView } from '@sirius/contracts';
 import { and, asc, eq, isNull, max } from 'drizzle-orm';
 import { roadmap_steps, roadmaps, tasks } from '../db/schema.ts';
+import { conflict } from '../errors.ts';
 import type { Handlers, OpContext } from './context.ts';
 import { nextTaskPosition } from './tasks.ts';
 
@@ -116,8 +117,11 @@ export const learningHandlers: Handlers<
     });
   },
 
-  update_roadmap_step({ id, status, ...fields }, ctx) {
-    ctx.tx.get('roadmap_steps', id);
+  update_roadmap_step({ id, status, expected_rev, ...fields }, ctx) {
+    const current = ctx.tx.get('roadmap_steps', id);
+    if (expected_rev !== undefined && current.rev !== expected_rev) {
+      throw conflict('That milestone changed somewhere else since you opened it.');
+    }
     if (status) {
       if (status === 'done') completeStep(ctx, id);
       else reopenStep(ctx, id);

@@ -106,6 +106,24 @@ export const list_items = sqliteTable('list_items', {
   done_at: integer('done_at'),
 });
 
+export const note_folders = sqliteTable('note_folders', {
+  ...common(),
+  name: text('name').notNull(),
+});
+
+export const notes = sqliteTable(
+  'notes',
+  {
+    ...common(),
+    folder_id: text('folder_id'),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    /** null: not pinned. Pinned notes list first, most recently pinned on top. */
+    pinned_at: integer('pinned_at'),
+  },
+  (t) => [index('notes_folder').on(t.folder_id)],
+);
+
 export const day_state = sqliteTable('day_state', {
   date: text('date').primaryKey(),
   ...stamps(),

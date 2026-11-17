@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { harness } from './harness.ts';
+import { CLAUDE, codeOf, harness } from './harness.ts';
 
 describe('goals', () => {
   test('add_goal creates ordered milestones', () => {
@@ -141,4 +141,22 @@ test('milestone notes persist; finishing closes its open task, reopening keeps t
   h.run('add_roadmap_step', { roadmap_id: r.id, title: 'Second' });
   expect(h.run('list_learning', {})[0]?.status).toBe('active');
   expect(() => h.run('update_roadmap_step', { id: 'missing', notes: 'x' })).toThrow();
+});
+
+test('a milestone edit from a stale copy is refused, and one without a rev still goes through', () => {
+  const h = harness();
+  const r = h.run('add_roadmap', { title: 'Route', steps: [{ title: 'First' }] });
+  const step = r.steps[0]!;
+  h.run('update_roadmap_step', { id: step.id, notes: 'agent was here' }, CLAUDE);
+  expect(
+    codeOf(() =>
+      h.run('update_roadmap_step', { id: step.id, notes: 'mine', expected_rev: step.rev }),
+    ),
+  ).toBe('conflict');
+  const fresh = h.run('list_learning', {})[0]!.steps[0]!;
+  expect(fresh.notes).toBe('agent was here');
+  expect(
+    h.run('update_roadmap_step', { id: step.id, notes: 'three', expected_rev: fresh.rev }).notes,
+  ).toBe('three');
+  expect(h.run('update_roadmap_step', { id: step.id, notes: 'mine' }).notes).toBe('mine');
 });

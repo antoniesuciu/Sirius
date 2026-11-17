@@ -27,5 +27,13 @@ export const migrations = [
   {
     "tag": "0006_next_jetstream",
     "sql": "ALTER TABLE `goals` ADD `stepped_on` text;"
+  },
+  {
+    "tag": "0007_uneven_doomsday",
+    "sql": "CREATE TABLE `note_folders` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\t`deleted_at` integer,\n\t`rev` integer DEFAULT 1 NOT NULL,\n\t`name` text NOT NULL\n);\n--> statement-breakpoint\nCREATE TABLE `notes` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\t`deleted_at` integer,\n\t`rev` integer DEFAULT 1 NOT NULL,\n\t`folder_id` text,\n\t`title` text NOT NULL,\n\t`body` text NOT NULL\n);\n--> statement-breakpoint\nCREATE INDEX `notes_folder` ON `notes` (`folder_id`);"
+  },
+  {
+    "tag": "0008_steep_meltdown",
+    "sql": "ALTER TABLE `notes` ADD `pinned_at` integer;"
   }
 ];

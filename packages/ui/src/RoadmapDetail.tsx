@@ -1,5 +1,6 @@
 import type { OpInput, RoadmapView } from '@sirius/contracts';
 import { useEffect, useRef, useState } from 'react';
+import { BackIcon } from './Icons.tsx';
 import { MilestoneEditor } from './MilestoneEditor.tsx';
 import { RoadmapRoute } from './RoadmapRoute.tsx';
 
@@ -40,11 +41,17 @@ export function RoadmapDetail({
     >
       <header className="roadmap-detail-head">
         <div>
-          <p className="label">Learning / Roadmap</p>
           <h2 id="roadmap-heading">{roadmap.title}</h2>
+          <p className="roadmap-kind">A learning roadmap</p>
         </div>
-        <button type="button" className="pill" onClick={onClose} aria-label="Close roadmap">
-          ← Dashboard
+        <button
+          type="button"
+          className="pill pill-icon"
+          onClick={onClose}
+          aria-label="Back to the dashboard"
+        >
+          <BackIcon />
+          Dashboard
         </button>
       </header>
       {roadmap.subtitle && <p className="roadmap-subtitle">{roadmap.subtitle}</p>}
@@ -76,14 +83,11 @@ export function RoadmapDetail({
           }}
         />
         <aside className="checkpoint-detail" aria-label="Selected milestone">
-          <p className="label">
-            Checkpoint{' '}
-            {selectedStep ? String(roadmap.steps.indexOf(selectedStep) + 1).padStart(2, '0') : '01'}
-          </p>
-          {roadmap.steps.map((step) => (
+          {roadmap.steps.map((step, i) => (
             <div key={step.id} hidden={step.id !== selectedStep?.id}>
               <MilestoneEditor
                 step={step}
+                number={`${i + 1} of ${roadmap.steps.length}`}
                 current={step.id === current?.id}
                 onUpdate={onUpdateStep}
                 onStepToToday={onStepToToday}

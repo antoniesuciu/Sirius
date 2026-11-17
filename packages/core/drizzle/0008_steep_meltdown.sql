@@ -1,0 +1,1 @@
+ALTER TABLE `notes` ADD `pinned_at` integer;

@@ -19,6 +19,8 @@ const entities = {
   roadmap_steps: { table: schema.roadmap_steps, pk: schema.roadmap_steps.id },
   reminders: { table: schema.reminders, pk: schema.reminders.id },
   list_items: { table: schema.list_items, pk: schema.list_items.id },
+  note_folders: { table: schema.note_folders, pk: schema.note_folders.id },
+  notes: { table: schema.notes, pk: schema.notes.id },
   schedule_events: { table: schema.schedule_events, pk: schema.schedule_events.id },
   day_state: { table: schema.day_state, pk: schema.day_state.date },
   proposals: { table: schema.proposals, pk: schema.proposals.id },

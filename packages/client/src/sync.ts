@@ -2,7 +2,7 @@
  * What the phone knows about its link to the laptop (ADR 0010): whether the core is reachable,
  * when it last was, and which queued changes the core turned down.
  */
-import { ApiError } from '@sirius/contracts';
+import { ApiError, conflictsHeld, type SiriusClient } from '@sirius/contracts';
 import { onlineManager } from '@tanstack/react-query';
 
 const LAST_SEEN_KEY = 'sirius.last-seen';
@@ -56,3 +56,34 @@ export const refusalStore = {
   },
   get: () => refusals,
 };
+
+const KEPT = ' (kept from a conflict)';
+
+/**
+ * A guarded save met a newer edit and no editor is open to ask Keep mine or Take theirs: keep
+ * its text as a new loose note instead of dropping it or overwriting the newer edit.
+ * Resolves true when it kept something.
+ */
+export async function rescueConflict(
+  client: SiriusClient,
+  op: string,
+  input: Record<string, unknown>,
+): Promise<boolean> {
+  if (input.expected_rev === undefined || conflictsHeld(String(input.id))) return false;
+  const text = (key: string) => (typeof input[key] === 'string' ? (input[key] as string) : '');
+  let title: string;
+  let body: string;
+  if (op === 'update_note') {
+    title = text('title') || 'Unsaved note';
+    body = text('body');
+  } else if (op === 'update_roadmap_step') {
+    body = [text('description'), text('notes')].filter(Boolean).join('\n\n');
+    // A tick alone carries no text to lose.
+    if (!body) return false;
+    title = `Milestone ${text('title') || 'notes'}`;
+  } else {
+    return false;
+  }
+  await client.call('add_note', { title: title.slice(0, 500 - KEPT.length) + KEPT, body });
+  return true;
+}
