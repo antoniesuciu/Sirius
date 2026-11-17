@@ -85,6 +85,47 @@ test('a new note is one surface: the first line is its title, and it saves itsel
   await expect(view.locator('.note-row-title').first()).toHaveText('Groceries');
 });
 
+test('a new folder is named in place and opens, and a note moves into it from its own picker', async ({
+  page,
+}) => {
+  const view = await openNotes(page);
+  const folders = view.getByRole('navigation', { name: 'Folders' });
+  await folders.getByRole('button', { name: 'New folder' }).click();
+  const name = folders.getByLabel('New folder name');
+  await expect(name).toBeFocused();
+  // Escape drops it without leaving the page.
+  await page.keyboard.press('Escape');
+  await expect(name).toHaveCount(0);
+  await expect(view).toBeVisible();
+
+  await folders.getByRole('button', { name: 'New folder' }).click();
+  await page.keyboard.type('Ideas');
+  await page.keyboard.press('Enter');
+  await expect(folders.getByRole('button', { name: 'Ideas 0' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(view.getByText('Nothing in this folder yet.')).toBeVisible();
+
+  // Renamed in its own row; clicking away keeps the name.
+  await folders.getByRole('button', { name: 'Rename folder: Ideas' }).click();
+  await folders.getByLabel('New name for Ideas').fill('Ideas 2026');
+  await view.getByLabel('Search notes').click();
+  await expect(folders.getByRole('button', { name: 'Ideas 2026 0' })).toBeVisible();
+
+  // The note's folder is a listbox of the page's own, not the platform's popup.
+  await folders.getByRole('button', { name: /^All notes/ }).click();
+  await view.getByRole('button', { name: /^NVDA thesis/ }).click();
+  await view.getByRole('button', { name: 'Folder: Stocks' }).click();
+  await view
+    .getByRole('listbox', { name: 'Folder' })
+    .getByRole('option', { name: 'Ideas 2026' })
+    .click();
+  await expect(view.getByRole('button', { name: 'Folder: Ideas 2026' })).toBeFocused();
+  // Saved with the note (on a phone the folder list is hidden while a note is open).
+  await expect(view.locator('.note-save')).toHaveText('Saved', { timeout: 3000 });
+});
+
 test('deleting a note offers Undo instead of asking first', async ({ page }) => {
   const view = await openNotes(page);
   await view.getByRole('button', { name: /^NVDA thesis/ }).click();

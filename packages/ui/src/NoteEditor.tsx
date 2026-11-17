@@ -1,6 +1,7 @@
 import { ApiError, holdConflicts, type Note, type NotesView } from '@sirius/contracts';
 import { useEffect, useReducer, useRef } from 'react';
 import { PinIcon } from './Icons.tsx';
+import { ModelPicker } from './ModelPicker.tsx';
 import { noteTime } from './noteText.ts';
 
 export interface NoteChanges {
@@ -331,20 +332,19 @@ export function NoteEditor({
         <span>Edited {noteTime(note.updated_at, true)}</span>
       </div>
       <div className="note-actions">
-        <label className="note-folder">
-          <span>Folder</span>
-          <select
+        <div className="note-folder">
+          <span aria-hidden="true">Folder</span>
+          <ModelPicker
+            label="Folder"
+            up
+            models={[
+              { id: '', label: 'None' },
+              ...folders.map((f) => ({ id: f.id, label: f.name })),
+            ]}
             value={state.folder_id ?? ''}
-            onChange={(e) => dispatch({ type: 'set', folder_id: e.target.value || null })}
-          >
-            <option value="">None</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={(id) => dispatch({ type: 'set', folder_id: id || null })}
+          />
+        </div>
         <button
           type="button"
           className="note-pin"

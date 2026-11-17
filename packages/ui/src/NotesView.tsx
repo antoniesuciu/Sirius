@@ -77,7 +77,8 @@ interface Deleted {
 type Shown = 'all' | 'loose' | string;
 
 export interface NotesActions {
-  onAddFolder(name: string): void;
+  /** Resolves to the new folder, so the page can open it. */
+  onAddFolder(name: string): Promise<{ id: string }>;
   onRenameFolder(id: string, name: string): void;
   /** Resolves to the change to pass to `onUndo`; undo brings the folder's notes back too. */
   onDeleteFolder(id: string): Promise<{ change_id: string }>;
@@ -98,6 +99,54 @@ export interface NotesViewProps extends NotesActions {
 
 const count = (n: number) => (n === 1 ? '1 note' : `${n} notes`);
 
+/**
+ * A folder's name, typed in place in the folder list. Enter calls `onDone(name, true)`; leaving
+ * the field `onDone(name, false)`; Escape `onDone(null, false)`. It calls once.
+ */
+function FolderName({
+  label,
+  initial,
+  onDone,
+}: {
+  label: string;
+  initial: string;
+  onDone(name: string | null, open: boolean): void;
+}) {
+  const [draft, setDraft] = useState(initial);
+  const done = useRef(false);
+  const finish = (name: string | null, open: boolean) => {
+    if (done.current) return;
+    done.current = true;
+    onDone(name, open);
+  };
+  return (
+    <form
+      className="notes-folder-naming"
+      onSubmit={(e: FormEvent) => {
+        e.preventDefault();
+        finish(draft, true);
+      }}
+    >
+      <input
+        aria-label={label}
+        placeholder="Folder name"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => finish(draft, false)}
+        onKeyDown={(e: KeyboardEvent) => {
+          if (e.key !== 'Escape') return;
+          // Only the name closes, not the whole page.
+          e.preventDefault();
+          e.stopPropagation();
+          finish(null, false);
+        }}
+        onFocus={(e) => e.currentTarget.select()}
+        autoFocus
+      />
+    </form>
+  );
+}
+
 function FolderPane({
   view,
   shown,
@@ -114,69 +163,62 @@ function FolderPane({
 }) {
   // One small form at a time: a new folder, a rename, or the delete warning.
   const [form, setForm] = useState<
-    { kind: 'none' } | { kind: 'add' | 'rename'; draft: string } | { kind: 'delete' }
+    { kind: 'none' } | { kind: 'add' } | { kind: 'rename' } | { kind: 'delete' }
   >({ kind: 'none' });
   const folder = view.folders.find((f) => f.id === shown);
   const inFolder = (id: string | null) => view.notes.filter((n) => n.folder_id === id).length;
   const rows: Array<{ id: Shown; name: string; n: number }> = [
     { id: 'all', name: 'All notes', n: view.notes.length },
     ...view.folders.map((f) => ({ id: f.id, name: f.name, n: inFolder(f.id) })),
-    { id: 'loose', name: 'No folder', n: inFolder(null) },
   ];
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (form.kind !== 'add' && form.kind !== 'rename') return;
-    const clean = form.draft.trim();
-    if (clean && form.kind === 'add') onAddFolder(clean);
+  // Enter keeps the name and, for a new folder, opens it; clicking away keeps it too; an empty
+  // name or Escape drops it.
+  const commit = (name: string | null, open: boolean) => {
+    const clean = name?.trim();
+    if (clean && form.kind === 'add') {
+      void onAddFolder(clean).then((made) => open && onShow(made.id));
+    }
     if (clean && form.kind === 'rename' && folder && clean !== folder.name) {
       onRenameFolder(folder.id, clean);
     }
     setForm({ kind: 'none' });
   };
-  const cancelOnEscape = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape') return;
-    // Only the form closes, not the whole page.
-    e.preventDefault();
-    e.stopPropagation();
-    setForm({ kind: 'none' });
-  };
+  const row = (r: { id: Shown; name: string; n: number }) =>
+    form.kind === 'rename' && folder && r.id === folder.id ? (
+      <li key={r.id}>
+        <FolderName label={`New name for ${folder.name}`} initial={folder.name} onDone={commit} />
+      </li>
+    ) : (
+      <li key={r.id}>
+        <button
+          type="button"
+          className="notes-folder-row"
+          aria-pressed={shown === r.id}
+          onClick={() => {
+            onShow(r.id);
+            setForm({ kind: 'none' });
+          }}
+        >
+          <span className="notes-folder-name">{r.name}</span>
+          <span className="notes-folder-count">{r.n}</span>
+        </button>
+      </li>
+    );
 
   return (
     <nav className="notes-folders" aria-label="Folders">
       <ul>
-        {rows.map((row) => (
-          <li key={row.id}>
-            <button
-              type="button"
-              className="notes-folder-row"
-              aria-pressed={shown === row.id}
-              onClick={() => {
-                onShow(row.id);
-                setForm({ kind: 'none' });
-              }}
-            >
-              <span className="notes-folder-name">{row.name}</span>
-              <span className="notes-folder-count">{row.n}</span>
-            </button>
+        {rows.map(row)}
+        {/* A new folder's name is typed where the folder will show: after the others. */}
+        {form.kind === 'add' && (
+          <li key="new">
+            <FolderName label="New folder name" initial="" onDone={commit} />
           </li>
-        ))}
+        )}
+        {row({ id: 'loose', name: 'No folder', n: inFolder(null) })}
       </ul>
-      {form.kind === 'add' || form.kind === 'rename' ? (
-        <form className="note-folder-add" onSubmit={submit}>
-          <input
-            aria-label={form.kind === 'add' ? 'Folder name' : 'New folder name'}
-            placeholder="Stocks…"
-            value={form.draft}
-            onChange={(e) => setForm({ kind: form.kind, draft: e.target.value })}
-            onKeyDown={cancelOnEscape}
-            autoFocus
-          />
-          <button type="submit" className="text-button">
-            {form.kind === 'add' ? 'Add' : 'Save'}
-          </button>
-        </form>
-      ) : form.kind === 'delete' && folder ? (
+      {form.kind === 'delete' && folder ? (
         <div className="notes-folder-warning" role="group" aria-label="Delete folder">
           <p>
             Deleting {folder.name} also deletes the {count(inFolder(folder.id))} in it.
@@ -200,11 +242,7 @@ function FolderPane({
         </div>
       ) : (
         <div className="notes-folder-actions">
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => setForm({ kind: 'add', draft: '' })}
-          >
+          <button type="button" className="text-button" onClick={() => setForm({ kind: 'add' })}>
             New folder
           </button>
           {folder && (
@@ -213,7 +251,7 @@ function FolderPane({
                 type="button"
                 className="text-button"
                 aria-label={`Rename folder: ${folder.name}`}
-                onClick={() => setForm({ kind: 'rename', draft: folder.name })}
+                onClick={() => setForm({ kind: 'rename' })}
               >
                 Rename
               </button>

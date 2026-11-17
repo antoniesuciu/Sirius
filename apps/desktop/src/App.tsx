@@ -685,7 +685,7 @@ export function App({ phone = false }: { phone?: boolean }) {
       offline={!online}
       onShow={notesRoute.show}
       onClose={notesRoute.close}
-      onAddFolder={(name) => addNoteFolder.mutate({ name })}
+      onAddFolder={(name) => addNoteFolder.mutateAsync({ name }) as Promise<{ id: string }>}
       onRenameFolder={(id, name) => renameNoteFolder.mutate({ id, name })}
       onDeleteFolder={(id) =>
         deleteNoteFolder.mutateAsync({ id }) as Promise<{ change_id: string }>

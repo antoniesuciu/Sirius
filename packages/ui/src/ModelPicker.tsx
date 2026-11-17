@@ -6,10 +6,14 @@ export interface ModelPickerProps {
   models: Array<{ id: string; label: string }>;
   value: string;
   onChange(id: string): void;
+  /** What is picked, for the button and list names. Defaults to Model. */
+  label?: string;
+  /** Opens above the button, for a picker near the bottom of its pane. */
+  up?: boolean;
 }
 
 /** A listbox of its own, because a native select's popup is drawn by GTK and ignores the page. */
-export function ModelPicker({ models, value, onChange }: ModelPickerProps) {
+export function ModelPicker({ models, value, onChange, label = 'Model', up }: ModelPickerProps) {
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(0);
   const button = useRef<HTMLButtonElement>(null);
@@ -62,7 +66,7 @@ export function ModelPicker({ models, value, onChange }: ModelPickerProps) {
         ref={button}
         type="button"
         className="model-button"
-        aria-label={`Model: ${chosen?.label ?? 'none'}`}
+        aria-label={`${label}: ${chosen?.label ?? 'none'}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => (open ? close() : show())}
@@ -81,18 +85,18 @@ export function ModelPicker({ models, value, onChange }: ModelPickerProps) {
       {open && (
         <ul
           ref={list}
-          className="model-list"
+          className={up ? 'model-list up' : 'model-list'}
           role="listbox"
-          aria-label="Model"
+          aria-label={label}
           tabIndex={-1}
-          aria-activedescendant={`model-${models[cursor]?.id}`}
+          aria-activedescendant={`${label}-${models[cursor]?.id}`}
           onKeyDown={onListKey}
         >
           {models.map((model, index) => (
             // Keyboard use lives on the listbox above, through aria-activedescendant.
             <li
               key={model.id}
-              id={`model-${model.id}`}
+              id={`${label}-${model.id}`}
               role="option"
               aria-selected={model.id === value}
               className={index === cursor ? 'cursor' : undefined}

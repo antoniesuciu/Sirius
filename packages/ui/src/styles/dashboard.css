@@ -519,12 +519,6 @@ ul {
 }
 
 /* Notes (F42): the card, and the notes page it opens ------------------------ */
-.note-folder-add {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.note-folder-add input,
 .notes-search,
 .note-surface {
   min-width: 0;
@@ -535,9 +529,19 @@ ul {
   color: var(--ink);
   font-size: 16px;
 }
-.note-folder-add input {
-  min-height: 44px;
+/* A folder's name typed in place: the row it will be, with the field inside it. */
+.notes-folder-naming {
+  animation: rise var(--dur) var(--ease-out);
+}
+.notes-folder-naming input {
   width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  background: var(--input);
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-size: 16px;
 }
 .note-list {
   list-style: none;
@@ -749,14 +753,19 @@ ul {
   gap: 8px;
   font-size: 15px;
 }
-.note-folder select {
+.note-folder .model-button {
   min-height: 44px;
+  max-width: 220px;
   background: var(--input);
   border: 1px solid var(--field-edge);
   border-radius: var(--radius-md);
-  padding: 0 10px;
+  padding: 0 12px;
   color: var(--ink);
-  font-size: 15px;
+}
+.note-folder .model-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .note-pin {
   min-height: 44px;
@@ -800,6 +809,9 @@ ul {
   .notes-folder-row {
     width: auto;
     border: 1px solid var(--line-mid);
+    border-radius: var(--radius-pill);
+  }
+  .notes-folder-naming input {
     border-radius: var(--radius-pill);
   }
   .notes-dialog[data-pane="note"] .notes-folders,
@@ -1322,6 +1334,11 @@ ul {
   outline: none;
   /* Transform only, so its text is at full contrast from the first frame. */
   animation: drop var(--dur-fast) var(--ease-out);
+}
+.model-list.up {
+  top: auto;
+  bottom: calc(100% + 6px);
+  animation-name: lift;
 }
 .model-list li {
   display: flex;

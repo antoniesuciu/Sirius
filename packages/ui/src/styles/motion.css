@@ -105,6 +105,11 @@
     transform: translate3d(0, -4px, 0);
   }
 }
+@keyframes lift {
+  from {
+    transform: translate3d(0, 4px, 0);
+  }
+}
 @keyframes fade {
   from {
     opacity: 0;
